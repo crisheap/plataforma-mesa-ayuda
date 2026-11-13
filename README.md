@@ -115,6 +115,7 @@ stateDiagram-v2
 .
 ├─ backend/
 │  ├─ prisma/            schema.prisma, migraciones (inicial + v2) y seed
+│  ├─ integracion/       pruebas de integración contra PostgreSQL
 │  └─ src/
 │     ├─ core/           reglas de negocio puras: estados, SLA, auditoría, notificaciones, correo, push
 │     ├─ middlewares/    autenticación, roles, seguridad, límite de peticiones, errores
@@ -126,7 +127,7 @@ stateDiagram-v2
 │     └─ server.ts       arranque de la API
 ├─ frontend/             PWA: index.html, sw.js, manifest, css/, js/ (vistas, API, tema, bot), icons/
 ├─ docs/                 ERS y documentación técnica, manual de instalación, capturas
-├─ .github/workflows/    integración continua (tipos y pruebas)
+├─ .github/workflows/    integración continua y actualización de package-lock.json
 ├─ docker-compose.yml
 └─ .env.docker.example
 ```
@@ -143,7 +144,7 @@ psql -U postgres -c "CREATE DATABASE mesa_ayuda;"
 cd backend
 cp .env.example .env            # en Windows: copy .env.example .env
 #    Edita .env: DATABASE_URL, JWT_SECRET y ADMIN_INITIAL_PASSWORD
-npm install
+npm ci                          # instala exactamente las versiones de package-lock.json
 npm run prisma:generate         # genera el cliente de Prisma
 npm run prisma:migrate          # crea las tablas
 npm run db:seed                 # roles, administrador, SLA y base de conocimiento
@@ -160,7 +161,7 @@ Para generar un `JWT_SECRET` seguro:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-> 📘 ¿Primera vez instalando un proyecto así? El [Manual de instalación](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.docx) explica cada paso para Windows, macOS y Linux, con un recorrido de prueba y una tabla de solución de problemas.
+> 📘 ¿Primera vez instalando un proyecto así? El [Manual de instalación](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.1.docx) explica cada paso para Windows, macOS y Linux, con un recorrido de prueba y una tabla de solución de problemas.
 
 ### Con Docker
 
@@ -204,7 +205,8 @@ Se ejecutan dentro de `backend/`.
 | `npm run prisma:migrate` | Aplicar migraciones (`prisma migrate deploy`) |
 | `npm run db:seed` | Cargar datos iniciales |
 | `npm run prisma:studio` | Explorador visual de la base de datos |
-| `npm run typecheck` · `npm test` | Verificar tipos y ejecutar las pruebas |
+| `npm run typecheck` · `npm test` | Verificar tipos y ejecutar las pruebas unitarias |
+| `npm run test:integracion` | Flujo completo contra PostgreSQL (usa una base de datos vacía de prueba) |
 
 Para comprobar que el servidor está sano: `http://localhost:4000/api/health?deep=1` debe responder `"db": "ok"`.
 
@@ -213,18 +215,29 @@ Para comprobar que el servidor está sano: `http://localhost:4000/api/health?dee
 ```bash
 cd backend
 npm run typecheck
-npm test
+npm test                  # 30 pruebas unitarias y de la capa HTTP, sin base de datos
+npm run test:integracion  # 13 pruebas del flujo completo contra PostgreSQL
 ```
 
-Son 29 pruebas con el ejecutor nativo de Node (`node:test`). No necesitan base de datos:
+**Unitarias y HTTP** (`node:test`, sin base de datos):
 
 - **Reglas de negocio:** transiciones de estado del caso, control de propiedad, número de caso.
 - **SLA:** cálculo de vencimiento y semáforo.
 - **Seguridad:** política de contraseñas, límite de peticiones, firmas de archivos subidos.
-- **Asistente:** búsqueda en la base de conocimiento, enmascarado de datos sensibles, clasificación del problema.
+- **Asistente:** búsqueda en la base de conocimiento, enmascarado de datos sensibles (conservando el número de caso), clasificación del problema.
 - **Capa HTTP** (con base de datos simulada): validación, autenticación, autorización por rol, bloqueo de cuenta, cambio obligatorio de contraseña, cabeceras de seguridad y CORS.
 
-La integración continua de GitHub Actions ejecuta la verificación de tipos y las pruebas en cada `push` y pull request.
+**Integración** (base de datos real, migrada y con el seed): recorre el flujo del manual con los cuatro roles. Cubre el cambio obligatorio de contraseña, la creación de usuarios, el registro con evidencias válidas e inválidas, el control de propiedad, la asignación con SLA, la atención con notas internas, el rechazo, el cierre y la calificación. También verifica el historial, las notificaciones, los reportes, la auditoría inmutable (trigger), el bloqueo manual, los permisos de SLA y el asistente. Usa una base de datos vacía: las pruebas crean usuarios y casos y necesitan el mismo `ADMIN_INITIAL_PASSWORD` del seed.
+
+**Integración continua (GitHub Actions)**, en cada `push` y pull request:
+
+| Trabajo | Qué verifica |
+|---|---|
+| Tipos y pruebas unitarias | `npm ci`, `prisma generate`, `typecheck` y `npm test` |
+| Integración con PostgreSQL | Servicio `postgres:16`, migraciones, seed y `npm run test:integracion` |
+| Despliegue con Docker Compose | Construye las imágenes, levanta base de datos + migraciones + API y comprueba `/api/health?deep=1`, la PWA y el inicio de sesión |
+
+El workflow **Actualizar package-lock.json** (pestaña *Actions*, ejecución manual) regenera el lockfile cuando cambian las dependencias.
 
 ## API
 
@@ -284,12 +297,13 @@ Los 17 hallazgos del análisis de brechas (H-01 a H-17, sección 10 del ERS) est
 
 ## Documentación
 
-| Documento | Contenido |
-|---|---|
-| [ERS y documentación técnica v2](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.docx) | Requerimientos, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico y análisis de brechas |
-| [Manual de instalación v2](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.docx) | Instalación paso a paso, recorrido de prueba y solución de problemas |
+| Documento | Para quién | Contenido |
+|---|---|---|
+| [ERS y documentación técnica v2.1](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.1.docx) | Equipo técnico y evaluadores | Requerimientos con su estado actual, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico, hallazgos corregidos, plan por fases y matriz de trazabilidad |
+| [Manual de instalación v2.1](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.1.docx) | Quien instala la plataforma | Instalación paso a paso, recorrido de prueba y solución de problemas |
+| [Manual de usuario v2.1](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.1.docx) | Usuarios, técnicos, supervisores y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
 
-Las columnas de estado del ERS describen el diagnóstico **anterior** a la versión 2.0; el estado actual es el de la tabla de trazabilidad de arriba. Más detalle en [`docs/README.md`](docs/README.md).
+Más detalle en [`docs/README.md`](docs/README.md).
 
 ## Límites conocidos y próximos pasos
 
@@ -297,5 +311,8 @@ Las columnas de estado del ERS describen el diagnóstico **anterior** a la versi
 - El limitador de peticiones vive en memoria. Con varias réplicas de la API se necesita un almacén compartido (por ejemplo, Redis).
 - Solo una instancia debe ejecutar el worker (`RUN_WORKER=true`).
 - El service worker guarda en caché solo `mis-casos`, `asignados` y el detalle de un caso, y la vacía al cerrar sesión. En equipos compartidos hay que cerrar la sesión siempre.
-- La configuración de Docker es de referencia y aún no se ha probado en un entorno real.
-- Pendiente: versionar `package-lock.json` para instalaciones reproducibles, pruebas de integración contra PostgreSQL, manual de usuario por rol y validación de la identidad visual con el SENA.
+- El envío de SMS (RF-NOT-01) depende de contratar un proveedor.
+
+**Pendientes de operación:** respaldos automáticos, monitoreo con alertas, pruebas de carga, ESLint y contrato OpenAPI, y auditorías automáticas de accesibilidad (axe) y PWA (Lighthouse).
+
+**Pendientes que dependen de terceros:** validar la paleta y la ilustración con el manual de marca de Betowa (RF-UI-03) y definir la política de retención de las conversaciones del asistente (RF-IA-07, RNF-13).
