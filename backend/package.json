@@ -13,6 +13,7 @@
     "start:worker": "node dist/worker/server.js",
     "typecheck": "tsc --noEmit",
     "test": "node --env-file=.env.test --import tsx --test \"src/**/*.test.ts\"",
+    "test:integracion": "node --import tsx --test \"integracion/**/*.integracion.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",

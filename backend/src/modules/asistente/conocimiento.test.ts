@@ -21,6 +21,12 @@ test("enmascara datos sensibles antes de guardarlos o enviarlos", () => {
   assert.match(m, /\[oculto\]/);
 });
 
+test("el enmascarado conserva el número de caso para poder consultarlo", () => {
+  const m = enmascarar("¿Cómo va mi caso CASO-2026-000001? mi celular es 300 123 4567");
+  assert.equal(extraerNumeroCaso(m), "CASO-2026-000001");
+  assert.ok(!m.includes("300 123 4567"));
+});
+
 test("detecta consultas de estado y número de caso", () => {
   assert.equal(extraerNumeroCaso("¿cómo va caso-2026-000123?"), "CASO-2026-000123");
   assert.equal(esConsultaEstado("cómo va mi caso"), true);

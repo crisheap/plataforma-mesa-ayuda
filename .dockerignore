@@ -1,0 +1,11 @@
+# Lo que nunca debe entrar a la imagen
+**/node_modules
+**/dist
+**/.test-build
+**/src/generated
+**/uploads
+**/uploads-integracion
+**/.env
+.git
+.github
+docs

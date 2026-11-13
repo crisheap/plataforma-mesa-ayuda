@@ -4,23 +4,97 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  backend:
-    name: Tipos y pruebas del backend
+  pruebas:
+    name: Tipos y pruebas unitarias
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
     env:
-      # Valor ficticio: prisma generate y las pruebas no se conectan a la base de datos.
+      # Valor ficticio: prisma generate y las pruebas unitarias no se conectan a la base de datos.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - name: Instalar dependencias
+        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
       - run: npm run prisma:generate
       - run: npm run typecheck
       - run: npm test
+
+  integracion:
+    name: Integración con PostgreSQL
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mesa
+          POSTGRES_PASSWORD: mesa
+          POSTGRES_DB: mesa_ayuda
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mesa -d mesa_ayuda"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://mesa:mesa@localhost:5432/mesa_ayuda?schema=public
+      JWT_SECRET: secreto-de-integracion-continua-con-mas-de-32-caracteres
+      ADMIN_EMAIL: admin@mesaayuda.local
+      ADMIN_INITIAL_PASSWORD: Admin#2026Ci!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar dependencias
+        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - run: npm run prisma:generate
+      - name: Migraciones
+        run: npm run prisma:migrate
+      - name: Datos iniciales
+        run: npm run db:seed
+      - name: Flujo completo contra la base de datos
+        run: npm run test:integracion
+
+  docker:
+    name: Despliegue con Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crear .env de prueba
+        run: |
+          cp .env.docker.example .env
+          sed -i 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=clave-docker-ci|' .env
+          sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
+          sed -i 's|^ADMIN_INITIAL_PASSWORD=.*|ADMIN_INITIAL_PASSWORD=Admin#2026Docker!|' .env
+          sed -i 's|^CORS_ORIGINS=.*|CORS_ORIGINS=http://localhost:4000|' .env
+      - name: Construir y levantar
+        run: docker compose up -d --build
+      - name: Esperar a la API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "http://localhost:4000/api/health?deep=1" | grep -q '"db":"ok"'; then echo "API lista"; exit 0; fi
+            sleep 3
+          done
+          echo "La API no respondió a tiempo"; exit 1
+      - name: Verificar PWA e inicio de sesión
+        run: |
+          curl -fsS http://localhost:4000/ | grep -q "<html"
+          curl -fsS http://localhost:4000/manifest.webmanifest | grep -q '"display"'
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "content-type: application/json" \
+            -d '{"correo":"admin@mesaayuda.local","password":"Admin#2026Docker!"}' http://localhost:4000/api/auth/login)
+          test "$code" = "200"
+      - name: Registros en caso de fallo
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Apagar
+        if: always()
+        run: docker compose down -v

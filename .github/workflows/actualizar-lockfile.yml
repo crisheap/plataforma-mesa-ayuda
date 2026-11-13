@@ -1,0 +1,31 @@
+name: Actualizar package-lock.json
+
+# Regenera backend/package-lock.json a partir de package.json y lo versiona.
+# Ejecútalo desde la pestaña Actions cuando cambien las dependencias.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generar lockfile
+        working-directory: backend
+        run: npm install --package-lock-only --no-audit --no-fund
+      - name: Versionar si cambió
+        run: |
+          if git diff --quiet --exit-code -- backend/package-lock.json 2>/dev/null && git ls-files --error-unmatch backend/package-lock.json >/dev/null 2>&1; then
+            echo "Sin cambios"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/package-lock.json
+          git commit -m "Actualiza backend/package-lock.json"
+          git push

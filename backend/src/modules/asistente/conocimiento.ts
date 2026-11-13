@@ -30,7 +30,8 @@ export function enmascarar(texto: string): string {
   return texto
     .replace(/\b(contrase[ñn]a|password|clave|pin|token)\b(\s*(?:es|:|=)?\s*)(\S+)/gi, "$1$2[oculto]")
     .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[correo]")
-    .replace(/\b\d[\d\s.-]{6,}\d\b/g, "[número]");
+    // Números largos (cédulas, teléfonos), excepto los números de caso CASO-AAAA-NNNNNN.
+    .replace(/(?<!caso-)\b\d[\d\s.-]{6,}\d\b/gi, "[número]");
 }
 
 export const NUMERO_CASO = /\bCASO-\d{4}-\d{6}\b/i;
