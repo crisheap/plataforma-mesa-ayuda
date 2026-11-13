@@ -1,0 +1,23 @@
+# Dependencias y compilados
+node_modules/
+dist/
+.test-build/
+backend/src/generated/
+
+# Secretos (nunca se versionan; usa .env.example / .env.docker.example)
+.env
+.env.*
+!.env.example
+!.env.docker.example
+!backend/.env.test
+
+# Evidencias cargadas por los usuarios
+uploads/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+~$*.docx

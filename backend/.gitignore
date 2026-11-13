@@ -1,0 +1,6 @@
+.env
+node_modules
+dist
+.test-build
+uploads
+src/generated

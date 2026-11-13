@@ -1,0 +1,359 @@
+// Plataforma Mesa de Ayuda – SENA · Esquema v2.0
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────── Enumeraciones ─────────────
+enum RolNombre {
+  USUARIO
+  TECNICO
+  SUPERVISOR
+  ADMINISTRADOR
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  BLOQUEADO
+  INACTIVO
+}
+
+enum TipoCaso {
+  INCIDENTE
+  REQUERIMIENTO
+  MANTENIMIENTO
+  SOLICITUD_ACCESO
+  OTROS
+}
+
+enum CategoriaCaso {
+  HARDWARE
+  SOFTWARE
+  RED
+  CORREO
+  PLATAFORMAS_INSTITUCIONALES
+}
+
+enum Prioridad {
+  ALTA
+  MEDIA
+  BAJA
+}
+
+enum EstadoCaso {
+  ABIERTO
+  ASIGNADO
+  EN_PROCESO
+  RESUELTO
+  CERRADO
+}
+
+enum TemaPreferido {
+  CLARO
+  OSCURO
+  SISTEMA
+}
+
+enum VisibilidadObservacion {
+  PUBLICA
+  INTERNA
+}
+
+enum RolMensaje {
+  USUARIO
+  ASISTENTE
+}
+
+// ───────────── Identidad ─────────────
+model Rol {
+  id        Int       @id @default(autoincrement())
+  nombre    RolNombre @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  usuarios Usuario[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  id                  Int           @id @default(autoincrement())
+  nombre              String
+  apellido            String
+  correo              String        @unique
+  password            String
+  estado              EstadoUsuario @default(ACTIVO)
+  intentosFallidos    Int           @default(0)
+  bloqueadoHasta      DateTime?
+  ultimoAcceso        DateTime?
+  preferenciaTema     TemaPreferido @default(SISTEMA)
+  debeCambiarPassword Boolean       @default(false)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  rolId Int
+  rol   Rol @relation(fields: [rolId], references: [id])
+
+  casosCreados      Caso[]                  @relation("CasosCreados")
+  casosAsignados    Caso[]                  @relation("CasosAsignados")
+  historialCasos    HistorialCaso[]
+  observaciones     Observacion[]
+  calificaciones    Calificacion[]
+  evidencias        Evidencia[]
+  auditorias        Auditoria[]
+  notificaciones    Notificacion[]
+  intentoLogins     IntentoLogin[]
+  refreshTokens     RefreshToken[]
+  suscripcionesPush SuscripcionPush[]
+  conversaciones    ConversacionAsistente[]
+
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
+}
+
+// ───────────── Casos ─────────────
+model Caso {
+  id          Int           @id @default(autoincrement())
+  numeroCaso  String        @unique
+  titulo      String
+  descripcion String
+  tipo        TipoCaso
+  categoria   CategoriaCaso
+  prioridad   Prioridad     @default(MEDIA)
+  estado      EstadoCaso    @default(ABIERTO)
+
+  fechaCreacion   DateTime  @default(now())
+  fechaAsignacion DateTime?
+  fechaResolucion DateTime?
+  fechaCierre     DateTime?
+  slaVenceEn      DateTime?
+  slaAlertado     Boolean   @default(false)
+
+  usuarioId Int
+  usuario   Usuario @relation("CasosCreados", fields: [usuarioId], references: [id])
+
+  tecnicoId Int?
+  tecnico   Usuario? @relation("CasosAsignados", fields: [tecnicoId], references: [id])
+
+  historial      HistorialCaso[]
+  evidencias     Evidencia[]
+  observaciones  Observacion[]
+  calificacion   Calificacion?
+  conversaciones ConversacionAsistente[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@index([usuarioId])
+  @@index([tecnicoId])
+  @@map("casos")
+}
+
+model ContadorCaso {
+  anio   Int @id
+  ultimo Int @default(0)
+
+  @@map("contadores_caso")
+}
+
+model HistorialCaso {
+  id             Int         @id @default(autoincrement())
+  estadoAnterior EstadoCaso?
+  estadoNuevo    EstadoCaso
+  descripcion    String?
+  fecha          DateTime    @default(now())
+
+  casoId Int
+  caso   Caso @relation(fields: [casoId], references: [id])
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("historial_casos")
+}
+
+model Evidencia {
+  id            Int      @id @default(autoincrement())
+  nombreArchivo String
+  rutaArchivo   String
+  tipoArchivo   String
+  tamano        Int
+  createdAt     DateTime @default(now())
+
+  casoId Int
+  caso   Caso @relation(fields: [casoId], references: [id])
+
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@map("evidencias")
+}
+
+model Observacion {
+  id          Int                    @id @default(autoincrement())
+  contenido   String
+  visibilidad VisibilidadObservacion @default(PUBLICA)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  casoId Int
+  caso   Caso @relation(fields: [casoId], references: [id])
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("observaciones")
+}
+
+model Calificacion {
+  id         Int      @id @default(autoincrement())
+  puntuacion Int
+  comentario String?
+  createdAt  DateTime @default(now())
+
+  casoId Int  @unique
+  caso   Caso @relation(fields: [casoId], references: [id])
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("calificaciones")
+}
+
+// ───────────── SLA, notificaciones, auditoría ─────────────
+model ConfiguracionSLA {
+  id           Int       @id @default(autoincrement())
+  prioridad    Prioridad @unique
+  tiempoMaximo Int // minutos
+  activo       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("configuracion_sla")
+}
+
+model Notificacion {
+  id              Int       @id @default(autoincrement())
+  titulo          String
+  mensaje         String
+  tipo            String    @default("GENERAL")
+  casoId          Int?
+  leida           Boolean   @default(false)
+  correoPendiente Boolean   @default(false)
+  correoEnviadoAt DateTime?
+  correoIntentos  Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, leida])
+  @@index([correoPendiente])
+  @@map("notificaciones")
+}
+
+model SuscripcionPush {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("suscripciones_push")
+}
+
+model Auditoria {
+  id          Int      @id @default(autoincrement())
+  accion      String
+  entidad     String
+  entidadId   Int?
+  descripcion String?
+  datos       Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([createdAt])
+  @@map("auditorias")
+}
+
+model IntentoLogin {
+  id        Int      @id @default(autoincrement())
+  exitoso   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@map("intentos_login")
+}
+
+// ───────────── Asistente IA ─────────────
+model ConversacionAsistente {
+  id            Int      @id @default(autoincrement())
+  titulo        String?
+  escaladaACaso Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  casoId Int?
+  caso   Caso? @relation(fields: [casoId], references: [id])
+
+  mensajes MensajeAsistente[]
+
+  @@index([usuarioId])
+  @@map("conversaciones_asistente")
+}
+
+model MensajeAsistente {
+  id        Int        @id @default(autoincrement())
+  rol       RolMensaje
+  contenido String
+  util      Boolean?
+  createdAt DateTime   @default(now())
+
+  conversacionId Int
+  conversacion   ConversacionAsistente @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+
+  @@index([conversacionId])
+  @@map("mensajes_asistente")
+}
+
+model ArticuloConocimiento {
+  id            Int            @id @default(autoincrement())
+  titulo        String
+  contenido     String
+  palabrasClave String[]
+  categoria     CategoriaCaso?
+  activo        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("articulos_conocimiento")
+}

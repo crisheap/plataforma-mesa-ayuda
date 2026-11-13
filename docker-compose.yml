@@ -1,0 +1,61 @@
+# Despliegue de referencia. Requiere un archivo .env junto a este (ver .env.docker.example).
+# Fase 1: api-core (+ asistente embebido y worker). Perfil "microservicios": asistente y worker como unidades aparte.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mesa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-mesa_ayuda}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mesa} -d ${POSTGRES_DB:-mesa_ayuda}"]
+      interval: 5s
+      retries: 10
+
+  migrate:                       # aplica migraciones y carga datos iniciales, luego termina
+    build: { context: ., dockerfile: backend/Dockerfile, target: build }
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mesa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mesa_ayuda}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@mesaayuda.local}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+    depends_on: { db: { condition: service_healthy } }
+
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile, target: runtime }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mesa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mesa_ayuda}?schema=public
+      NODE_ENV: production
+      TRUST_PROXY: "true"
+    ports: ["4000:4000"]          # en producción: publicar solo a través del proxy HTTPS (Nginx/Caddy)
+    volumes: [evidencias:/app/backend/uploads]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
+
+  asistente-ia:                   # unidad 2 (opcional): docker compose --profile microservicios up
+    profiles: [microservicios]
+    build: { context: ., dockerfile: backend/Dockerfile, target: runtime }
+    command: ["node", "dist/asistente/server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mesa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mesa_ayuda}?schema=public
+      CORE_API_URL: http://api:4000
+      ASISTENTE_PORT: "4100"
+    ports: ["4100:4100"]
+    depends_on: [api]
+
+  worker:                         # unidad 3 (opcional): notificaciones y alertas SLA
+    profiles: [microservicios]
+    build: { context: ., dockerfile: backend/Dockerfile, target: runtime }
+    command: ["node", "dist/worker/server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mesa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mesa_ayuda}?schema=public
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  evidencias:
