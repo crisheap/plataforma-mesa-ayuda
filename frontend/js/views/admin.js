@@ -363,7 +363,6 @@ export async function vistaSla() {
 
 // ───────────── Reportes y KPIs (RF-ADM-02/03) ─────────────
 export async function vistaReportes() {
-  const f = { desde: "", hasta: "", prioridad: "", tecnicoId: "" };
   const cont = h("div", { "aria-live": "polite" });
   const desde = h("input", { type: "date", "aria-label": "Desde" }),
     hasta = h("input", { type: "date", "aria-label": "Hasta" });

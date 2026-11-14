@@ -1,4 +1,4 @@
-import { api, login, actualizarUsuarioLocal } from "../api.js";
+import { api, login } from "../api.js";
 import { h, campo, toast } from "../ui.js";
 import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";

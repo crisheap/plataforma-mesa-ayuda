@@ -59,8 +59,12 @@ function resolverRuta(hash) {
     const pp = patron.split("/");
     if (pp.length !== partes.length) continue;
     const params = {};
-    if (pp.every((p, i) => (p.startsWith(":") ? ((params[p.slice(1)] = partes[i]), true) : p === partes[i])))
-      return { vista, roles, titulo, params, ruta };
+    const coincide = pp.every((p, i) => {
+      if (!p.startsWith(":")) return p === partes[i];
+      params[p.slice(1)] = partes[i];
+      return true;
+    });
+    if (coincide) return { vista, roles, titulo, params, ruta };
   }
   return null;
 }
@@ -131,7 +135,7 @@ function construirShell(u) {
         onclick: async () => {
           await logout();
         },
-        "aria-label": "Cerrar sesión",
+        title: "Cerrar sesión", // el nombre accesible es el texto visible «Salir» (WCAG 2.5.3)
       },
       "Salir",
     ),
@@ -155,14 +159,17 @@ function construirShell(u) {
       ),
     );
 
-  shell = { main, banner, contador, pintarNav, chip };
+  shell = { main, banner, contador, campana, pintarNav, chip };
   actualizarEstadoRed();
 }
 
 function pintarContador() {
   if (!shell) return;
-  shell.contador.textContent = noLeidas > 99 ? "99+" : String(noLeidas);
+  const texto = noLeidas > 99 ? "99+" : String(noLeidas);
+  shell.contador.textContent = texto;
   shell.contador.classList.toggle("hidden", noLeidas === 0);
+  // El nombre accesible incluye el número visible (WCAG 2.5.3, «etiqueta en el nombre»).
+  shell.campana.setAttribute("aria-label", noLeidas ? `Notificaciones: ${texto} sin leer` : "Notificaciones");
 }
 export async function refrescarNotificaciones() {
   if (!getUsuario() || getUsuario().debeCambiarPassword || !navigator.onLine) return;
