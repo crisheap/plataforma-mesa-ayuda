@@ -25,10 +25,8 @@ jobs:
         run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
       - run: npm run prisma:generate
       - run: npm run typecheck
-      - name: ESLint
-        run: npm run lint
-      - name: Formato (Prettier)
-        run: npm run format:check
+      - name: Análisis estático y formato (Biome)
+        run: npm run check
       - run: npm test
 
   integracion:
