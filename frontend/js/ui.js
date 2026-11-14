@@ -1,4 +1,10 @@
 /* Utilidades de interfaz. Todo el texto dinámico se inserta con textContent (sin innerHTML). */
+/**
+ * Propiedades de un contenedor de tabla con desplazamiento horizontal: enfocable con el teclado
+ * y anunciado como región (WCAG 2.1.1 y regla «scrollable-region-focusable» de axe).
+ */
+export const envolturaTabla = (nombre) => ({ class: "table-wrap", tabindex: "0", role: "region", "aria-label": nombre });
+
 export function h(tag, props = {}, ...hijos) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props ?? {})) {

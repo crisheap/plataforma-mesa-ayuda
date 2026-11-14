@@ -1,5 +1,6 @@
 import { api, descargar } from "../api.js";
 import {
+  envolturaTabla,
   h,
   montar,
   modal,
@@ -45,7 +46,7 @@ export async function vistaUsuarios({ usuario: yo }) {
         d.items.length
           ? h(
               "div",
-              { class: "table-wrap" },
+              envolturaTabla("Usuarios"),
               h(
                 "table",
                 {},
@@ -329,7 +330,7 @@ export async function vistaSla() {
       ),
       h(
         "div",
-        { class: "table-wrap" },
+        envolturaTabla("Tiempos de SLA por prioridad"),
         h(
           "table",
           {},
@@ -505,7 +506,7 @@ export async function vistaAuditoria() {
         d.items.length
           ? h(
               "div",
-              { class: "table-wrap" },
+              envolturaTabla("Bitácora de auditoría"),
               h(
                 "table",
                 {},

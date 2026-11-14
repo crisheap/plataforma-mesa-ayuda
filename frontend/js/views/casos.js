@@ -1,5 +1,6 @@
 import { api } from "../api.js";
 import {
+  envolturaTabla,
   h,
   montar,
   badgeEstado,
@@ -34,7 +35,7 @@ export function tablaCasos(items, { mostrarSla = false, mostrarSolicitante = fal
   ];
   return h(
     "div",
-    { class: "table-wrap" },
+    envolturaTabla("Lista de casos"),
     h(
       "table",
       {},
