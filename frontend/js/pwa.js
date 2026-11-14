@@ -12,11 +12,15 @@ export const estaInstalada = () => window.matchMedia("(display-mode: standalone)
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   promptInstalacion = e;
-  oyentes.forEach((f) => { f(); });
+  oyentes.forEach((f) => {
+    f();
+  });
 });
 window.addEventListener("appinstalled", () => {
   promptInstalacion = null;
-  oyentes.forEach((f) => { f(); });
+  oyentes.forEach((f) => {
+    f();
+  });
   toast("¡Aplicación instalada!");
 });
 
@@ -25,7 +29,9 @@ export async function instalar() {
   promptInstalacion.prompt();
   const { outcome } = await promptInstalacion.userChoice;
   promptInstalacion = null;
-  oyentes.forEach((f) => { f(); });
+  oyentes.forEach((f) => {
+    f();
+  });
   return outcome === "accepted";
 }
 
