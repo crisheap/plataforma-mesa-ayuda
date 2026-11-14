@@ -29,7 +29,10 @@ const telefonoContacto = z
   .max(20, "El número de contacto es muy largo")
   .optional()
   .transform((v) => (v ? v.replace(/\s+/g, " ") : undefined))
-  .refine((v) => v === undefined || /^\+?[\d\s()-]+$/.test(v), "El número de contacto solo puede tener dígitos, espacios, guiones, paréntesis y +")
+  .refine(
+    (v) => v === undefined || /^\+?[\d\s()-]+$/.test(v),
+    "El número de contacto solo puede tener dígitos, espacios, guiones, paréntesis y +",
+  )
   .refine((v) => {
     const digitos = v?.replace(/\D/g, "").length ?? 0;
     return v === undefined || (digitos >= 7 && digitos <= 15);

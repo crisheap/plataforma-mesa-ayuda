@@ -226,12 +226,7 @@ const OPERACIONES: Operacion[] = [
           examples: ["+57 300 123 4567"],
         },
       },
-      [
-      "titulo",
-      "descripcion",
-      "tipo",
-      "categoria",
-      ],
+      ["titulo", "descripcion", "tipo", "categoria"],
     ),
     respuesta: ref("Caso"),
   },
