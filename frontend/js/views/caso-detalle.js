@@ -139,6 +139,16 @@ export async function vistaCasoDetalle({ params, usuario: u }) {
               ...dato("Tipo", TIPOS[c.tipo]),
               ...dato("Categoría", CATEGORIAS[c.categoria]),
               ...dato("Solicitante", c.usuario?.nombreCompleto),
+              ...dato(
+                "Contacto",
+                c.telefonoContacto
+                  ? h(
+                      "a",
+                      { href: `tel:${c.telefonoContacto.replace(/[^\d+]/g, "")}`, "aria-label": `Llamar al ${c.telefonoContacto}` },
+                      c.telefonoContacto,
+                    )
+                  : "No registrado",
+              ),
               ...dato("Técnico", c.tecnico?.nombreCompleto ?? "Sin asignar"),
               ...dato("Creado", fecha(c.fechaCreacion)),
               ...dato("Asignado", fecha(c.fechaAsignacion)),

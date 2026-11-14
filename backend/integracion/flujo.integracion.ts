@@ -108,8 +108,10 @@ test("el usuario registra un caso con número único y evidencia válida", async
     descripcion: "Desde esta mañana el sistema rechaza mi contraseña.",
     tipo: "INCIDENTE",
     categoria: "PLATAFORMAS_INSTITUCIONALES",
+    telefonoContacto: "+57  300 123-4567",
   });
   assert.equal(r.status, 201, JSON.stringify(r.json));
+  assert.equal(r.json.data.telefonoContacto, "+57 300 123-4567", "se guarda normalizado");
   casoId = r.json.data.id;
   numeroCaso = r.json.data.numeroCaso;
   assert.match(numeroCaso, /^CASO-\d{4}-\d{6}$/);
@@ -144,6 +146,10 @@ test("el supervisor asigna técnico y prioridad", async () => {
   assert.equal(r.json.data.estado, "ASIGNADO");
   assert.equal(r.json.data.prioridad, "ALTA");
   assert.ok(r.json.data.sla.venceEn, "el caso debe tener vencimiento de SLA");
+  // El técnico asignado ve el número de contacto del solicitante (RF-CAS-14)
+  const visto = await llamar("GET", `/api/casos/${casoId}`, tokens.tecnico);
+  assert.equal(visto.status, 200);
+  assert.equal(visto.json.data.telefonoContacto, "+57 300 123-4567");
 });
 
 test("el técnico atiende y resuelve; el usuario rechaza y luego confirma", async () => {

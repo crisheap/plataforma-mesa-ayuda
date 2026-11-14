@@ -23,6 +23,14 @@ export async function vistaCasoNuevo() {
   const descripcion = h("textarea", { maxlength: "4000", required: true }, pre.descripcion ?? "");
   const tipo = h("select", {}, opciones(TIPOS, pre.tipo ?? "INCIDENTE"));
   const categoria = h("select", {}, opciones(CATEGORIAS, pre.categoria ?? "SOFTWARE"));
+  const telefono = h("input", {
+    type: "tel",
+    inputmode: "tel",
+    autocomplete: "tel",
+    maxlength: "20",
+    placeholder: "Ej.: 300 123 4567",
+    value: pre.telefonoContacto ?? "",
+  });
   const archivos = h("input", { type: "file", multiple: true, accept: ACEPTA });
   const error = h("div", { class: "alert hidden", role: "alert" });
   const boton = h("button", { class: "btn primary", type: "submit" }, "Enviar caso");
@@ -34,11 +42,24 @@ export async function vistaCasoNuevo() {
       onsubmit: async (e) => {
         e.preventDefault();
         error.classList.add("hidden");
-        const datos = { titulo: titulo.value.trim(), descripcion: descripcion.value.trim(), tipo: tipo.value, categoria: categoria.value };
+        const datos = {
+          titulo: titulo.value.trim(),
+          descripcion: descripcion.value.trim(),
+          tipo: tipo.value,
+          categoria: categoria.value,
+          telefonoContacto: telefono.value.trim() || undefined,
+        };
         const grandes = [...archivos.files].filter((f) => f.size > MAX_MB * 1024 * 1024);
         if (datos.titulo.length < 5 || datos.descripcion.length < 10) {
           error.textContent = "El título debe tener al menos 5 caracteres y la descripción al menos 10.";
           error.classList.remove("hidden");
+          return;
+        }
+        const digitos = (datos.telefonoContacto ?? "").replace(/\D/g, "").length;
+        if (datos.telefonoContacto && (!/^\+?[\d\s()-]+$/.test(datos.telefonoContacto) || digitos < 7 || digitos > 15)) {
+          error.textContent = "El número de contacto debe tener entre 7 y 15 dígitos (puedes usar +, espacios y guiones).";
+          error.classList.remove("hidden");
+          telefono.focus();
           return;
         }
         if (grandes.length) {
@@ -86,9 +107,24 @@ export async function vistaCasoNuevo() {
     campo("Título", titulo, "Resume el problema en una frase."),
     campo("Descripción", descripcion, "Cuenta qué pasó, cuándo empezó y qué intentaste."),
     h("div", { class: "grid cols-2" }, campo("Tipo de caso", tipo), campo("Categoría", categoria)),
+    campo(
+      "Número de contacto (opcional)",
+      telefono,
+      "El técnico asignado lo usará para llamarte o escribirte. Solo lo ven tú, el técnico y los supervisores.",
+    ),
     campo("Evidencias (opcional)", archivos, `Imágenes, PDF, documentos o videos. Máximo ${MAX_MB} MB por archivo y 5 archivos.`),
     h("div", { class: "row" }, boton, h("a", { class: "btn", href: "#/inicio" }, "Cancelar")),
   );
+
+  // Propone el número usado en el caso más reciente del usuario (RF-CAS-14).
+  if (!telefono.value && navigator.onLine) {
+    api("/api/casos/mis-casos?page=1&pageSize=1")
+      .then((r) => {
+        const ultimo = r?.items?.[0]?.telefonoContacto;
+        if (ultimo && !telefono.value) telefono.value = ultimo;
+      })
+      .catch(() => undefined);
+  }
 
   return h(
     "div",

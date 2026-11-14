@@ -39,8 +39,8 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 
 | Rol | Qué puede hacer |
 |---|---|
-| **Usuario** | Registrar casos con tipo, categoría y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
-| **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
+| **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
+| **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
 | **Supervisor** | Ver todos los casos · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · KPIs, reportes y bitácora de auditoría |
 | **Administrador** | Gestionar usuarios (crear, editar, bloquear, inactivar) · restablecer contraseñas · configurar tiempos de SLA · administrar la base de conocimiento del asistente |
 
@@ -319,6 +319,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | Requerimiento | Implementación |
 |---|---|
 | RF-CAS-01…04, 11, 13 · Casos, número único, observaciones, calificación | `modules/casos/`, `core/reglas.ts` |
+| RF-CAS-14 · Número de contacto del solicitante | `telefonoContacto` en `casos.routes.ts` y migración `20261114230000_telefono_contacto`; `views/caso-nuevo.js` y `views/caso-detalle.js` |
 | RF-CAS-05 · Evidencias | `modules/casos/upload.ts`, `casos.routes.ts` |
 | RF-CAS-06/07/10 · Detalle, «mis casos», panel del técnico | `GET /api/casos/:id`, `/mis-casos`, `/asignados` |
 | RF-CAS-08/09 · Asignación y prioridad | `PATCH /:id/asignar`, `/:id/prioridad`, `GET /api/usuarios/tecnicos` |
@@ -349,7 +350,7 @@ Los 17 hallazgos del análisis de brechas (H-01 a H-17, sección 10 del ERS) est
 |---|---|---|
 | [ERS y documentación técnica v2.2](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.2.docx) | Equipo técnico y evaluadores | Requerimientos con su estado actual, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico, hallazgos corregidos, plan por fases y matriz de trazabilidad |
 | [Manual de instalación v2.2](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.2.docx) | Quien instala la plataforma | Instalación paso a paso, recorrido de prueba, respaldos, documentación de la API, métricas y solución de problemas |
-| [Manual de usuario v2.1](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.1.docx) | Usuarios, técnicos, supervisores y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
+| [Manual de usuario v2.2](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.2.docx) | Usuarios, técnicos, supervisores y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
 
 Más detalle en [`docs/README.md`](docs/README.md).
 

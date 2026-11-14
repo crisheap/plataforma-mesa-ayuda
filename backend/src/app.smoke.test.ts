@@ -173,6 +173,13 @@ test("validación del caso antes de tocar la base de datos", async () => {
   assert.equal(r.status, 400);
   const campos = (await r.json()).errors.map((e: { field: string }) => e.field);
   assert.deepEqual(campos.sort(), ["descripcion", "tipo", "titulo"]);
+  // Número de contacto (RF-CAS-14): solo dígitos y separadores, de 7 a 15 dígitos
+  const valido = { titulo: "Falla de red", descripcion: "No hay internet en la sala", tipo: "INCIDENTE", categoria: "RED" };
+  for (const telefonoContacto of ["12345", "llámame al 300", "+57 300 123 4567 8901 23"]) {
+    const t = await post("/api/casos", { ...valido, telefonoContacto }, u);
+    assert.equal(t.status, 400, `debería rechazar «${telefonoContacto}»`);
+    assert.deepEqual((await t.json()).errors.map((e: { field: string }) => e.field), ["telefonoContacto"]);
+  }
   assert.equal((await get("/api/casos/abc", u)).status, 400);
   assert.equal((await get("/api/casos/por-numero/ABC", u)).status, 400);
 });

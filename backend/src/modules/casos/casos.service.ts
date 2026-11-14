@@ -71,7 +71,10 @@ export async function cargarAutorizado(id: number, actor: Actor) {
 }
 
 // ───────────── Crear ─────────────
-export async function crear(actor: Actor, d: { titulo: string; descripcion: string; tipo: TipoCaso; categoria: CategoriaCaso }) {
+export async function crear(
+  actor: Actor,
+  d: { titulo: string; descripcion: string; tipo: TipoCaso; categoria: CategoriaCaso; telefonoContacto?: string },
+) {
   const caso = await prisma.$transaction(async (tx) => {
     const prioridad: Prioridad = "MEDIA"; // la prioridad la define el Supervisor/Administrador (H-07)
     const min = await minutosSla(prioridad, tx);
@@ -83,6 +86,7 @@ export async function crear(actor: Actor, d: { titulo: string; descripcion: stri
         descripcion: d.descripcion,
         tipo: d.tipo,
         categoria: d.categoria,
+        telefonoContacto: d.telefonoContacto ?? null,
         prioridad,
         usuarioId: actor.userId,
         fechaCreacion: ahora,

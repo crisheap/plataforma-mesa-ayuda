@@ -136,6 +136,8 @@ model Caso {
   descripcion String
   tipo        TipoCaso
   categoria   CategoriaCaso
+  // Número para que el técnico contacte al solicitante (RF-CAS-14). Opcional.
+  telefonoContacto String?    @db.VarChar(20)
   prioridad   Prioridad     @default(MEDIA)
   estado      EstadoCaso    @default(ABIERTO)
 

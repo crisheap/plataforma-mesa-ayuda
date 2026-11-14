@@ -212,12 +212,27 @@ const OPERACIONES: Operacion[] = [
     resumen: "Registrar un caso (nace ABIERTO con prioridad MEDIA)",
     roles: "Cualquier rol",
     codigo: 201,
-    cuerpo: obj({ titulo: txt(5, 150), descripcion: txt(10, 4000), tipo: enumer(...TIPOS), categoria: enumer(...CATEGORIAS) }, [
+    cuerpo: obj(
+      {
+        titulo: txt(5, 150),
+        descripcion: txt(10, 4000),
+        tipo: enumer(...TIPOS),
+        categoria: enumer(...CATEGORIAS),
+        telefonoContacto: {
+          type: "string",
+          maxLength: 20,
+          pattern: "^\\+?[\\d\\s()-]+$",
+          description: "Opcional. Número para que el técnico contacte al solicitante (7 a 15 dígitos).",
+          examples: ["+57 300 123 4567"],
+        },
+      },
+      [
       "titulo",
       "descripcion",
       "tipo",
       "categoria",
-    ]),
+      ],
+    ),
     respuesta: ref("Caso"),
   },
   {
@@ -560,6 +575,7 @@ const COMPONENTES = {
         categoria: enumer(...CATEGORIAS),
         estado: enumer(...ESTADOS),
         prioridad: enumer(...PRIORIDADES),
+        telefonoContacto: { type: ["string", "null"] },
         solucion: { type: ["string", "null"] },
         createdAt: fecha,
         updatedAt: fecha,

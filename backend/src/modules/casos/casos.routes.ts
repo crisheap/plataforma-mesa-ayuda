@@ -19,11 +19,28 @@ const CATEGORIAS = ["HARDWARE", "SOFTWARE", "RED", "CORREO", "PLATAFORMAS_INSTIT
 const PRIORIDADES = ["ALTA", "MEDIA", "BAJA"] as const;
 const ESTADOS = ["ABIERTO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"] as const;
 
+/**
+ * Número de contacto del solicitante (RF-CAS-14): opcional; admite +, espacios, guiones y
+ * paréntesis, y debe tener entre 7 y 15 dígitos. Se guarda normalizado (sin espacios repetidos).
+ */
+const telefonoContacto = z
+  .string()
+  .trim()
+  .max(20, "El número de contacto es muy largo")
+  .optional()
+  .transform((v) => (v ? v.replace(/\s+/g, " ") : undefined))
+  .refine((v) => v === undefined || /^\+?[\d\s()-]+$/.test(v), "El número de contacto solo puede tener dígitos, espacios, guiones, paréntesis y +")
+  .refine((v) => {
+    const digitos = v?.replace(/\D/g, "").length ?? 0;
+    return v === undefined || (digitos >= 7 && digitos <= 15);
+  }, "El número de contacto debe tener entre 7 y 15 dígitos");
+
 const crearSchema = z.object({
   titulo: z.string().trim().min(5, "El título debe tener al menos 5 caracteres").max(150),
   descripcion: z.string().trim().min(10, "La descripción debe tener al menos 10 caracteres").max(4000),
   tipo: z.enum(TIPOS),
   categoria: z.enum(CATEGORIAS),
+  telefonoContacto,
 });
 const fecha = z.coerce.date().optional();
 const filtrosSchema = paginacion.extend({

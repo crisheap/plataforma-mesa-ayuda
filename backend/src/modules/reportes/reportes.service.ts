@@ -96,6 +96,7 @@ export async function casosParaExcel(f: RangoFiltro) {
     prioridad: c.prioridad,
     estado: c.estado,
     solicitante: nombreCompleto(c.usuario),
+    contacto: c.telefonoContacto ?? "",
     tecnico: c.tecnico ? nombreCompleto(c.tecnico) : "",
     creacion: c.fechaCreacion,
     asignacion: c.fechaAsignacion,

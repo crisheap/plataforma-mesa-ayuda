@@ -40,6 +40,7 @@ router.get("/casos.xlsx", async (req, res) => {
     { header: "Prioridad", key: "prioridad", width: 11 },
     { header: "Estado", key: "estado", width: 13 },
     { header: "Solicitante", key: "solicitante", width: 26 },
+    { header: "Contacto", key: "contacto", width: 18 },
     { header: "Técnico", key: "tecnico", width: 26 },
     { header: "Creación", key: "creacion", width: 19 },
     { header: "Asignación", key: "asignacion", width: 19 },
