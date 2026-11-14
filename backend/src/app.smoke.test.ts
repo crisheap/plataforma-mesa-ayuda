@@ -13,30 +13,71 @@ process.env.DATABASE_URL = "postgresql://x:x@localhost:5432/x";
 process.env.CORS_ORIGINS = "http://permitido.test";
 process.env.METRICS_TOKEN = "token-de-metricas-de-prueba";
 
-type U = { id: number; nombre: string; apellido: string; correo: string; password: string; estado: string; intentosFallidos: number; bloqueadoHasta: Date | null; preferenciaTema: string; debeCambiarPassword: boolean; ultimoAcceso: Date | null; createdAt: Date; rol: { nombre: string } };
+type U = {
+  id: number;
+  nombre: string;
+  apellido: string;
+  correo: string;
+  password: string;
+  estado: string;
+  intentosFallidos: number;
+  bloqueadoHasta: Date | null;
+  preferenciaTema: string;
+  debeCambiarPassword: boolean;
+  ultimoAcceso: Date | null;
+  createdAt: Date;
+  rol: { nombre: string };
+};
 const usuarios = new Map<number, U>();
 const mk = (id: number, rol: string, correo: string, hash: string, extra: Partial<U> = {}): U => ({
-  id, nombre: "María Fernanda", apellido: "Gómez Ruiz", correo, password: hash, estado: "ACTIVO", intentosFallidos: 0, bloqueadoHasta: null,
-  preferenciaTema: "SISTEMA", debeCambiarPassword: false, ultimoAcceso: null, createdAt: new Date(), rol: { nombre: rol }, ...extra,
+  id,
+  nombre: "María Fernanda",
+  apellido: "Gómez Ruiz",
+  correo,
+  password: hash,
+  estado: "ACTIVO",
+  intentosFallidos: 0,
+  bloqueadoHasta: null,
+  preferenciaTema: "SISTEMA",
+  debeCambiarPassword: false,
+  ultimoAcceso: null,
+  createdAt: new Date(),
+  rol: { nombre: rol },
+  ...extra,
 });
-const pick = (u: U, select?: Record<string, unknown>) => (select ? Object.fromEntries(Object.keys(select).map((k) => [k, (u as never)[k]])) : u);
-const buscar = (where: { correo?: string; id?: number }) => [...usuarios.values()].find((u) => (where.correo ? u.correo === where.correo : u.id === where.id));
+const pick = (u: U, select?: Record<string, unknown>) =>
+  select ? Object.fromEntries(Object.keys(select).map((k) => [k, (u as never)[k]])) : u;
+const buscar = (where: { correo?: string; id?: number }) =>
+  [...usuarios.values()].find((u) => (where.correo ? u.correo === where.correo : u.id === where.id));
 
 const fake = {
   usuario: {
-    findUnique: async ({ where, select }: { where: { correo?: string; id?: number }; select?: Record<string, unknown> }) => { const u = buscar(where); return u ? pick(u, select) : null; },
+    findUnique: async ({ where, select }: { where: { correo?: string; id?: number }; select?: Record<string, unknown> }) => {
+      const u = buscar(where);
+      return u ? pick(u, select) : null;
+    },
     update: async ({ where, data }: { where: { id: number }; data: Partial<U> }) => Object.assign(usuarios.get(where.id)!, data),
   },
   intentoLogin: { create: async () => ({}) },
-  refreshToken: { create: async () => ({}), findUnique: async () => null, update: async () => ({}), updateMany: async () => ({ count: 0 }) },
+  refreshToken: {
+    create: async () => ({}),
+    findUnique: async () => null,
+    update: async () => ({}),
+    updateMany: async () => ({ count: 0 }),
+  },
   auditoria: { create: async () => ({}) },
   $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   $queryRaw: async () => [{ "?column?": 1 }],
 };
 
-let server: Server, base = "";
+let server: Server,
+  base = "";
 const post = (ruta: string, body: unknown, token?: string) =>
-  fetch(base + ruta, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  fetch(base + ruta, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
 const get = (ruta: string, token?: string, headers: Record<string, string> = {}) =>
   fetch(base + ruta, { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers } });
 
@@ -50,7 +91,9 @@ before(async () => {
   const ruta = require.resolve("./config/prisma");
   require.cache[ruta] = { id: ruta, filename: ruta, loaded: true, exports: { prisma: fake } } as unknown as NodeModule;
   const app = require("./app").default;
-  await new Promise<void>((ok) => { server = app.listen(0, ok); });
+  await new Promise<void>((ok) => {
+    server = app.listen(0, ok);
+  });
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
 after(() => server?.close());
@@ -114,8 +157,8 @@ test("autenticación y autorización por rol", async () => {
   const me = await get("/api/auth/me", u);
   assert.equal(me.status, 200);
   assert.equal((await me.json()).data.nombreCompleto, "María Fernanda Gómez Ruiz");
-  assert.equal((await get("/api/usuarios", u)).status, 403);        // solo administrador
-  assert.equal((await get("/api/casos", u)).status, 403);           // solo supervisor/administrador
+  assert.equal((await get("/api/usuarios", u)).status, 403); // solo administrador
+  assert.equal((await get("/api/casos", u)).status, 403); // solo supervisor/administrador
   assert.equal((await get("/api/reportes/kpis", u)).status, 403);
   assert.equal((await get("/api/auditoria", u)).status, 403);
   assert.equal((await get("/api/casos/asignados", u)).status, 403); // solo técnico
@@ -138,14 +181,31 @@ test("una cuenta con contraseña temporal solo puede ver su perfil y cambiar la 
   const t = (await (await post("/api/auth/login", { correo: "temporal@sena.edu.co", password: "Segura#2026ok" })).json()).data.token;
   assert.equal((await get("/api/auth/me", t)).status, 200);
   assert.equal((await get("/api/casos/mis-casos", t)).status, 403);
-  assert.equal((await post("/api/casos", { titulo: "Falla de red", descripcion: "No hay internet en la sala", tipo: "INCIDENTE", categoria: "RED" }, t)).status, 403);
+  assert.equal(
+    (
+      await post(
+        "/api/casos",
+        { titulo: "Falla de red", descripcion: "No hay internet en la sala", tipo: "INCIDENTE", categoria: "RED" },
+        t,
+      )
+    ).status,
+    403,
+  );
 });
 
 test("tema: valor inválido rechazado", async () => {
   const u = (await (await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok" })).json()).data.token;
-  const r = await fetch(base + "/api/auth/tema", { method: "PATCH", headers: { "content-type": "application/json", authorization: `Bearer ${u}` }, body: JSON.stringify({ preferenciaTema: "AZUL" }) });
+  const r = await fetch(base + "/api/auth/tema", {
+    method: "PATCH",
+    headers: { "content-type": "application/json", authorization: `Bearer ${u}` },
+    body: JSON.stringify({ preferenciaTema: "AZUL" }),
+  });
   assert.equal(r.status, 400);
-  const ok = await fetch(base + "/api/auth/tema", { method: "PATCH", headers: { "content-type": "application/json", authorization: `Bearer ${u}` }, body: JSON.stringify({ preferenciaTema: "OSCURO" }) });
+  const ok = await fetch(base + "/api/auth/tema", {
+    method: "PATCH",
+    headers: { "content-type": "application/json", authorization: `Bearer ${u}` },
+    body: JSON.stringify({ preferenciaTema: "OSCURO" }),
+  });
   assert.equal(ok.status, 200);
   assert.equal(usuarios.get(1)!.preferenciaTema, "OSCURO");
 });

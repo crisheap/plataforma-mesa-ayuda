@@ -29,7 +29,10 @@ async function llamar(metodo: string, ruta: string, token?: string, body?: unkno
   if (token) headers.authorization = `Bearer ${token}`;
   let cuerpo: BodyInit | undefined;
   if (body instanceof FormData) cuerpo = body;
-  else if (body !== undefined) { headers["content-type"] = "application/json"; cuerpo = JSON.stringify(body); }
+  else if (body !== undefined) {
+    headers["content-type"] = "application/json";
+    cuerpo = JSON.stringify(body);
+  }
   const r = await fetch(base + ruta, { method: metodo, headers, body: cuerpo });
   const tipo = r.headers.get("content-type") ?? "";
   return { status: r.status, json: tipo.includes("json") ? await r.json() : null, headers: r.headers };
@@ -59,7 +62,9 @@ before(async () => {
   assert.ok(ADMIN_PASS, "Define ADMIN_INITIAL_PASSWORD (la misma usada en el seed)");
   ({ prisma } = await import("../src/config/prisma"));
   const app = (await import("../src/app")).default;
-  await new Promise<void>((ok) => { server = app.listen(PUERTO, ok); });
+  await new Promise<void>((ok) => {
+    server = app.listen(PUERTO, ok);
+  });
 });
 after(async () => {
   server?.close();
@@ -82,8 +87,10 @@ test("el administrador inicial debe cambiar la contraseña antes de usar la API"
 
 test("el administrador crea usuarios de cada rol con contraseña temporal", async () => {
   const personas = [
-    ["usuario", "USUARIO", "Laura", "Pérez Gómez"], ["otro", "USUARIO", "Andrés", "Rojas"],
-    ["tecnico", "TECNICO", "Carlos", "Martínez"], ["supervisor", "SUPERVISOR", "Diana", "López"],
+    ["usuario", "USUARIO", "Laura", "Pérez Gómez"],
+    ["otro", "USUARIO", "Andrés", "Rojas"],
+    ["tecnico", "TECNICO", "Carlos", "Martínez"],
+    ["supervisor", "SUPERVISOR", "Diana", "López"],
   ] as const;
   for (const [clave, rol, nombre, apellido] of personas) {
     const correo = `${clave}@integracion.test`;
@@ -97,8 +104,10 @@ test("el administrador crea usuarios de cada rol con contraseña temporal", asyn
 
 test("el usuario registra un caso con número único y evidencia válida", async () => {
   const r = await llamar("POST", "/api/casos", tokens.usuario, {
-    titulo: "No puedo entrar a la plataforma", descripcion: "Desde esta mañana el sistema rechaza mi contraseña.",
-    tipo: "INCIDENTE", categoria: "PLATAFORMAS_INSTITUCIONALES",
+    titulo: "No puedo entrar a la plataforma",
+    descripcion: "Desde esta mañana el sistema rechaza mi contraseña.",
+    tipo: "INCIDENTE",
+    categoria: "PLATAFORMAS_INSTITUCIONALES",
   });
   assert.equal(r.status, 201, JSON.stringify(r.json));
   casoId = r.json.data.id;
@@ -143,12 +152,18 @@ test("el técnico atiende y resuelve; el usuario rechaza y luego confirma", asyn
 
   assert.equal((await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.usuario, { estado: "EN_PROCESO" })).status, 403);
   assert.equal((await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.tecnico, { estado: "EN_PROCESO" })).status, 200);
-  const nota = await llamar("POST", `/api/casos/${casoId}/observaciones`, tokens.tecnico, { contenido: "Se revisa el directorio activo", visibilidad: "INTERNA" });
+  const nota = await llamar("POST", `/api/casos/${casoId}/observaciones`, tokens.tecnico, {
+    contenido: "Se revisa el directorio activo",
+    visibilidad: "INTERNA",
+  });
   assert.equal(nota.status, 201);
   const resolver = { estado: "RESUELTO", solucion: "Se restableció la contraseña y se desbloqueó la cuenta." };
   assert.equal((await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.tecnico, resolver)).status, 200);
 
-  const rechazo = await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.usuario, { estado: "EN_PROCESO", motivo: "Sigue sin funcionar" });
+  const rechazo = await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.usuario, {
+    estado: "EN_PROCESO",
+    motivo: "Sigue sin funcionar",
+  });
   assert.equal(rechazo.status, 200);
   assert.equal(rechazo.json.data.estado, "EN_PROCESO");
   assert.equal((await llamar("PATCH", `/api/casos/${casoId}/estado`, tokens.tecnico, resolver)).status, 200);
@@ -168,7 +183,8 @@ test("el técnico atiende y resuelve; el usuario rechaza y luego confirma", asyn
 test("el historial registra cada transición y hay notificaciones para el usuario", async () => {
   const h = await llamar("GET", `/api/casos/${casoId}/historial`, tokens.usuario);
   const estados = h.json.data.map((x: { estadoNuevo: string }) => x.estadoNuevo);
-  for (const e of ["ABIERTO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"]) assert.ok(estados.includes(e), `falta ${e} en el historial`);
+  for (const e of ["ABIERTO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"])
+    assert.ok(estados.includes(e), `falta ${e} en el historial`);
   const n = await llamar("GET", "/api/notificaciones", tokens.usuario);
   assert.equal(n.status, 200);
   assert.ok(n.json.data.items.length > 0);
@@ -186,7 +202,8 @@ test("reportes: KPIs y Excel para supervisor; prohibidos para el usuario", async
 test("auditoría: registra las acciones y es inmutable en la base de datos", async () => {
   const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
   const acciones = a.json.data.items.map((i: { accion: string }) => i.accion);
-  for (const acc of ["LOGIN", "USUARIO_CREADO", "CASO_CREADO", "CASO_ASIGNADO", "CASO_CERRAR"]) assert.ok(acciones.includes(acc), `falta ${acc}`);
+  for (const acc of ["LOGIN", "USUARIO_CREADO", "CASO_CREADO", "CASO_ASIGNADO", "CASO_CERRAR"])
+    assert.ok(acciones.includes(acc), `falta ${acc}`);
   await assert.rejects(prisma.$executeRawUnsafe(`UPDATE "auditorias" SET "accion" = 'ALTERADA'`));
   await assert.rejects(prisma.$executeRawUnsafe(`DELETE FROM "auditorias"`));
 });
@@ -211,17 +228,23 @@ test("asistente Botito: guía con la base de conocimiento y consulta solo casos 
   assert.match(c.json.data.saludo, /Laura/);
   const conv = c.json.data.conversacion.id;
 
-  const guia = await llamar("POST", `/api/asistente/conversaciones/${conv}/mensajes`, tokens.usuario, { contenido: "No puedo iniciar sesión en el correo" });
+  const guia = await llamar("POST", `/api/asistente/conversaciones/${conv}/mensajes`, tokens.usuario, {
+    contenido: "No puedo iniciar sesión en el correo",
+  });
   assert.equal(guia.status, 200, JSON.stringify(guia.json));
   assert.ok(guia.json.data.mensaje.contenido.length > 20);
 
-  const estado = await llamar("POST", `/api/asistente/conversaciones/${conv}/mensajes`, tokens.usuario, { contenido: `¿Cómo va mi caso ${numeroCaso}?` });
+  const estado = await llamar("POST", `/api/asistente/conversaciones/${conv}/mensajes`, tokens.usuario, {
+    contenido: `¿Cómo va mi caso ${numeroCaso}?`,
+  });
   assert.match(estado.json.data.mensaje.contenido, new RegExp(numeroCaso));
 
   // Otro usuario no puede leer la conversación ni consultar el caso ajeno
   assert.equal((await llamar("GET", `/api/asistente/conversaciones/${conv}`, tokens.otro)).status, 404);
   const c2 = await llamar("POST", "/api/asistente/conversaciones", tokens.otro);
-  const ajeno = await llamar("POST", `/api/asistente/conversaciones/${c2.json.data.conversacion.id}/mensajes`, tokens.otro, { contenido: `¿Cómo va el caso ${numeroCaso}?` });
+  const ajeno = await llamar("POST", `/api/asistente/conversaciones/${c2.json.data.conversacion.id}/mensajes`, tokens.otro, {
+    contenido: `¿Cómo va el caso ${numeroCaso}?`,
+  });
   assert.doesNotMatch(ajeno.json.data.mensaje.contenido, /No puedo entrar a la plataforma/);
 });
 
@@ -229,10 +252,18 @@ test("retención: borra solo las conversaciones de Botito sin actividad reciente
   const { purgarConversacionesAntiguas } = await import("../src/jobs/worker");
   const hace = (dias: number) => new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
   const vieja = await prisma.conversacionAsistente.create({
-    data: { usuarioId: ids.usuario, createdAt: hace(400), mensajes: { create: [{ rol: "USUARIO", contenido: "hola", createdAt: hace(400) }] } },
+    data: {
+      usuarioId: ids.usuario,
+      createdAt: hace(400),
+      mensajes: { create: [{ rol: "USUARIO", contenido: "hola", createdAt: hace(400) }] },
+    },
   });
   const reactivada = await prisma.conversacionAsistente.create({
-    data: { usuarioId: ids.usuario, createdAt: hace(400), mensajes: { create: [{ rol: "USUARIO", contenido: "sigo aquí", createdAt: hace(2) }] } },
+    data: {
+      usuarioId: ids.usuario,
+      createdAt: hace(400),
+      mensajes: { create: [{ rol: "USUARIO", contenido: "sigo aquí", createdAt: hace(2) }] },
+    },
   });
   const borradas = await purgarConversacionesAntiguas(180);
   assert.ok(borradas >= 1);

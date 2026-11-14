@@ -23,6 +23,8 @@ export const HASH_FICTICIO = bcrypt.hashSync("no-existe-" + randomBytes(8).toStr
 
 /** Contraseña temporal que cumple la política. */
 export function generarPasswordTemporal(): string {
-  const base = randomBytes(9).toString("base64").replace(/[^A-Za-z0-9]/g, "x");
+  const base = randomBytes(9)
+    .toString("base64")
+    .replace(/[^A-Za-z0-9]/g, "x");
   return `${base}Aa1!`.slice(0, 16);
 }

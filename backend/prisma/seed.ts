@@ -24,11 +24,22 @@ async function main() {
   if (!(await prisma.usuario.findUnique({ where: { correo: correoAdmin } }))) {
     let password = process.env.ADMIN_INITIAL_PASSWORD ?? "";
     let generada = false;
-    if (password && validarPolitica(password).length) throw new Error(`ADMIN_INITIAL_PASSWORD no cumple la política: ${validarPolitica(password).join(", ")}`);
-    if (!password) { password = `${randomBytes(9).toString("base64url")}Aa1!`; generada = true; }
+    if (password && validarPolitica(password).length)
+      throw new Error(`ADMIN_INITIAL_PASSWORD no cumple la política: ${validarPolitica(password).join(", ")}`);
+    if (!password) {
+      password = `${randomBytes(9).toString("base64url")}Aa1!`;
+      generada = true;
+    }
     const rol = await prisma.rol.findUniqueOrThrow({ where: { nombre: "ADMINISTRADOR" } });
     await prisma.usuario.create({
-      data: { nombre: "Administrador", apellido: "Sistema", correo: correoAdmin, password: await bcrypt.hash(password, 12), rolId: rol.id, debeCambiarPassword: true },
+      data: {
+        nombre: "Administrador",
+        apellido: "Sistema",
+        correo: correoAdmin,
+        password: await bcrypt.hash(password, 12),
+        rolId: rol.id,
+        debeCambiarPassword: true,
+      },
     });
     console.log(`✓ Administrador creado: ${correoAdmin}`);
     if (generada) console.log(`  ⚠ Contraseña temporal (se muestra solo ahora): ${password}`);
@@ -49,4 +60,9 @@ async function main() {
   console.log("🌱 Listo.");
 }
 
-main().catch((e) => { console.error("❌ Error en el seed:", e); process.exit(1); }).finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error("❌ Error en el seed:", e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

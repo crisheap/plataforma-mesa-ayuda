@@ -33,13 +33,20 @@ router.get("/casos.xlsx", async (req, res) => {
 
   const hoja = wb.addWorksheet("Casos", { views: [{ state: "frozen", ySplit: 1 }] });
   hoja.columns = [
-    { header: "Número", key: "numero", width: 18 }, { header: "Título", key: "titulo", width: 40 },
-    { header: "Tipo", key: "tipo", width: 18 }, { header: "Categoría", key: "categoria", width: 26 },
-    { header: "Prioridad", key: "prioridad", width: 11 }, { header: "Estado", key: "estado", width: 13 },
-    { header: "Solicitante", key: "solicitante", width: 26 }, { header: "Técnico", key: "tecnico", width: 26 },
-    { header: "Creación", key: "creacion", width: 19 }, { header: "Asignación", key: "asignacion", width: 19 },
-    { header: "Resolución", key: "resolucion", width: 19 }, { header: "Cierre", key: "cierre", width: 19 },
-    { header: "SLA vence", key: "slaVence", width: 19 }, { header: "SLA", key: "sla", width: 13 },
+    { header: "Número", key: "numero", width: 18 },
+    { header: "Título", key: "titulo", width: 40 },
+    { header: "Tipo", key: "tipo", width: 18 },
+    { header: "Categoría", key: "categoria", width: 26 },
+    { header: "Prioridad", key: "prioridad", width: 11 },
+    { header: "Estado", key: "estado", width: 13 },
+    { header: "Solicitante", key: "solicitante", width: 26 },
+    { header: "Técnico", key: "tecnico", width: 26 },
+    { header: "Creación", key: "creacion", width: 19 },
+    { header: "Asignación", key: "asignacion", width: 19 },
+    { header: "Resolución", key: "resolucion", width: 19 },
+    { header: "Cierre", key: "cierre", width: 19 },
+    { header: "SLA vence", key: "slaVence", width: 19 },
+    { header: "SLA", key: "sla", width: 13 },
     { header: "Calificación", key: "calificacion", width: 12 },
   ];
   hoja.addRows(filas);
@@ -51,7 +58,10 @@ router.get("/casos.xlsx", async (req, res) => {
   for (const k of ["creacion", "asignacion", "resolucion", "cierre", "slaVence"]) hoja.getColumn(k).numFmt = "yyyy-mm-dd hh:mm";
 
   const r = wb.addWorksheet("Resumen");
-  r.columns = [{ header: "Indicador", key: "k", width: 38 }, { header: "Valor", key: "v", width: 22 }];
+  r.columns = [
+    { header: "Indicador", key: "k", width: 38 },
+    { header: "Valor", key: "v", width: 22 },
+  ];
   r.addRows([
     { k: "Total de casos", v: resumen.totalCasos },
     ...Object.entries(resumen.porEstado).map(([k, v]) => ({ k: `Estado ${k}`, v })),

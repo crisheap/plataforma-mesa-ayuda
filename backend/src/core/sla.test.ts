@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { calcularVencimiento, minutosRestantes, semaforoSla } from "./sla";
 
 const t0 = new Date("2026-11-02T08:00:00Z");
-const caso = (o: object) => ({ estado: "ASIGNADO" as const, fechaCreacion: t0, slaVenceEn: calcularVencimiento(t0, 100), fechaResolucion: null, ...o });
+const caso = (o: object) => ({
+  estado: "ASIGNADO" as const,
+  fechaCreacion: t0,
+  slaVenceEn: calcularVencimiento(t0, 100),
+  fechaResolucion: null,
+  ...o,
+});
 
 test("semáforo de SLA", () => {
   assert.equal(semaforoSla(caso({}), new Date(t0.getTime() + 10 * 60_000)), "EN_TIEMPO");

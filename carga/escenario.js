@@ -11,7 +11,15 @@ const BASE = __ENV.BASE_URL || "http://localhost:4000";
 
 export const options = {
   scenarios: {
-    usuarios: { executor: "ramping-vus", startVUs: 1, stages: [{ duration: "10s", target: Number(__ENV.VUS || 20) }, { duration: __ENV.DURACION || "40s", target: Number(__ENV.VUS || 20) }, { duration: "5s", target: 0 }] },
+    usuarios: {
+      executor: "ramping-vus",
+      startVUs: 1,
+      stages: [
+        { duration: "10s", target: Number(__ENV.VUS || 20) },
+        { duration: __ENV.DURACION || "40s", target: Number(__ENV.VUS || 20) },
+        { duration: "5s", target: 0 },
+      ],
+    },
   },
   thresholds: {
     http_req_failed: ["rate<0.01"],
@@ -22,7 +30,9 @@ export const options = {
 };
 
 export function setup() {
-  const r = http.post(`${BASE}/api/auth/login`, JSON.stringify({ correo: __ENV.CORREO, password: __ENV.PASSWORD }), { headers: { "Content-Type": "application/json" } });
+  const r = http.post(`${BASE}/api/auth/login`, JSON.stringify({ correo: __ENV.CORREO, password: __ENV.PASSWORD }), {
+    headers: { "Content-Type": "application/json" },
+  });
   check(r, { "inicio de sesión": (x) => x.status === 200 });
   return { token: r.json("data.token") };
 }
@@ -43,7 +53,16 @@ export default function (datos) {
     check(http.get(`${BASE}/api/notificaciones?page=1&pageSize=10`, params("cuenta")), { "notificaciones 200": (x) => x.status === 200 });
   });
   if (Math.random() < 0.05) {
-    const nuevo = http.post(`${BASE}/api/casos`, JSON.stringify({ titulo: "Prueba de carga: impresora", descripcion: "Caso creado por la prueba de carga automática.", tipo: "INCIDENTE", categoria: "HARDWARE" }), params("registro"));
+    const nuevo = http.post(
+      `${BASE}/api/casos`,
+      JSON.stringify({
+        titulo: "Prueba de carga: impresora",
+        descripcion: "Caso creado por la prueba de carga automática.",
+        tipo: "INCIDENTE",
+        categoria: "HARDWARE",
+      }),
+      params("registro"),
+    );
     check(nuevo, { "registro 201": (x) => x.status === 201 });
   }
   sleep(1);

@@ -16,7 +16,10 @@ async function iniciar() {
     });
     const apagar = async () => {
       detener();
-      servidor.close(async () => { await prisma.$disconnect(); process.exit(0); });
+      servidor.close(async () => {
+        await prisma.$disconnect();
+        process.exit(0);
+      });
     };
     process.on("SIGTERM", apagar);
     process.on("SIGINT", apagar);

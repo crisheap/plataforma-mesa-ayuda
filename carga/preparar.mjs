@@ -35,20 +35,40 @@ async function sesion(correo, claves) {
 
 const admin = await sesion(ADMIN, [INICIAL, CLAVE]);
 let temporal = null;
-const creado = await api("POST", "/api/usuarios", admin, { nombre: "Laura", apellido: "Pruebas Automáticas", correo: USUARIO, rol: "USUARIO" });
+const creado = await api("POST", "/api/usuarios", admin, {
+  nombre: "Laura",
+  apellido: "Pruebas Automáticas",
+  correo: USUARIO,
+  rol: "USUARIO",
+});
 if (creado.status === 201) temporal = creado.json.data.passwordTemporal;
 const usuario = await sesion(USUARIO, [temporal, CLAVE]);
 
 const casos = [];
-for (const [titulo, categoria] of [["No enciende el monitor de la sala 3", "HARDWARE"], ["El WiFi del piso 2 se desconecta", "RED"], ["No puedo abrir el correo institucional", "CORREO"]]) {
-  const r = await api("POST", "/api/casos", usuario, { titulo, descripcion: `${titulo}. Caso creado para pruebas automáticas.`, tipo: "INCIDENTE", categoria });
+for (const [titulo, categoria] of [
+  ["No enciende el monitor de la sala 3", "HARDWARE"],
+  ["El WiFi del piso 2 se desconecta", "RED"],
+  ["No puedo abrir el correo institucional", "CORREO"],
+]) {
+  const r = await api("POST", "/api/casos", usuario, {
+    titulo,
+    descripcion: `${titulo}. Caso creado para pruebas automáticas.`,
+    tipo: "INCIDENTE",
+    categoria,
+  });
   if (r.status !== 201) throw new Error(`No se pudo crear el caso: ${JSON.stringify(r.json)}`);
   casos.push(r.json.data.id);
 }
 
-console.log(JSON.stringify({
-  base: BASE,
-  admin: { correo: ADMIN, password: CLAVE },
-  usuario: { correo: USUARIO, password: CLAVE },
-  casoId: casos[0],
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      base: BASE,
+      admin: { correo: ADMIN, password: CLAVE },
+      usuario: { correo: USUARIO, password: CLAVE },
+      casoId: casos[0],
+    },
+    null,
+    2,
+  ),
+);

@@ -12,13 +12,23 @@ notificacionesRouter.use(authenticate);
 
 notificacionesRouter.get("/", async (req, res) => {
   const { page, pageSize, soloNoLeidas } = validar(
-    paginacion.extend({ soloNoLeidas: z.enum(["true", "false"]).transform((v) => v === "true").optional() }), req.query);
+    paginacion.extend({
+      soloNoLeidas: z
+        .enum(["true", "false"])
+        .transform((v) => v === "true")
+        .optional(),
+    }),
+    req.query,
+  );
   const where = { usuarioId: req.user!.userId, ...(soloNoLeidas ? { leida: false } : {}) };
   const [total, noLeidas, items] = await prisma.$transaction([
     prisma.notificacion.count({ where }),
     prisma.notificacion.count({ where: { usuarioId: req.user!.userId, leida: false } }),
     prisma.notificacion.findMany({
-      where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize,
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: { id: true, titulo: true, mensaje: true, tipo: true, casoId: true, leida: true, createdAt: true },
     }),
   ]);
@@ -31,7 +41,10 @@ notificacionesRouter.patch("/leer-todas", async (req, res) => {
 });
 
 notificacionesRouter.patch("/:id/leida", async (req, res) => {
-  const r = await prisma.notificacion.updateMany({ where: { id: idParam(req.params.id), usuarioId: req.user!.userId }, data: { leida: true } });
+  const r = await prisma.notificacion.updateMany({
+    where: { id: idParam(req.params.id), usuarioId: req.user!.userId },
+    data: { leida: true },
+  });
   if (!r.count) throw AppError.notFound("Notificación no encontrada");
   res.json({ success: true });
 });

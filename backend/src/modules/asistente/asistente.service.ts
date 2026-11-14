@@ -43,7 +43,11 @@ export async function enviarMensaje(conversacionId: number, userId: number, toke
 
   const articulosDb = consultaEstado ? [] : await prisma.articuloConocimiento.findMany({ where: { activo: true } });
   // Se busca con el mensaje actual y, si es corto, con el contexto reciente del usuario.
-  const contexto = previos.filter((m) => m.rol === "USUARIO").slice(-2).map((m) => m.contenido).join(" ");
+  const contexto = previos
+    .filter((m) => m.rol === "USUARIO")
+    .slice(-2)
+    .map((m) => m.contenido)
+    .join(" ");
   const articulos = consultaEstado ? [] : buscarArticulos(articulosDb, mensaje.length < 25 ? `${contexto} ${mensaje}` : mensaje, 3);
 
   const { texto, proveedor } = await generarRespuesta(
@@ -56,10 +60,22 @@ export async function enviarMensaje(conversacionId: number, userId: number, toke
   const mensajesUsuario = previos.filter((m) => m.rol === "USUARIO").length + 1;
   const ofrecerCaso = !consultaEstado && (quiereCrearCaso(mensaje) || articulos.length === 0 || mensajesUsuario >= 3);
   const acciones = ofrecerCaso
-    ? [{ tipo: "CREAR_CASO", etiqueta: "Crear un caso con esta información", datos: { ...clasificarProblema([contexto, mensaje].join(". ").trim()), descripcion: [...previos.filter((m) => m.rol === "USUARIO").map((m) => m.contenido), mensaje].join("\n").slice(0, 3500) } }]
+    ? [
+        {
+          tipo: "CREAR_CASO",
+          etiqueta: "Crear un caso con esta información",
+          datos: {
+            ...clasificarProblema([contexto, mensaje].join(". ").trim()),
+            descripcion: [...previos.filter((m) => m.rol === "USUARIO").map((m) => m.contenido), mensaje].join("\n").slice(0, 3500),
+          },
+        },
+      ]
     : [];
 
-  await prisma.conversacionAsistente.update({ where: { id: conversacionId }, data: { titulo: previos.length <= 1 ? mensaje.slice(0, 80) : undefined } });
+  await prisma.conversacionAsistente.update({
+    where: { id: conversacionId },
+    data: { titulo: previos.length <= 1 ? mensaje.slice(0, 80) : undefined },
+  });
   return {
     mensaje: { id: guardado.id, rol: "ASISTENTE" as const, contenido: texto },
     acciones,
@@ -70,7 +86,11 @@ export async function enviarMensaje(conversacionId: number, userId: number, toke
 
 export async function obtener(conversacionId: number, userId: number) {
   const c = await conversacionPropia(conversacionId, userId);
-  const mensajes = await prisma.mensajeAsistente.findMany({ where: { conversacionId }, orderBy: { id: "asc" }, select: { id: true, rol: true, contenido: true, util: true, createdAt: true } });
+  const mensajes = await prisma.mensajeAsistente.findMany({
+    where: { conversacionId },
+    orderBy: { id: "asc" },
+    select: { id: true, rol: true, contenido: true, util: true, createdAt: true },
+  });
   return { id: c.id, titulo: c.titulo, escaladaACaso: c.escaladaACaso, casoId: c.casoId, mensajes };
 }
 

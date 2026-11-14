@@ -6,8 +6,16 @@ import { nombreCompleto } from "../../utils/nombre";
 import { revocarSesiones } from "../auth/auth.service";
 
 const publico = {
-  id: true, nombre: true, apellido: true, correo: true, estado: true, intentosFallidos: true,
-  bloqueadoHasta: true, ultimoAcceso: true, createdAt: true, debeCambiarPassword: true,
+  id: true,
+  nombre: true,
+  apellido: true,
+  correo: true,
+  estado: true,
+  intentosFallidos: true,
+  bloqueadoHasta: true,
+  ultimoAcceso: true,
+  createdAt: true,
+  debeCambiarPassword: true,
   rol: { select: { id: true, nombre: true } },
 } satisfies Prisma.UsuarioSelect;
 
@@ -16,7 +24,11 @@ const mapear = (u: Fila) => ({ ...u, nombreCompleto: nombreCompleto(u) });
 
 function exigirPolitica(password: string) {
   const fallas = validarPolitica(password);
-  if (fallas.length) throw AppError.badRequest("La contraseña no cumple la política de seguridad", fallas.map((message) => ({ field: "password", message })));
+  if (fallas.length)
+    throw AppError.badRequest(
+      "La contraseña no cumple la política de seguridad",
+      fallas.map((message) => ({ field: "password", message })),
+    );
 }
 
 async function rolId(nombre: RolNombre): Promise<number> {
@@ -33,8 +45,11 @@ export async function crear(d: { nombre: string; apellido: string; correo: strin
   else password = temporal = generarPasswordTemporal();
   const u = await prisma.usuario.create({
     data: {
-      nombre: d.nombre, apellido: d.apellido, correo: d.correo,
-      password: await hashPassword(password), rolId: await rolId(d.rol),
+      nombre: d.nombre,
+      apellido: d.apellido,
+      correo: d.correo,
+      password: await hashPassword(password),
+      rolId: await rolId(d.rol),
       debeCambiarPassword: true, // toda cuenta nueva debe cambiar la contraseña inicial
     },
     select: publico,
@@ -42,15 +57,25 @@ export async function crear(d: { nombre: string; apellido: string; correo: strin
   return { usuario: mapear(u), passwordTemporal: temporal };
 }
 
-export async function listar(f: { q?: string; rol?: RolNombre; estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO"; page: number; pageSize: number }) {
+export async function listar(f: {
+  q?: string;
+  rol?: RolNombre;
+  estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO";
+  page: number;
+  pageSize: number;
+}) {
   const where: Prisma.UsuarioWhereInput = {
     ...(f.rol ? { rol: { nombre: f.rol } } : {}),
     ...(f.estado ? { estado: f.estado } : {}),
-    ...(f.q ? { OR: [
-      { nombre: { contains: f.q, mode: "insensitive" } },
-      { apellido: { contains: f.q, mode: "insensitive" } },
-      { correo: { contains: f.q, mode: "insensitive" } },
-    ] } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { nombre: { contains: f.q, mode: "insensitive" } },
+            { apellido: { contains: f.q, mode: "insensitive" } },
+            { correo: { contains: f.q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
   };
   const [total, items] = await prisma.$transaction([
     prisma.usuario.count({ where }),
@@ -112,9 +137,7 @@ export async function cambiarEstado(id: number, estado: "ACTIVO" | "BLOQUEADO" |
   const u = await prisma.usuario.update({
     where: { id },
     // Al activar se reinicia el contador y se limpia el bloqueo; el bloqueo manual no lleva fecha.
-    data: estado === "ACTIVO"
-      ? { estado, intentosFallidos: 0, bloqueadoHasta: null }
-      : { estado, bloqueadoHasta: null },
+    data: estado === "ACTIVO" ? { estado, intentosFallidos: 0, bloqueadoHasta: null } : { estado, bloqueadoHasta: null },
     select: publico,
   });
   if (estado !== "ACTIVO") await revocarSesiones(id);

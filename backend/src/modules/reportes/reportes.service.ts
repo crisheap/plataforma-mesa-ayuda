@@ -3,7 +3,13 @@ import { prisma } from "../../config/prisma";
 import { nombreCompleto } from "../../utils/nombre";
 import { semaforoSla } from "../../core/sla";
 
-export interface RangoFiltro { desde?: Date; hasta?: Date; tecnicoId?: number; prioridad?: "ALTA" | "MEDIA" | "BAJA"; estado?: "ABIERTO" | "ASIGNADO" | "EN_PROCESO" | "RESUELTO" | "CERRADO" }
+export interface RangoFiltro {
+  desde?: Date;
+  hasta?: Date;
+  tecnicoId?: number;
+  prioridad?: "ALTA" | "MEDIA" | "BAJA";
+  estado?: "ABIERTO" | "ASIGNADO" | "EN_PROCESO" | "RESUELTO" | "CERRADO";
+}
 
 export const whereCasos = (f: RangoFiltro): Prisma.CasoWhereInput => ({
   ...(f.tecnicoId ? { tecnicoId: f.tecnicoId } : {}),
@@ -41,20 +47,30 @@ export async function kpis(f: RangoFiltro) {
     where: { id: { in: porTecnico.map((t) => t.tecnicoId!).filter(Boolean) } },
     select: { id: true, nombre: true, apellido: true },
   });
-  const cumplidos = Number(agg?.cumplidos ?? 0), incumplidos = Number(agg?.incumplidos ?? 0);
+  const cumplidos = Number(agg?.cumplidos ?? 0),
+    incumplidos = Number(agg?.incumplidos ?? 0);
   const total = porEstado.reduce((s, e) => s + e._count._all, 0);
 
   return {
     totalCasos: total,
     porEstado: Object.fromEntries(porEstado.map((e) => [e.estado, e._count._all])),
     porPrioridad: Object.fromEntries(porPrioridad.map((p) => [p.prioridad, p._count._all])),
-    porTecnico: porTecnico.map((t) => {
-      const u = tecnicos.find((x) => x.id === t.tecnicoId);
-      return { tecnicoId: t.tecnicoId, tecnico: u ? nombreCompleto(u) : "—", casos: t._count._all };
-    }).sort((a, b) => b.casos - a.casos),
+    porTecnico: porTecnico
+      .map((t) => {
+        const u = tecnicos.find((x) => x.id === t.tecnicoId);
+        return { tecnicoId: t.tecnicoId, tecnico: u ? nombreCompleto(u) : "—", casos: t._count._all };
+      })
+      .sort((a, b) => b.casos - a.casos),
     tiempoMedioResolucionMin: agg?.promedio == null ? null : Math.round(Number(agg.promedio)),
-    cumplimientoSla: { cumplidos, incumplidos, porcentaje: cumplidos + incumplidos ? Math.round((cumplidos / (cumplidos + incumplidos)) * 1000) / 10 : null },
-    satisfaccion: { promedio: satisf._avg.puntuacion ? Math.round(satisf._avg.puntuacion * 100) / 100 : null, calificaciones: satisf._count._all },
+    cumplimientoSla: {
+      cumplidos,
+      incumplidos,
+      porcentaje: cumplidos + incumplidos ? Math.round((cumplidos / (cumplidos + incumplidos)) * 1000) / 10 : null,
+    },
+    satisfaccion: {
+      promedio: satisf._avg.puntuacion ? Math.round(satisf._avg.puntuacion * 100) / 100 : null,
+      calificaciones: satisf._count._all,
+    },
     slaVencidosAbiertos: vencidosAbiertos,
   };
 }
@@ -63,7 +79,9 @@ export const MAX_FILAS_EXCEL = 20_000;
 
 export async function casosParaExcel(f: RangoFiltro) {
   const casos = await prisma.caso.findMany({
-    where: whereCasos(f), orderBy: { fechaCreacion: "desc" }, take: MAX_FILAS_EXCEL,
+    where: whereCasos(f),
+    orderBy: { fechaCreacion: "desc" },
+    take: MAX_FILAS_EXCEL,
     include: {
       usuario: { select: { nombre: true, apellido: true } },
       tecnico: { select: { nombre: true, apellido: true } },
@@ -71,9 +89,20 @@ export async function casosParaExcel(f: RangoFiltro) {
     },
   });
   return casos.map((c) => ({
-    numero: c.numeroCaso, titulo: c.titulo, tipo: c.tipo, categoria: c.categoria, prioridad: c.prioridad, estado: c.estado,
-    solicitante: nombreCompleto(c.usuario), tecnico: c.tecnico ? nombreCompleto(c.tecnico) : "",
-    creacion: c.fechaCreacion, asignacion: c.fechaAsignacion, resolucion: c.fechaResolucion, cierre: c.fechaCierre,
-    slaVence: c.slaVenceEn, sla: semaforoSla(c), calificacion: c.calificacion?.puntuacion ?? null,
+    numero: c.numeroCaso,
+    titulo: c.titulo,
+    tipo: c.tipo,
+    categoria: c.categoria,
+    prioridad: c.prioridad,
+    estado: c.estado,
+    solicitante: nombreCompleto(c.usuario),
+    tecnico: c.tecnico ? nombreCompleto(c.tecnico) : "",
+    creacion: c.fechaCreacion,
+    asignacion: c.fechaAsignacion,
+    resolucion: c.fechaResolucion,
+    cierre: c.fechaCierre,
+    slaVence: c.slaVenceEn,
+    sla: semaforoSla(c),
+    calificacion: c.calificacion?.puntuacion ?? null,
   }));
 }

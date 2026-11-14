@@ -19,12 +19,28 @@ function agregar(el, hijos) {
     el.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
 }
-export const montar = (contenedor, ...hijos) => { contenedor.replaceChildren(); agregar(contenedor, hijos); };
+export const montar = (contenedor, ...hijos) => {
+  contenedor.replaceChildren();
+  agregar(contenedor, hijos);
+};
 
 export function toast(mensaje, { accion, onAccion, ms = 4500 } = {}) {
   const cont = document.getElementById("toasts");
   const t = h("div", { class: "toast" }, h("span", {}, mensaje));
-  if (accion) t.append(h("button", { class: "btn sm", onclick: () => { onAccion?.(); t.remove(); } }, accion));
+  if (accion)
+    t.append(
+      h(
+        "button",
+        {
+          class: "btn sm",
+          onclick: () => {
+            onAccion?.();
+            t.remove();
+          },
+        },
+        accion,
+      ),
+    );
   cont.append(t);
   if (ms) setTimeout(() => t.remove(), ms);
   return t;
@@ -34,21 +50,48 @@ export function toast(mensaje, { accion, onAccion, ms = 4500 } = {}) {
 export function modal({ titulo, cuerpo, acciones }) {
   return new Promise((resolver) => {
     const dlg = h("dialog", { "aria-labelledby": "dlg-t" });
-    const cerrar = (v) => { dlg.close(); dlg.remove(); resolver(v); };
-    const foot = h("div", { class: "dlg-foot" }, (acciones ?? [{ texto: "Cerrar", valor: null }]).map((a) =>
-      h("button", { class: `btn ${a.primario ? "primary" : ""} ${a.peligro ? "danger" : ""}`, type: "button", onclick: async () => {
-        if (a.validar && !(await a.validar())) return;
-        cerrar(typeof a.valor === "function" ? a.valor() : a.valor);
-      } }, a.texto)));
+    const cerrar = (v) => {
+      dlg.close();
+      dlg.remove();
+      resolver(v);
+    };
+    const foot = h(
+      "div",
+      { class: "dlg-foot" },
+      (acciones ?? [{ texto: "Cerrar", valor: null }]).map((a) =>
+        h(
+          "button",
+          {
+            class: `btn ${a.primario ? "primary" : ""} ${a.peligro ? "danger" : ""}`,
+            type: "button",
+            onclick: async () => {
+              if (a.validar && !(await a.validar())) return;
+              cerrar(typeof a.valor === "function" ? a.valor() : a.valor);
+            },
+          },
+          a.texto,
+        ),
+      ),
+    );
     dlg.append(h("div", { class: "dlg-body" }, h("h2", { id: "dlg-t" }, titulo), cuerpo), foot);
-    dlg.addEventListener("cancel", () => { dlg.remove(); resolver(null); });
+    dlg.addEventListener("cancel", () => {
+      dlg.remove();
+      resolver(null);
+    });
     document.body.append(dlg);
     dlg.showModal();
     dlg.querySelector("input, textarea, select")?.focus();
   });
 }
 export const confirmar = (titulo, texto, textoOk = "Confirmar", peligro = false) =>
-  modal({ titulo, cuerpo: h("p", {}, texto), acciones: [{ texto: "Cancelar", valor: false }, { texto: textoOk, valor: true, primario: !peligro, peligro }] });
+  modal({
+    titulo,
+    cuerpo: h("p", {}, texto),
+    acciones: [
+      { texto: "Cancelar", valor: false },
+      { texto: textoOk, valor: true, primario: !peligro, peligro },
+    ],
+  });
 
 export function campo(etiqueta, control, ayuda) {
   const id = control.id || `c-${Math.random().toString(36).slice(2, 8)}`;
@@ -61,23 +104,59 @@ const f = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "sh
 export const fecha = (d) => (d ? f.format(new Date(d)) : "—");
 export function minutos(m) {
   if (m === null || m === undefined) return "—";
-  const a = Math.abs(m), h2 = Math.floor(a / 60), mm = a % 60;
+  const a = Math.abs(m),
+    h2 = Math.floor(a / 60),
+    mm = a % 60;
   const t = h2 >= 24 ? `${Math.floor(h2 / 24)} d ${h2 % 24} h` : h2 ? `${h2} h ${mm} min` : `${mm} min`;
   return m < 0 ? `hace ${t}` : t;
 }
-export const iniciales = (n = "") => n.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join("") || "?";
+export const iniciales = (n = "") =>
+  n
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("") || "?";
 
-const ESTADO = { ABIERTO: ["Abierto", "b-azul"], ASIGNADO: ["Asignado", "b-morado"], EN_PROCESO: ["En proceso", "b-ambar"], RESUELTO: ["Resuelto", "b-verde"], CERRADO: ["Cerrado", "b-gris"] };
+const ESTADO = {
+  ABIERTO: ["Abierto", "b-azul"],
+  ASIGNADO: ["Asignado", "b-morado"],
+  EN_PROCESO: ["En proceso", "b-ambar"],
+  RESUELTO: ["Resuelto", "b-verde"],
+  CERRADO: ["Cerrado", "b-gris"],
+};
 const PRIORIDAD = { ALTA: ["Alta", "b-rojo"], MEDIA: ["Media", "b-ambar"], BAJA: ["Baja", "b-verde"] };
-const SLA = { EN_TIEMPO: ["En tiempo", "b-verde"], EN_RIESGO: ["En riesgo", "b-ambar"], VENCIDO: ["Vencido", "b-rojo"], CUMPLIDO: ["SLA cumplido", "b-verde"], INCUMPLIDO: ["SLA incumplido", "b-rojo"], SIN_SLA: ["Sin SLA", "b-gris"] };
-const badge = (mapa, v) => { const [t, c] = mapa[v] ?? [v, "b-gris"]; return h("span", { class: `badge ${c}` }, t); };
+const SLA = {
+  EN_TIEMPO: ["En tiempo", "b-verde"],
+  EN_RIESGO: ["En riesgo", "b-ambar"],
+  VENCIDO: ["Vencido", "b-rojo"],
+  CUMPLIDO: ["SLA cumplido", "b-verde"],
+  INCUMPLIDO: ["SLA incumplido", "b-rojo"],
+  SIN_SLA: ["Sin SLA", "b-gris"],
+};
+const badge = (mapa, v) => {
+  const [t, c] = mapa[v] ?? [v, "b-gris"];
+  return h("span", { class: `badge ${c}` }, t);
+};
 export const badgeEstado = (v) => badge(ESTADO, v);
 export const badgePrioridad = (v) => badge(PRIORIDAD, v);
 export const badgeSla = (v) => badge(SLA, v);
 export const etiquetaEstado = (v) => ESTADO[v]?.[0] ?? v;
 
-export const TIPOS = { INCIDENTE: "Incidente", REQUERIMIENTO: "Requerimiento", MANTENIMIENTO: "Mantenimiento", SOLICITUD_ACCESO: "Solicitud de acceso", OTROS: "Otros" };
-export const CATEGORIAS = { HARDWARE: "Hardware", SOFTWARE: "Software", RED: "Red", CORREO: "Correo", PLATAFORMAS_INSTITUCIONALES: "Plataformas institucionales" };
+export const TIPOS = {
+  INCIDENTE: "Incidente",
+  REQUERIMIENTO: "Requerimiento",
+  MANTENIMIENTO: "Mantenimiento",
+  SOLICITUD_ACCESO: "Solicitud de acceso",
+  OTROS: "Otros",
+};
+export const CATEGORIAS = {
+  HARDWARE: "Hardware",
+  SOFTWARE: "Software",
+  RED: "Red",
+  CORREO: "Correo",
+  PLATAFORMAS_INSTITUCIONALES: "Plataformas institucionales",
+};
 export const ROLES = { USUARIO: "Usuario", TECNICO: "Técnico", SUPERVISOR: "Supervisor", ADMINISTRADOR: "Administrador" };
 
 export const opciones = (mapa, actual, vacio) => [
@@ -87,10 +166,13 @@ export const opciones = (mapa, actual, vacio) => [
 
 export function paginador(total, page, pageSize, onCambio) {
   const paginas = Math.max(1, Math.ceil(total / pageSize));
-  return h("div", { class: "pager" },
+  return h(
+    "div",
+    { class: "pager" },
     h("span", { class: "muted small" }, `${total} resultado(s) · página ${page} de ${paginas}`),
     h("button", { class: "btn sm", disabled: page <= 1, onclick: () => onCambio(page - 1) }, "Anterior"),
-    h("button", { class: "btn sm", disabled: page >= paginas, onclick: () => onCambio(page + 1) }, "Siguiente"));
+    h("button", { class: "btn sm", disabled: page >= paginas, onclick: () => onCambio(page + 1) }, "Siguiente"),
+  );
 }
 export const vacio = (texto) => h("div", { class: "empty" }, texto);
 export const cargando = () => h("div", { class: "empty", role: "status" }, "Cargando…");

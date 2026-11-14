@@ -6,11 +6,29 @@ const VERSION = "v2.0.2";
 const SHELL = `mesa-shell-${VERSION}`;
 const API = `mesa-api-${VERSION}`;
 const PRECACHE = [
-  "/", "/index.html", "/offline.html", "/manifest.webmanifest", "/css/styles.css",
-  "/js/main.js", "/js/api.js", "/js/ui.js", "/js/theme.js", "/js/theme-init.js", "/js/pwa.js", "/js/illustrations.js", "/js/bot.js",
-  "/js/views/login.js", "/js/views/inicio.js", "/js/views/casos.js", "/js/views/caso-detalle.js", "/js/views/caso-nuevo.js",
-  "/js/views/admin.js", "/js/views/cuenta.js",
-  "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png",
+  "/",
+  "/index.html",
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/css/styles.css",
+  "/js/main.js",
+  "/js/api.js",
+  "/js/ui.js",
+  "/js/theme.js",
+  "/js/theme-init.js",
+  "/js/pwa.js",
+  "/js/illustrations.js",
+  "/js/bot.js",
+  "/js/views/login.js",
+  "/js/views/inicio.js",
+  "/js/views/casos.js",
+  "/js/views/caso-detalle.js",
+  "/js/views/caso-nuevo.js",
+  "/js/views/admin.js",
+  "/js/views/cuenta.js",
+  "/icons/icon.svg",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
 ];
 // Únicas lecturas de API que se guardan para uso sin conexión (se borran al cerrar sesión).
 const API_CACHEABLE = [/^\/api\/casos\/mis-casos/, /^\/api\/casos\/asignados/, /^\/api\/casos\/\d+$/];
@@ -20,10 +38,12 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (![SHELL, API].includes(k)) await caches.delete(k);
-    await self.clients.claim();
-  })());
+  e.waitUntil(
+    (async () => {
+      for (const k of await caches.keys()) if (![SHELL, API].includes(k)) await caches.delete(k);
+      await self.clients.claim();
+    })(),
+  );
 });
 
 self.addEventListener("message", (e) => {
@@ -38,34 +58,54 @@ self.addEventListener("fetch", (e) => {
 
   if (url.pathname.startsWith("/api/")) {
     if (!API_CACHEABLE.some((re) => re.test(url.pathname))) return; // todo lo demás va directo a la red
-    e.respondWith((async () => {
-      try {
-        const r = await fetch(req);
-        if (r.ok) (await caches.open(API)).put(url.pathname + url.search, r.clone());
-        return r;
-      } catch {
-        const c = await (await caches.open(API)).match(url.pathname + url.search);
-        return c ?? new Response(JSON.stringify({ success: false, message: "Sin conexión" }), { status: 503, headers: { "Content-Type": "application/json" } });
-      }
-    })());
+    e.respondWith(
+      (async () => {
+        try {
+          const r = await fetch(req);
+          if (r.ok) (await caches.open(API)).put(url.pathname + url.search, r.clone());
+          return r;
+        } catch {
+          const c = await (await caches.open(API)).match(url.pathname + url.search);
+          return (
+            c ??
+            new Response(JSON.stringify({ success: false, message: "Sin conexión" }), {
+              status: 503,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+      })(),
+    );
     return;
   }
 
   if (req.mode === "navigate") {
-    e.respondWith((async () => {
-      try { return await fetch(req); }
-      catch { return (await caches.match("/index.html")) ?? (await caches.match("/offline.html")); }
-    })());
+    e.respondWith(
+      (async () => {
+        try {
+          return await fetch(req);
+        } catch {
+          return (await caches.match("/index.html")) ?? (await caches.match("/offline.html"));
+        }
+      })(),
+    );
     return;
   }
 
   // Estáticos: stale-while-revalidate
-  e.respondWith((async () => {
-    const cache = await caches.open(SHELL);
-    const hit = await cache.match(req);
-    const red = fetch(req).then((r) => { if (r.ok) cache.put(req, r.clone()); return r; }).catch(() => null);
-    return hit ?? (await red) ?? (await caches.match("/offline.html"));
-  })());
+  e.respondWith(
+    (async () => {
+      const cache = await caches.open(SHELL);
+      const hit = await cache.match(req);
+      const red = fetch(req)
+        .then((r) => {
+          if (r.ok) cache.put(req, r.clone());
+          return r;
+        })
+        .catch(() => null);
+      return hit ?? (await red) ?? (await caches.match("/offline.html"));
+    })(),
+  );
 });
 
 self.addEventListener("sync", (e) => {
@@ -77,16 +117,32 @@ self.addEventListener("sync", (e) => {
 
 self.addEventListener("push", (e) => {
   let d = { titulo: "Mesa de Ayuda", mensaje: "Tienes una novedad", url: "/#/notificaciones" };
-  try { d = { ...d, ...e.data.json() }; } catch { /* payload no JSON */ }
-  e.waitUntil(self.registration.showNotification(d.titulo, { body: d.mensaje, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: d.url } }));
+  try {
+    d = { ...d, ...e.data.json() };
+  } catch {
+    /* payload no JSON */
+  }
+  e.waitUntil(
+    self.registration.showNotification(d.titulo, {
+      body: d.mensaje,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: d.url },
+    }),
+  );
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const destino = new URL(e.notification.data?.url ?? "/", self.location.origin).href;
-  e.waitUntil((async () => {
-    const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const abierta = cs.find((c) => c.url.startsWith(self.location.origin));
-    if (abierta) { await abierta.focus(); abierta.navigate?.(destino); } else await self.clients.openWindow(destino);
-  })());
+  e.waitUntil(
+    (async () => {
+      const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const abierta = cs.find((c) => c.url.startsWith(self.location.origin));
+      if (abierta) {
+        await abierta.focus();
+        abierta.navigate?.(destino);
+      } else await self.clients.openWindow(destino);
+    })(),
+  );
 });

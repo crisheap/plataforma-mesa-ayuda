@@ -30,14 +30,19 @@ router.get("/", async (req, res) => {
   const [total, items] = await prisma.$transaction([
     prisma.auditoria.count({ where }),
     prisma.auditoria.findMany({
-      where, orderBy: { id: "desc" }, skip: (f.page - 1) * f.pageSize, take: f.pageSize,
+      where,
+      orderBy: { id: "desc" },
+      skip: (f.page - 1) * f.pageSize,
+      take: f.pageSize,
       include: { usuario: { select: { id: true, nombre: true, apellido: true, correo: true } } },
     }),
   ]);
   res.json({
     success: true,
     data: {
-      total, page: f.page, pageSize: f.pageSize,
+      total,
+      page: f.page,
+      pageSize: f.pageSize,
       items: items.map((a) => ({ ...a, usuario: a.usuario ? { ...a.usuario, nombreCompleto: nombreCompleto(a.usuario) } : null })),
     },
   });

@@ -14,7 +14,10 @@ const booleano = (nombre: string, defecto: boolean): boolean => {
   return v === undefined || v === "" ? defecto : ["1", "true", "si", "sí"].includes(v.toLowerCase());
 };
 const lista = (nombre: string): string[] =>
-  (process.env[nombre] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  (process.env[nombre] ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const jwtSecret = requerida("JWT_SECRET");
@@ -66,7 +69,9 @@ export const env = {
   // Observabilidad (RNF-14)
   logPeticiones: (["json", "texto", "no"].includes(process.env.LOG_PETICIONES ?? "")
     ? process.env.LOG_PETICIONES
-    : nodeEnv === "production" ? "json" : "no") as "json" | "texto" | "no",
+    : nodeEnv === "production"
+      ? "json"
+      : "no") as "json" | "texto" | "no",
   metricsToken: process.env.METRICS_TOKEN ?? "",
   // Peticiones por minuto y por IP a /api (súbelo detrás de un proxy que agrupe usuarios o en pruebas de carga).
   rateLimitApiMin: Math.max(1, numero("RATE_LIMIT_API_MIN", 600)),

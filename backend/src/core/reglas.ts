@@ -21,10 +21,14 @@ export function evaluarCambioEstado(c: ContextoTransicion): ResultadoTransicion 
   if (de === a) return { ok: false, motivo: `El caso ya está en estado ${a}` };
 
   if (de === "ASIGNADO" && a === "EN_PROCESO") {
-    return c.esTecnicoAsignado ? { ok: true, accion: "INICIAR" } : { ok: false, motivo: "Solo el técnico asignado puede iniciar la atención" };
+    return c.esTecnicoAsignado
+      ? { ok: true, accion: "INICIAR" }
+      : { ok: false, motivo: "Solo el técnico asignado puede iniciar la atención" };
   }
   if (de === "EN_PROCESO" && a === "RESUELTO") {
-    return c.esTecnicoAsignado ? { ok: true, accion: "RESOLVER" } : { ok: false, motivo: "Solo el técnico asignado puede marcar el caso como resuelto" };
+    return c.esTecnicoAsignado
+      ? { ok: true, accion: "RESOLVER" }
+      : { ok: false, motivo: "Solo el técnico asignado puede marcar el caso como resuelto" };
   }
   if (de === "RESUELTO" && a === "CERRADO") {
     return c.esCreador || c.rol === "SUPERVISOR" || c.rol === "ADMINISTRADOR"
@@ -37,7 +41,10 @@ export function evaluarCambioEstado(c: ContextoTransicion): ResultadoTransicion 
   return { ok: false, motivo: `Transición no permitida: ${de} → ${a}` };
 }
 
-export interface CasoAcceso { usuarioId: number; tecnicoId: number | null }
+export interface CasoAcceso {
+  usuarioId: number;
+  tecnicoId: number | null;
+}
 
 /** Control de propiedad (H-05): quién puede ver/trabajar un caso. */
 export function puedeVerCaso(u: { userId: number; rol: RolNombre }, caso: CasoAcceso): boolean {

@@ -49,7 +49,7 @@ const NAV = [
 ];
 
 const root = document.getElementById("root");
-let shell = null;      // referencias al layout autenticado
+let shell = null; // referencias al layout autenticado
 let noLeidas = 0;
 
 function resolverRuta(hash) {
@@ -59,43 +59,101 @@ function resolverRuta(hash) {
     const pp = patron.split("/");
     if (pp.length !== partes.length) continue;
     const params = {};
-    if (pp.every((p, i) => (p.startsWith(":") ? ((params[p.slice(1)] = partes[i]), true) : p === partes[i]))) return { vista, roles, titulo, params, ruta };
+    if (pp.every((p, i) => (p.startsWith(":") ? ((params[p.slice(1)] = partes[i]), true) : p === partes[i])))
+      return { vista, roles, titulo, params, ruta };
   }
   return null;
 }
 
 // ───────────── Layout autenticado ─────────────
 function construirShell(u) {
-  const botTema = h("button", { class: "btn icon-btn", "aria-label": "Cambiar entre modo claro y oscuro", title: "Modo claro / oscuro", onclick: () => tema.alternar() });
-  const pintarTema = () => { botTema.replaceChildren(icono(tema.esOscuro() ? "sol" : "luna")); };
+  const botTema = h("button", {
+    class: "btn icon-btn",
+    "aria-label": "Cambiar entre modo claro y oscuro",
+    title: "Modo claro / oscuro",
+    onclick: () => tema.alternar(),
+  });
+  const pintarTema = () => {
+    botTema.replaceChildren(icono(tema.esOscuro() ? "sol" : "luna"));
+  };
   pintarTema();
   document.addEventListener("tema-cambiado", pintarTema);
 
   const contador = h("span", { class: "count hidden", "aria-hidden": "true" });
-  const campana = h("a", { class: "btn icon-btn bell", href: "#/notificaciones", "aria-label": "Notificaciones" }, icono("campana"), contador);
+  const campana = h(
+    "a",
+    { class: "btn icon-btn bell", href: "#/notificaciones", "aria-label": "Notificaciones" },
+    icono("campana"),
+    contador,
+  );
   const nav = h("nav", { class: "nav", id: "nav", "aria-label": "Navegación principal" });
-  const menu = h("button", { class: "btn icon-btn menu-btn", "aria-label": "Abrir menú", "aria-expanded": "false", onclick: () => {
-    const abierto = nav.classList.toggle("open"); menu.setAttribute("aria-expanded", String(abierto));
-  } }, icono("menu"));
+  const menu = h(
+    "button",
+    {
+      class: "btn icon-btn menu-btn",
+      "aria-label": "Abrir menú",
+      "aria-expanded": "false",
+      onclick: () => {
+        const abierto = nav.classList.toggle("open");
+        menu.setAttribute("aria-expanded", String(abierto));
+      },
+    },
+    icono("menu"),
+  );
 
-  const chip = h("div", { class: "user-chip", id: "usuario-chip" },
+  const chip = h(
+    "div",
+    { class: "user-chip", id: "usuario-chip" },
     h("div", { class: "avatar", "aria-hidden": "true" }, iniciales(u.nombreCompleto)),
-    h("div", { class: "who" }, h("strong", { title: u.nombreCompleto }, u.nombreCompleto), h("small", {}, ROLES[u.rol])));
+    h("div", { class: "who" }, h("strong", { title: u.nombreCompleto }, u.nombreCompleto), h("small", {}, ROLES[u.rol])),
+  );
 
-  const banner = h("div", { class: "offline-banner hidden", role: "status" }, "Sin conexión — puedes seguir redactando un caso; se enviará al reconectar.");
+  const banner = h(
+    "div",
+    { class: "offline-banner hidden", role: "status" },
+    "Sin conexión — puedes seguir redactando un caso; se enviará al reconectar.",
+  );
   const main = h("main", { id: "contenido", tabindex: "-1" });
 
-  const top = h("header", { class: "topbar" },
+  const top = h(
+    "header",
+    { class: "topbar" },
     menu,
     h("a", { class: "brand", href: "#/inicio" }, h("span", { class: "logo" }, iconoBot(26)), "Mesa de Ayuda"),
-    h("span", { class: "spacer" }), botTema, campana, chip,
-    h("button", { class: "btn sm", onclick: async () => { await logout(); }, "aria-label": "Cerrar sesión" }, "Salir"));
+    h("span", { class: "spacer" }),
+    botTema,
+    campana,
+    chip,
+    h(
+      "button",
+      {
+        class: "btn sm",
+        onclick: async () => {
+          await logout();
+        },
+        "aria-label": "Cerrar sesión",
+      },
+      "Salir",
+    ),
+  );
 
   montar(root, h("div", { class: "app" }, top, nav, h("div", {}, banner, main)));
-  nav.addEventListener("click", (e) => { if (e.target.closest("a")) { nav.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); } });
+  nav.addEventListener("click", (e) => {
+    if (e.target.closest("a")) {
+      nav.classList.remove("open");
+      menu.setAttribute("aria-expanded", "false");
+    }
+  });
 
-  const pintarNav = (actual) => montar(nav, NAV.filter(([, , , roles]) => roles.includes(u.rol)).map(([ruta, ic, texto]) =>
-    ruta === "__sep" ? h("div", { class: "sep" }, texto) : h("a", { href: `#/${ruta}`, "aria-current": actual === ruta ? "page" : null }, h("span", { "aria-hidden": "true" }, ic), texto)));
+  const pintarNav = (actual) =>
+    montar(
+      nav,
+      NAV.filter(([, , , roles]) => roles.includes(u.rol)).map(([ruta, ic, texto]) =>
+        ruta === "__sep"
+          ? h("div", { class: "sep" }, texto)
+          : h("a", { href: `#/${ruta}`, "aria-current": actual === ruta ? "page" : null }, h("span", { "aria-hidden": "true" }, ic), texto),
+      ),
+    );
 
   shell = { main, banner, contador, pintarNav, chip };
   actualizarEstadoRed();
@@ -108,17 +166,27 @@ function pintarContador() {
 }
 export async function refrescarNotificaciones() {
   if (!getUsuario() || getUsuario().debeCambiarPassword || !navigator.onLine) return;
-  try { noLeidas = (await api("/api/notificaciones?pageSize=1")).noLeidas; pintarContador(); } catch { /* noop */ }
+  try {
+    noLeidas = (await api("/api/notificaciones?pageSize=1")).noLeidas;
+    pintarContador();
+  } catch {
+    /* noop */
+  }
 }
 document.addEventListener("notificaciones-actualizadas", refrescarNotificaciones);
 
-function actualizarEstadoRed() { shell?.banner.classList.toggle("hidden", navigator.onLine); }
+function actualizarEstadoRed() {
+  shell?.banner.classList.toggle("hidden", navigator.onLine);
+}
 window.addEventListener("offline", actualizarEstadoRed);
 window.addEventListener("online", async () => {
   actualizarEstadoRed();
   await asegurarSesion();
   const n = await vaciarCola();
-  if (n) { toast(`Se enviaron ${n} caso(s) guardados sin conexión`); if (location.hash.includes("mis-casos")) enrutar(); }
+  if (n) {
+    toast(`Se enviaron ${n} caso(s) guardados sin conexión`);
+    if (location.hash.includes("mis-casos")) enrutar();
+  }
   refrescarNotificaciones();
 });
 
@@ -131,15 +199,40 @@ async function enrutar() {
     if (hash !== "#/login") history.replaceState(null, "", "#/login");
     return montar(root, vistaLogin({ alIngresar: despuesDeLogin }));
   }
-  if (u.debeCambiarPassword) return montar(root, vistaCambioPasswordObligatorio({ alTerminar: () => { enrutar(); } }));
+  if (u.debeCambiarPassword)
+    return montar(
+      root,
+      vistaCambioPasswordObligatorio({
+        alTerminar: () => {
+          enrutar();
+        },
+      }),
+    );
   if (!shell || !root.contains(shell.main)) construirShell(u);
-  if (hash === "#/login" || hash === "#/" || hash === "") { location.replace("#/inicio"); return; }
+  if (hash === "#/login" || hash === "#/" || hash === "") {
+    location.replace("#/inicio");
+    return;
+  }
 
   const r = resolverRuta(hash);
   const mi = ++token;
   shell.pintarNav(r?.ruta);
-  if (!r) { montar(shell.main, h("div", { class: "card center" }, h("h1", {}, "Página no encontrada"), h("a", { class: "btn primary", href: "#/inicio" }, "Ir al inicio"))); return; }
-  if (!r.roles.includes(u.rol)) { montar(shell.main, h("div", { class: "alert", role: "alert" }, "No tienes permisos para ver esta sección.")); return; }
+  if (!r) {
+    montar(
+      shell.main,
+      h(
+        "div",
+        { class: "card center" },
+        h("h1", {}, "Página no encontrada"),
+        h("a", { class: "btn primary", href: "#/inicio" }, "Ir al inicio"),
+      ),
+    );
+    return;
+  }
+  if (!r.roles.includes(u.rol)) {
+    montar(shell.main, h("div", { class: "alert", role: "alert" }, "No tienes permisos para ver esta sección."));
+    return;
+  }
 
   document.title = `${r.titulo} · Mesa de Ayuda SENA`;
   montar(shell.main, cargando());
@@ -161,12 +254,22 @@ async function despuesDeLogin(u) {
 }
 
 alCambiarSesion((u) => {
-  if (u?.debeCambiarPassword) { desmontarBot(); return; } // primero debe cambiar la contraseña temporal
+  if (u?.debeCambiarPassword) {
+    desmontarBot();
+    return;
+  } // primero debe cambiar la contraseña temporal
   if (u) {
-    montarBot(); refrescarNotificaciones(); vaciarCola().then((n) => n && toast(`Se enviaron ${n} caso(s) guardados sin conexión`));
+    montarBot();
+    refrescarNotificaciones();
+    vaciarCola().then((n) => n && toast(`Se enviaron ${n} caso(s) guardados sin conexión`));
     const chip = document.getElementById("usuario-chip");
     if (chip) chip.querySelector("strong").textContent = u.nombreCompleto;
-  } else { desmontarBot(); shell = null; noLeidas = 0; enrutar(); }
+  } else {
+    desmontarBot();
+    shell = null;
+    noLeidas = 0;
+    enrutar();
+  }
 });
 window.addEventListener("hashchange", enrutar);
 window.addEventListener("focus", refrescarNotificaciones);
@@ -175,11 +278,16 @@ setInterval(refrescarNotificaciones, 60_000);
 // ───────────── Arranque ─────────────
 (async function iniciar() {
   tema.aplicar();
-  registrarServiceWorker((m) => { if (m?.tipo === "VACIAR_COLA") vaciarCola(); });
+  registrarServiceWorker((m) => {
+    if (m?.tipo === "VACIAR_COLA") vaciarCola();
+  });
   const u = await restaurarSesion().catch(() => null);
   if (u) tema.aplicarDePerfil(u.preferenciaTema);
   const activo = u && !u.debeCambiarPassword;
-  if (activo) { montarBot(); refrescarNotificaciones(); }
+  if (activo) {
+    montarBot();
+    refrescarNotificaciones();
+  }
   await enrutar();
   if (activo && (await colaTotal())) vaciarCola();
 })();

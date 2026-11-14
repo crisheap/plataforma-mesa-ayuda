@@ -26,7 +26,9 @@ export async function notificar(n: NuevaNotificacion, db: Db = prisma): Promise<
   });
   // El push no es crítico: se dispara sin bloquear ni romper la operación.
   for (const id of ids) {
-    enviarPush(id, { titulo: n.titulo, mensaje: n.mensaje, url: n.casoId ? `#/casos/${n.casoId}` : "#/notificaciones" }).catch(() => undefined);
+    enviarPush(id, { titulo: n.titulo, mensaje: n.mensaje, url: n.casoId ? `#/casos/${n.casoId}` : "#/notificaciones" }).catch(
+      () => undefined,
+    );
   }
 }
 

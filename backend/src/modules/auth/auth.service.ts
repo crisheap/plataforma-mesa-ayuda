@@ -11,14 +11,27 @@ export const MAX_INTENTOS = 3;
 export const MINUTOS_BLOQUEO = 15;
 
 const seleccionUsuario = {
-  id: true, nombre: true, apellido: true, correo: true, estado: true, password: true,
-  intentosFallidos: true, bloqueadoHasta: true, preferenciaTema: true, debeCambiarPassword: true,
+  id: true,
+  nombre: true,
+  apellido: true,
+  correo: true,
+  estado: true,
+  password: true,
+  intentosFallidos: true,
+  bloqueadoHasta: true,
+  preferenciaTema: true,
+  debeCambiarPassword: true,
   rol: { select: { nombre: true } },
 } as const;
 
 type UsuarioDb = {
-  id: number; nombre: string; apellido: string; correo: string;
-  preferenciaTema: TemaPreferido; debeCambiarPassword: boolean; rol: { nombre: RolNombre };
+  id: number;
+  nombre: string;
+  apellido: string;
+  correo: string;
+  preferenciaTema: TemaPreferido;
+  debeCambiarPassword: boolean;
+  rol: { nombre: RolNombre };
 };
 
 /** Usuario tal como lo ve el cliente (RF-UI-04: incluye nombre completo). */
@@ -67,7 +80,9 @@ export async function login(correo: string, password: string, ip?: string) {
       // Bloqueo vigente o manual (sin fecha): SIEMPRE se rechaza (corrige H-02).
       const min = u.bloqueadoHasta ? Math.max(1, Math.ceil((u.bloqueadoHasta.getTime() - Date.now()) / 60_000)) : null;
       throw AppError.forbidden(
-        min ? `Cuenta bloqueada temporalmente. Intenta de nuevo en ${min} minuto(s)` : "La cuenta está bloqueada. Contacta al administrador",
+        min
+          ? `Cuenta bloqueada temporalmente. Intenta de nuevo en ${min} minuto(s)`
+          : "La cuenta está bloqueada. Contacta al administrador",
       );
     }
   }
@@ -87,7 +102,16 @@ export async function login(correo: string, password: string, ip?: string) {
       prisma.intentoLogin.create({ data: { exitoso: false, ip, usuarioId: u.id } }),
     ]);
     if (bloquear) {
-      await auditar({ ip }, { accion: "CUENTA_BLOQUEADA", entidad: "usuario", entidadId: u.id, usuarioId: u.id, descripcion: `Bloqueo automático por ${MAX_INTENTOS} intentos fallidos` });
+      await auditar(
+        { ip },
+        {
+          accion: "CUENTA_BLOQUEADA",
+          entidad: "usuario",
+          entidadId: u.id,
+          usuarioId: u.id,
+          descripcion: `Bloqueo automático por ${MAX_INTENTOS} intentos fallidos`,
+        },
+      );
       throw AppError.forbidden(`Cuenta bloqueada por ${MINUTOS_BLOQUEO} minutos tras ${MAX_INTENTOS} intentos fallidos`);
     }
     throw AppError.unauthorized(`Correo o contraseña incorrectos. Intentos restantes: ${MAX_INTENTOS - intentos}`);
@@ -120,7 +144,10 @@ export const revocarSesiones = (usuarioId: number) =>
   prisma.refreshToken.updateMany({ where: { usuarioId, revokedAt: null }, data: { revokedAt: new Date() } });
 
 export async function perfil(userId: number) {
-  const u = await prisma.usuario.findUnique({ where: { id: userId }, select: { ...seleccionUsuario, ultimoAcceso: true, createdAt: true } });
+  const u = await prisma.usuario.findUnique({
+    where: { id: userId },
+    select: { ...seleccionUsuario, ultimoAcceso: true, createdAt: true },
+  });
   if (!u) throw AppError.notFound("Usuario no encontrado");
   return { ...usuarioPublico(u), ultimoAcceso: u.ultimoAcceso, creadoEn: u.createdAt };
 }
@@ -132,7 +159,10 @@ export async function cambiarPasswordPropia(userId: number, actual: string, nuev
   if (actual === nueva) throw AppError.badRequest("La nueva contraseña debe ser distinta de la actual");
   const fallas = validarPolitica(nueva);
   if (fallas.length) {
-    throw AppError.badRequest("La contraseña no cumple la política de seguridad", fallas.map((message) => ({ field: "passwordNueva", message })));
+    throw AppError.badRequest(
+      "La contraseña no cumple la política de seguridad",
+      fallas.map((message) => ({ field: "passwordNueva", message })),
+    );
   }
   await prisma.usuario.update({ where: { id: userId }, data: { password: await hashPassword(nueva), debeCambiarPassword: false } });
   await revocarSesiones(userId);

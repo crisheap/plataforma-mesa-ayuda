@@ -1,14 +1,31 @@
 import { env } from "../../config/env";
 
 export interface CasoResumen {
-  numeroCaso: string; titulo: string; estado: string; prioridad: string;
-  tecnico: string | null; sla: string | null; minutosRestantes: number | null;
+  numeroCaso: string;
+  titulo: string;
+  estado: string;
+  prioridad: string;
+  tecnico: string | null;
+  sla: string | null;
+  minutosRestantes: number | null;
 }
 
-type CasoApi = { numeroCaso: string; titulo: string; estado: string; prioridad: string; tecnico: { nombreCompleto: string } | null; sla?: { semaforo: string; minutosRestantes: number | null } };
+type CasoApi = {
+  numeroCaso: string;
+  titulo: string;
+  estado: string;
+  prioridad: string;
+  tecnico: { nombreCompleto: string } | null;
+  sla?: { semaforo: string; minutosRestantes: number | null };
+};
 const resumir = (c: CasoApi): CasoResumen => ({
-  numeroCaso: c.numeroCaso, titulo: c.titulo, estado: c.estado, prioridad: c.prioridad,
-  tecnico: c.tecnico?.nombreCompleto ?? null, sla: c.sla?.semaforo ?? null, minutosRestantes: c.sla?.minutosRestantes ?? null,
+  numeroCaso: c.numeroCaso,
+  titulo: c.titulo,
+  estado: c.estado,
+  prioridad: c.prioridad,
+  tecnico: c.tecnico?.nombreCompleto ?? null,
+  sla: c.sla?.semaforo ?? null,
+  minutosRestantes: c.sla?.minutosRestantes ?? null,
 });
 
 async function pedir<T>(ruta: string, token: string): Promise<T | null> {

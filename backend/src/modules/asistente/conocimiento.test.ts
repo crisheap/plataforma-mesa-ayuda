@@ -36,15 +36,44 @@ test("detecta consultas de estado y número de caso", () => {
 });
 
 test("clasifica tipo y categoría sugeridos (RF-IA-05)", () => {
-  assert.deepEqual(clasificarProblema("El wifi no funciona en el piso 3. Desde ayer"), { titulo: "El wifi no funciona en el piso 3", tipo: "INCIDENTE", categoria: "RED" });
+  assert.deepEqual(clasificarProblema("El wifi no funciona en el piso 3. Desde ayer"), {
+    titulo: "El wifi no funciona en el piso 3",
+    tipo: "INCIDENTE",
+    categoria: "RED",
+  });
   assert.equal(clasificarProblema("Necesito acceso a la plataforma de cursos").tipo, "SOLICITUD_ACCESO");
   assert.equal(clasificarProblema("no llegan los correos a mi outlook").categoria, "CORREO");
 });
 
 test("respuesta local: guía, estado de casos y no encontrada", () => {
-  const e = { nombre: "Ana Pérez", historial: [], articulos: [], casos: [], consultaEstado: false, numeroSolicitado: null as string | null };
+  const e = {
+    nombre: "Ana Pérez",
+    historial: [],
+    articulos: [],
+    casos: [],
+    consultaEstado: false,
+    numeroSolicitado: null as string | null,
+  };
   assert.match(responderLocal({ ...e, mensaje: "x", articulos: [base[0]] }), /Ana/);
-  assert.match(responderLocal({ ...e, mensaje: "x", consultaEstado: true, casos: [{ numeroCaso: "CASO-2026-000001", titulo: "Falla", estado: "EN_PROCESO", prioridad: "ALTA", tecnico: "Luis Gómez", sla: "EN_RIESGO", minutosRestantes: 20 }] }), /CASO-2026-000001.*en proceso.*Luis Gómez/s);
+  assert.match(
+    responderLocal({
+      ...e,
+      mensaje: "x",
+      consultaEstado: true,
+      casos: [
+        {
+          numeroCaso: "CASO-2026-000001",
+          titulo: "Falla",
+          estado: "EN_PROCESO",
+          prioridad: "ALTA",
+          tecnico: "Luis Gómez",
+          sla: "EN_RIESGO",
+          minutosRestantes: 20,
+        },
+      ],
+    }),
+    /CASO-2026-000001.*en proceso.*Luis Gómez/s,
+  );
   assert.match(responderLocal({ ...e, mensaje: "x", consultaEstado: true, casos: null }), /no pude consultar/);
   assert.match(responderLocal({ ...e, mensaje: "x" }), /No encontré una guía exacta/);
 });

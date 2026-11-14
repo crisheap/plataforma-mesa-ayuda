@@ -8,7 +8,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 
 const cred = JSON.parse(readFileSync(process.env.CREDENCIALES ?? "credenciales.json", "utf8")) as {
-  admin: { correo: string; password: string }; usuario: { correo: string; password: string }; casoId: number;
+  admin: { correo: string; password: string };
+  usuario: { correo: string; password: string };
+  casoId: number;
 };
 
 async function revisar(page: Page, nombre: string) {
@@ -16,9 +18,17 @@ async function revisar(page: Page, nombre: string) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   const graves = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   for (const v of r.violations) {
-    console.log(`[axe] ${nombre}: ${v.impact} · ${v.id} · ${v.help} · ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+    console.log(
+      `[axe] ${nombre}: ${v.impact} · ${v.id} · ${v.help} · ${v.nodes
+        .slice(0, 3)
+        .map((n) => n.target.join(" "))
+        .join(" | ")}`,
+    );
   }
-  expect(graves.map((v) => `${v.id} (${v.nodes.length})`), `violaciones graves en ${nombre}`).toEqual([]);
+  expect(
+    graves.map((v) => `${v.id} (${v.nodes.length})`),
+    `violaciones graves en ${nombre}`,
+  ).toEqual([]);
 }
 
 async function ingresar(page: Page, correo: string, password: string) {
@@ -45,7 +55,10 @@ for (const esquema of ["light", "dark"] as const) {
         await page.goto(`/#/${ruta}`);
         await revisar(page, `${ruta} (${esquema})`);
       }
-      await page.getByRole("button", { name: /asistente/i }).first().click();
+      await page
+        .getByRole("button", { name: /asistente/i })
+        .first()
+        .click();
       await expect(page.getByRole("textbox", { name: /mensaje/i })).toBeVisible();
       await revisar(page, `Botito (${esquema})`);
     });
@@ -75,7 +88,9 @@ test.describe("PWA", () => {
 
   test("abre sin conexión después de la primera visita", async ({ page, context }) => {
     await ingresar(page, cred.usuario.correo, cred.usuario.password);
-    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
     await page.reload(); // la página queda controlada por el service worker
     await page.goto("/#/mis-casos");
     await page.waitForLoadState("networkidle");

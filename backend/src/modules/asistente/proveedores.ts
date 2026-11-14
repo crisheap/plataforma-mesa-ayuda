@@ -4,19 +4,26 @@ import type { CasoResumen } from "./casosClient";
 
 export interface EntradaIA {
   nombre: string;
-  mensaje: string;                       // ya enmascarado
+  mensaje: string; // ya enmascarado
   historial: { rol: "USUARIO" | "ASISTENTE"; contenido: string }[];
   articulos: Articulo[];
-  casos: CasoResumen[] | null;           // null = no se pudo consultar; [] = sin casos
+  casos: CasoResumen[] | null; // null = no se pudo consultar; [] = sin casos
   consultaEstado: boolean;
   numeroSolicitado: string | null;
 }
 
 const ESTADO_TXT: Record<string, string> = {
-  ABIERTO: "abierto y esperando asignación", ASIGNADO: "asignado a un técnico", EN_PROCESO: "en proceso de atención",
-  RESUELTO: "resuelto (confirma la solución para cerrarlo)", CERRADO: "cerrado",
+  ABIERTO: "abierto y esperando asignación",
+  ASIGNADO: "asignado a un técnico",
+  EN_PROCESO: "en proceso de atención",
+  RESUELTO: "resuelto (confirma la solución para cerrarlo)",
+  CERRADO: "cerrado",
 };
-const SLA_TXT: Record<string, string> = { EN_TIEMPO: "va en tiempo", EN_RIESGO: "está cerca de vencer su tiempo de atención", VENCIDO: "superó su tiempo de atención" };
+const SLA_TXT: Record<string, string> = {
+  EN_TIEMPO: "va en tiempo",
+  EN_RIESGO: "está cerca de vencer su tiempo de atención",
+  VENCIDO: "superó su tiempo de atención",
+};
 
 export const describirCaso = (c: CasoResumen) =>
   `• ${c.numeroCaso} «${c.titulo}»: ${ESTADO_TXT[c.estado] ?? c.estado.toLowerCase()}${c.tecnico ? `, a cargo de ${c.tecnico}` : ""}${c.sla && SLA_TXT[c.sla] ? ` (${SLA_TXT[c.sla]})` : ""}.`;
@@ -25,20 +32,27 @@ export const describirCaso = (c: CasoResumen) =>
 export function responderLocal(e: EntradaIA): string {
   const saludo = e.nombre.split(" ")[0];
   if (e.consultaEstado) {
-    if (e.casos === null) return `${saludo}, no pude consultar tus casos en este momento. Inténtalo de nuevo en unos minutos o revisa la sección «Mis casos».`;
-    if (e.numeroSolicitado && !e.casos.length) return `${saludo}, no encontré el caso ${e.numeroSolicitado} entre los tuyos. Revisa que el número esté bien escrito.`;
+    if (e.casos === null)
+      return `${saludo}, no pude consultar tus casos en este momento. Inténtalo de nuevo en unos minutos o revisa la sección «Mis casos».`;
+    if (e.numeroSolicitado && !e.casos.length)
+      return `${saludo}, no encontré el caso ${e.numeroSolicitado} entre los tuyos. Revisa que el número esté bien escrito.`;
     if (!e.casos.length) return `${saludo}, aún no tienes casos registrados. Si tienes un problema, cuéntamelo y te ayudo a reportarlo.`;
     return `Esto es lo que encontré, ${saludo}:\n${e.casos.map(describirCaso).join("\n")}`;
   }
   const a = e.articulos[0];
   if (a) {
-    const otros = e.articulos.slice(1).map((x) => `«${x.titulo}»`).join(" y ");
+    const otros = e.articulos
+      .slice(1)
+      .map((x) => `«${x.titulo}»`)
+      .join(" y ");
     return `¡Claro, ${saludo}! Esto puede ayudarte con «${a.titulo}»:\n\n${a.contenido}${otros ? `\n\nTambién podría servirte: ${otros}.` : ""}\n\n¿Se resolvió? Si no, puedo ayudarte a crear un caso para que un técnico te apoye.`;
   }
   return `Gracias por contarme, ${saludo}. No encontré una guía exacta para eso. Si me das más detalles (qué pasó, desde cuándo y qué intentaste) puedo buscar mejor, o puedo prepararte un caso para que un técnico lo revise.`;
 }
 
-const SYSTEM = (nombre: string) => `Eres «Botito», el asistente amigable de la Mesa de Ayuda del SENA. Hablas en español de Colombia, con tono cercano, claro y breve. Te diriges al usuario como ${nombre}.
+const SYSTEM = (
+  nombre: string,
+) => `Eres «Botito», el asistente amigable de la Mesa de Ayuda del SENA. Hablas en español de Colombia, con tono cercano, claro y breve. Te diriges al usuario como ${nombre}.
 Reglas obligatorias:
 - Eres un asistente automatizado y lo dices si te preguntan; ofrece pasar a una persona creando un caso cuando no puedas resolver.
 - NUNCA pidas ni repitas contraseñas, claves, tokens o datos personales sensibles.
@@ -67,7 +81,11 @@ async function responderAnthropic(e: EntradaIA): Promise<string> {
   });
   if (!r.ok) throw new Error(`Proveedor de IA respondió ${r.status}`);
   const j = (await r.json()) as { content?: { type: string; text?: string }[] };
-  const texto = j.content?.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const texto = j.content
+    ?.filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
   if (!texto) throw new Error("Respuesta vacía del proveedor de IA");
   return texto;
 }

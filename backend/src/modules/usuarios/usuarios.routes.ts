@@ -19,7 +19,8 @@ const crearSchema = z.object({
   rol: z.enum(ROLES),
   password: z.string().max(72).optional(),
 });
-const editarSchema = z.object({ nombre: texto("El nombre").optional(), apellido: texto("El apellido").optional(), rol: z.enum(ROLES).optional() })
+const editarSchema = z
+  .object({ nombre: texto("El nombre").optional(), apellido: texto("El apellido").optional(), rol: z.enum(ROLES).optional() })
   .refine((d) => Object.keys(d).length > 0, "Envía al menos un campo");
 const estadoSchema = z.object({ estado: z.enum(["ACTIVO", "BLOQUEADO", "INACTIVO"]) });
 const resetSchema = z.object({ passwordNueva: z.string().max(72).optional() });

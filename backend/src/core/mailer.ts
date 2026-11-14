@@ -1,6 +1,8 @@
 import { env } from "../config/env";
 
-interface Transporte { sendMail(o: { from: string; to: string; subject: string; text: string }): Promise<unknown> }
+interface Transporte {
+  sendMail(o: { from: string; to: string; subject: string; text: string }): Promise<unknown>;
+}
 let transporte: Transporte | null | undefined;
 
 async function obtenerTransporte(): Promise<Transporte | null> {

@@ -7,13 +7,22 @@ let refrescando = null;
 const oyentes = new Set();
 
 export class ApiError extends Error {
-  constructor(message, status = 0, errors = []) { super(message); this.status = status; this.errors = errors; }
-  get sinConexion() { return this.status === 0; }
+  constructor(message, status = 0, errors = []) {
+    super(message);
+    this.status = status;
+    this.errors = errors;
+  }
+  get sinConexion() {
+    return this.status === 0;
+  }
 }
 
 export const getUsuario = () => usuario;
 export const getToken = () => accessToken;
-export const alCambiarSesion = (fn) => { oyentes.add(fn); return () => oyentes.delete(fn); };
+export const alCambiarSesion = (fn) => {
+  oyentes.add(fn);
+  return () => oyentes.delete(fn);
+};
 const notificar = () => oyentes.forEach((fn) => fn(usuario));
 
 function guardarSesion(d) {
@@ -22,11 +31,19 @@ function guardarSesion(d) {
   try {
     localStorage.setItem(RT_KEY, d.refreshToken);
     localStorage.setItem(US_KEY, JSON.stringify(d.usuario)); // perfil básico para abrir la app sin conexión
-  } catch { /* almacenamiento no disponible */ }
+  } catch {
+    /* almacenamiento no disponible */
+  }
 }
 function limpiarSesion() {
-  accessToken = null; usuario = null;
-  try { localStorage.removeItem(RT_KEY); localStorage.removeItem(US_KEY); } catch { /* noop */ }
+  accessToken = null;
+  usuario = null;
+  try {
+    localStorage.removeItem(RT_KEY);
+    localStorage.removeItem(US_KEY);
+  } catch {
+    /* noop */
+  }
   navigator.serviceWorker?.controller?.postMessage({ tipo: "LIMPIAR_CACHE_API" });
 }
 
@@ -35,7 +52,10 @@ async function crudo(ruta, { method = "GET", body, form, auth = true, headers = 
   if (auth && accessToken) h.Authorization = `Bearer ${accessToken}`;
   let cuerpo;
   if (form) cuerpo = form;
-  else if (body !== undefined) { h["Content-Type"] = "application/json"; cuerpo = JSON.stringify(body); }
+  else if (body !== undefined) {
+    h["Content-Type"] = "application/json";
+    cuerpo = JSON.stringify(body);
+  }
   try {
     return await fetch(ruta, { method, headers: h, body: cuerpo });
   } catch {
@@ -44,7 +64,13 @@ async function crudo(ruta, { method = "GET", body, form, auth = true, headers = 
 }
 
 async function refrescar() {
-  const rt = (() => { try { return localStorage.getItem(RT_KEY); } catch { return null; } })();
+  const rt = (() => {
+    try {
+      return localStorage.getItem(RT_KEY);
+    } catch {
+      return null;
+    }
+  })();
   if (!rt) return false;
   refrescando ??= (async () => {
     const r = await crudo("/api/auth/refresh", { method: "POST", body: { refreshToken: rt }, auth: false }).catch(() => null);
@@ -52,7 +78,9 @@ async function refrescar() {
     if (!r.ok) return false;
     guardarSesion((await r.json()).data);
     return true;
-  })().finally(() => { refrescando = null; });
+  })().finally(() => {
+    refrescando = null;
+  });
   return refrescando;
 }
 
@@ -62,9 +90,16 @@ export async function api(ruta, opts = {}) {
   if (r.status === 401 && opts.auth !== false && (await refrescar()) === true) r = await crudo(ruta, opts);
   if (opts.raw && r.ok) return r;
   let json = null;
-  try { json = await r.json(); } catch { /* sin cuerpo JSON */ }
+  try {
+    json = await r.json();
+  } catch {
+    /* sin cuerpo JSON */
+  }
   if (!r.ok) {
-    if (r.status === 401 && opts.auth !== false) { limpiarSesion(); notificar(); }
+    if (r.status === 401 && opts.auth !== false) {
+      limpiarSesion();
+      notificar();
+    }
     throw new ApiError(json?.message ?? `Error ${r.status}`, r.status, json?.errors ?? []);
   }
   return json?.data ?? json;
@@ -82,13 +117,22 @@ export async function login(correo, password) {
 /** Restaura la sesión al abrir la app usando el token de refresco. */
 export async function restaurarSesion() {
   const r = await refrescar();
-  if (r === true) { notificar(); return usuario; }
+  if (r === true) {
+    notificar();
+    return usuario;
+  }
   if (r === "red") {
     // Sin conexión: se abre con el perfil guardado; el token se renueva al reconectar.
     try {
       const guardado = JSON.parse(localStorage.getItem(US_KEY) ?? "null");
-      if (guardado && localStorage.getItem(RT_KEY)) { usuario = guardado; notificar(); return usuario; }
-    } catch { /* perfil ilegible */ }
+      if (guardado && localStorage.getItem(RT_KEY)) {
+        usuario = guardado;
+        notificar();
+        return usuario;
+      }
+    } catch {
+      /* perfil ilegible */
+    }
     return null;
   }
   if (r === false) limpiarSesion();
@@ -102,13 +146,22 @@ export async function asegurarSesion() {
 }
 
 export async function logout() {
-  const rt = (() => { try { return localStorage.getItem(RT_KEY); } catch { return null; } })();
+  const rt = (() => {
+    try {
+      return localStorage.getItem(RT_KEY);
+    } catch {
+      return null;
+    }
+  })();
   if (rt) await crudo("/api/auth/logout", { method: "POST", body: { refreshToken: rt }, auth: false }).catch(() => undefined);
   limpiarSesion();
   notificar();
 }
 
-export function actualizarUsuarioLocal(parcial) { usuario = { ...usuario, ...parcial }; notificar(); }
+export function actualizarUsuarioLocal(parcial) {
+  usuario = { ...usuario, ...parcial };
+  notificar();
+}
 
 export async function descargar(ruta, nombreSugerido) {
   const r = await api(ruta, { raw: true });
@@ -117,25 +170,36 @@ export async function descargar(ruta, nombreSugerido) {
   const nombre = cd.match(/filename="?([^";]+)"?/)?.[1] ?? nombreSugerido;
   const url = URL.createObjectURL(blob);
   const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
-  document.body.append(a); a.click(); a.remove();
+  document.body.append(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 // ───────────── Cola sin conexión (RF-PWA-04) ─────────────
-const DB = "mesa-ayuda", STORE = "cola";
-const abrirDb = () => new Promise((ok, mal) => {
-  const q = indexedDB.open(DB, 1);
-  q.onupgradeneeded = () => q.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
-  q.onsuccess = () => ok(q.result);
-  q.onerror = () => mal(q.error);
-});
+const DB = "mesa-ayuda",
+  STORE = "cola";
+const abrirDb = () =>
+  new Promise((ok, mal) => {
+    const q = indexedDB.open(DB, 1);
+    q.onupgradeneeded = () => q.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+    q.onsuccess = () => ok(q.result);
+    q.onerror = () => mal(q.error);
+  });
 const tx = async (modo, fn) => {
   const db = await abrirDb();
   return new Promise((ok, mal) => {
-    const t = db.transaction(STORE, modo); const s = t.objectStore(STORE);
+    const t = db.transaction(STORE, modo);
+    const s = t.objectStore(STORE);
     const r = fn(s);
-    t.oncomplete = () => { db.close(); ok(r?.result); };
-    t.onerror = () => { db.close(); mal(t.error); };
+    t.oncomplete = () => {
+      db.close();
+      ok(r?.result);
+    };
+    t.onerror = () => {
+      db.close();
+      mal(t.error);
+    };
   });
 };
 export const colaListar = () => tx("readonly", (s) => s.getAll());
@@ -143,7 +207,12 @@ export const colaTotal = async () => (await colaListar().catch(() => [])).length
 
 export async function encolarCaso(datos) {
   await tx("readwrite", (s) => s.add({ ruta: "/api/casos", body: datos, usuarioId: usuario?.id, creadoEn: Date.now() }));
-  try { const reg = await navigator.serviceWorker?.ready; await reg?.sync?.register("enviar-cola"); } catch { /* Background Sync no disponible */ }
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    await reg?.sync?.register("enviar-cola");
+  } catch {
+    /* Background Sync no disponible */
+  }
 }
 
 let vaciando = false;
@@ -161,10 +230,13 @@ export async function vaciarCola() {
         enviados++;
       } catch (e) {
         if (e.sinConexion) break;
-        if (e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 403 && e.status !== 429) await tx("readwrite", (s) => s.delete(it.id)); // datos inválidos: se descarta
+        if (e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 403 && e.status !== 429)
+          await tx("readwrite", (s) => s.delete(it.id)); // datos inválidos: se descarta
         else break;
       }
     }
-  } finally { vaciando = false; }
+  } finally {
+    vaciando = false;
+  }
   return enviados;
 }

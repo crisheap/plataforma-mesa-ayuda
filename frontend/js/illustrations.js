@@ -57,7 +57,8 @@ export function iconoBot(tamano = 42) {
   <path d="M23 39q9 8 18 0" fill="none" stroke="#2E7D00" stroke-width="3.2" stroke-linecap="round"/>
   <circle cx="17" cy="38" r="2.6" fill="#FFB3A7" opacity=".9"/><circle cx="47" cy="38" r="2.6" fill="#FFB3A7" opacity=".9"/>
   <rect x="20" y="50" width="24" height="7" rx="3.5" fill="#fff" opacity=".85"/></svg>`);
-  svg.setAttribute("width", tamano); svg.setAttribute("height", tamano);
+  svg.setAttribute("width", tamano);
+  svg.setAttribute("height", tamano);
   return svg;
 }
 
@@ -70,6 +71,8 @@ export function icono(nombre) {
     cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
     enviar: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
   };
-  const svg = crearSvg(`<svg xmlns="${NS}" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${t[nombre] ?? ""}</svg>`);
+  const svg = crearSvg(
+    `<svg xmlns="${NS}" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${t[nombre] ?? ""}</svg>`,
+  );
   return svg;
 }

@@ -7,7 +7,11 @@ import { idsSupervisores, notificar } from "../../core/notificar";
 import { ESTADOS_ABIERTOS, esPersonalInterno, evaluarCambioEstado, formatearNumeroCaso, puedeVerCaso } from "../../core/reglas";
 import { calcularVencimiento, minutosRestantes, semaforoSla } from "../../core/sla";
 
-export interface Actor { userId: number; rol: "USUARIO" | "TECNICO" | "SUPERVISOR" | "ADMINISTRADOR"; ip?: string }
+export interface Actor {
+  userId: number;
+  rol: "USUARIO" | "TECNICO" | "SUPERVISOR" | "ADMINISTRADOR";
+  ip?: string;
+}
 
 const personaSel = { select: { id: true, nombre: true, apellido: true, correo: true } } as const;
 
@@ -75,8 +79,13 @@ export async function crear(actor: Actor, d: { titulo: string; descripcion: stri
     const c = await tx.caso.create({
       data: {
         numeroCaso: await siguienteNumero(tx, ahora),
-        titulo: d.titulo, descripcion: d.descripcion, tipo: d.tipo, categoria: d.categoria,
-        prioridad, usuarioId: actor.userId, fechaCreacion: ahora,
+        titulo: d.titulo,
+        descripcion: d.descripcion,
+        tipo: d.tipo,
+        categoria: d.categoria,
+        prioridad,
+        usuarioId: actor.userId,
+        fechaCreacion: ahora,
         slaVenceEn: min ? calcularVencimiento(ahora, min) : null,
       },
       include: { usuario: personaSel, tecnico: personaSel },
@@ -86,16 +95,41 @@ export async function crear(actor: Actor, d: { titulo: string; descripcion: stri
     });
     return c;
   });
-  await notificar({ usuarioIds: [actor.userId], titulo: `Caso ${caso.numeroCaso} registrado`, mensaje: `Recibimos tu caso «${caso.titulo}». Te avisaremos cuando sea asignado.`, tipo: "CASO_CREADO", casoId: caso.id });
-  await notificar({ usuarioIds: (await idsSupervisores()).filter((i) => i !== actor.userId), titulo: `Nuevo caso ${caso.numeroCaso}`, mensaje: `«${caso.titulo}» espera asignación.`, tipo: "CASO_NUEVO", casoId: caso.id });
-  await auditar(actor, { accion: "CASO_CREADO", entidad: "caso", entidadId: caso.id, usuarioId: actor.userId, descripcion: caso.numeroCaso });
+  await notificar({
+    usuarioIds: [actor.userId],
+    titulo: `Caso ${caso.numeroCaso} registrado`,
+    mensaje: `Recibimos tu caso «${caso.titulo}». Te avisaremos cuando sea asignado.`,
+    tipo: "CASO_CREADO",
+    casoId: caso.id,
+  });
+  await notificar({
+    usuarioIds: (await idsSupervisores()).filter((i) => i !== actor.userId),
+    titulo: `Nuevo caso ${caso.numeroCaso}`,
+    mensaje: `«${caso.titulo}» espera asignación.`,
+    tipo: "CASO_NUEVO",
+    casoId: caso.id,
+  });
+  await auditar(actor, {
+    accion: "CASO_CREADO",
+    entidad: "caso",
+    entidadId: caso.id,
+    usuarioId: actor.userId,
+    descripcion: caso.numeroCaso,
+  });
   return presentar(caso);
 }
 
 // ───────────── Consultas ─────────────
 export interface FiltrosCaso {
-  estado?: EstadoCaso; prioridad?: Prioridad; tecnicoId?: number; q?: string; desde?: Date; hasta?: Date;
-  slaVencido?: boolean; page: number; pageSize: number;
+  estado?: EstadoCaso;
+  prioridad?: Prioridad;
+  tecnicoId?: number;
+  q?: string;
+  desde?: Date;
+  hasta?: Date;
+  slaVencido?: boolean;
+  page: number;
+  pageSize: number;
 }
 
 async function consultar(base: Prisma.CasoWhereInput, f: FiltrosCaso) {
@@ -106,17 +140,24 @@ async function consultar(base: Prisma.CasoWhereInput, f: FiltrosCaso) {
     ...(f.tecnicoId ? { tecnicoId: f.tecnicoId } : {}),
     ...(f.desde || f.hasta ? { fechaCreacion: { ...(f.desde ? { gte: f.desde } : {}), ...(f.hasta ? { lte: f.hasta } : {}) } } : {}),
     ...(f.slaVencido ? { slaVenceEn: { lte: new Date() }, estado: { in: ESTADOS_ABIERTOS } } : {}),
-    ...(f.q ? { OR: [
-      { numeroCaso: { contains: f.q, mode: "insensitive" } },
-      { titulo: { contains: f.q, mode: "insensitive" } },
-      { descripcion: { contains: f.q, mode: "insensitive" } },
-    ] } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { numeroCaso: { contains: f.q, mode: "insensitive" } },
+            { titulo: { contains: f.q, mode: "insensitive" } },
+            { descripcion: { contains: f.q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
   };
   const [total, items] = await prisma.$transaction([
     prisma.caso.count({ where }),
     prisma.caso.findMany({
-      where, include: { usuario: personaSel, tecnico: personaSel },
-      orderBy: [{ fechaCreacion: "desc" }], skip: (f.page - 1) * f.pageSize, take: f.pageSize,
+      where,
+      include: { usuario: personaSel, tecnico: personaSel },
+      orderBy: [{ fechaCreacion: "desc" }],
+      skip: (f.page - 1) * f.pageSize,
+      take: f.pageSize,
     }),
   ]);
   return { items: items.map(presentar), total, page: f.page, pageSize: f.pageSize };
@@ -130,9 +171,11 @@ export async function listarAsignados(tecnicoId: number, f: FiltrosCaso) {
   const r = await consultar({ tecnicoId }, f);
   const peso = { ALTA: 0, MEDIA: 1, BAJA: 2 } as const;
   r.items.sort((a, b) => {
-    const ab = ESTADOS_ABIERTOS.includes(a.estado) ? 0 : 1, bb = ESTADOS_ABIERTOS.includes(b.estado) ? 0 : 1;
+    const ab = ESTADOS_ABIERTOS.includes(a.estado) ? 0 : 1,
+      bb = ESTADOS_ABIERTOS.includes(b.estado) ? 0 : 1;
     if (ab !== bb) return ab - bb;
-    const va = a.slaVenceEn?.getTime() ?? Infinity, vb = b.slaVenceEn?.getTime() ?? Infinity;
+    const va = a.slaVenceEn?.getTime() ?? Infinity,
+      vb = b.slaVenceEn?.getTime() ?? Infinity;
     return va - vb || peso[a.prioridad] - peso[b.prioridad];
   });
   return r;
@@ -143,7 +186,8 @@ export async function detalle(id: number, actor: Actor) {
   const c = await prisma.caso.findUniqueOrThrow({ where: { id }, include: detalleInclude });
   const observaciones = await listarObservaciones(id, actor);
   return {
-    ...presentar(c), observaciones,
+    ...presentar(c),
+    observaciones,
     historial: c.historial.map((h) => ({ ...h, usuario: conPersona(h.usuario) })),
   };
 }
@@ -156,7 +200,11 @@ export async function porNumero(numero: string, actor: Actor) {
 
 export async function historial(id: number, actor: Actor) {
   await cargarAutorizado(id, actor);
-  const h = await prisma.historialCaso.findMany({ where: { casoId: id }, orderBy: { fecha: "asc" }, include: { usuario: { select: { id: true, nombre: true, apellido: true } } } });
+  const h = await prisma.historialCaso.findMany({
+    where: { casoId: id },
+    orderBy: { fecha: "asc" },
+    include: { usuario: { select: { id: true, nombre: true, apellido: true } } },
+  });
   return h.map((x) => ({ ...x, usuario: conPersona(x.usuario) }));
 }
 
@@ -178,7 +226,9 @@ export async function asignar(id: number, actor: Actor, d: { tecnicoId: number; 
     const c = await tx.caso.update({
       where: { id },
       data: {
-        tecnicoId: d.tecnicoId, estado: estadoNuevo, prioridad: nuevaPrioridad,
+        tecnicoId: d.tecnicoId,
+        estado: estadoNuevo,
+        prioridad: nuevaPrioridad,
         fechaAsignacion: caso.fechaAsignacion ?? new Date(),
         ...(min !== undefined ? { slaVenceEn: min ? calcularVencimiento(caso.fechaCreacion, min) : null, slaAlertado: false } : {}),
       },
@@ -186,19 +236,45 @@ export async function asignar(id: number, actor: Actor, d: { tecnicoId: number; 
     });
     await tx.historialCaso.create({
       data: {
-        casoId: id, estadoAnterior: caso.estado, estadoNuevo,
+        casoId: id,
+        estadoAnterior: caso.estado,
+        estadoNuevo,
         descripcion: `${reasignado ? "Reasignado" : "Asignado"} a ${nombreCompleto(tec)} · prioridad ${nuevaPrioridad}`,
         usuarioId: actor.userId,
       },
     });
     return c;
   });
-  await notificar({ usuarioIds: [d.tecnicoId], titulo: `Caso asignado: ${act.numeroCaso}`, mensaje: `Se te asignó «${act.titulo}» (prioridad ${act.prioridad}).`, tipo: "CASO_ASIGNADO", casoId: id });
-  await notificar({ usuarioIds: [act.usuarioId], titulo: `Tu caso ${act.numeroCaso} fue asignado`, mensaje: `${nombreCompleto(tec)} atenderá tu caso.`, tipo: "CASO_ASIGNADO", casoId: id });
+  await notificar({
+    usuarioIds: [d.tecnicoId],
+    titulo: `Caso asignado: ${act.numeroCaso}`,
+    mensaje: `Se te asignó «${act.titulo}» (prioridad ${act.prioridad}).`,
+    tipo: "CASO_ASIGNADO",
+    casoId: id,
+  });
+  await notificar({
+    usuarioIds: [act.usuarioId],
+    titulo: `Tu caso ${act.numeroCaso} fue asignado`,
+    mensaje: `${nombreCompleto(tec)} atenderá tu caso.`,
+    tipo: "CASO_ASIGNADO",
+    casoId: id,
+  });
   if (caso.tecnicoId && reasignado) {
-    await notificar({ usuarioIds: [caso.tecnicoId], titulo: `Caso reasignado: ${act.numeroCaso}`, mensaje: "El caso fue reasignado a otro técnico.", tipo: "CASO_REASIGNADO", casoId: id });
+    await notificar({
+      usuarioIds: [caso.tecnicoId],
+      titulo: `Caso reasignado: ${act.numeroCaso}`,
+      mensaje: "El caso fue reasignado a otro técnico.",
+      tipo: "CASO_REASIGNADO",
+      casoId: id,
+    });
   }
-  await auditar(actor, { accion: reasignado ? "CASO_REASIGNADO" : "CASO_ASIGNADO", entidad: "caso", entidadId: id, usuarioId: actor.userId, datos: { tecnicoId: d.tecnicoId, prioridad: nuevaPrioridad } });
+  await auditar(actor, {
+    accion: reasignado ? "CASO_REASIGNADO" : "CASO_ASIGNADO",
+    entidad: "caso",
+    entidadId: id,
+    usuarioId: actor.userId,
+    datos: { tecnicoId: d.tecnicoId, prioridad: nuevaPrioridad },
+  });
   return presentar(act);
 }
 
@@ -213,10 +289,24 @@ export async function cambiarPrioridad(id: number, actor: Actor, prioridad: Prio
       data: { prioridad, slaVenceEn: min ? calcularVencimiento(caso.fechaCreacion, min) : null, slaAlertado: false },
       include: { usuario: personaSel, tecnico: personaSel },
     });
-    await tx.historialCaso.create({ data: { casoId: id, estadoAnterior: caso.estado, estadoNuevo: caso.estado, descripcion: `Prioridad cambiada de ${caso.prioridad} a ${prioridad}`, usuarioId: actor.userId } });
+    await tx.historialCaso.create({
+      data: {
+        casoId: id,
+        estadoAnterior: caso.estado,
+        estadoNuevo: caso.estado,
+        descripcion: `Prioridad cambiada de ${caso.prioridad} a ${prioridad}`,
+        usuarioId: actor.userId,
+      },
+    });
     return c;
   });
-  await auditar(actor, { accion: "CASO_PRIORIDAD", entidad: "caso", entidadId: id, usuarioId: actor.userId, datos: { de: caso.prioridad, a: prioridad } });
+  await auditar(actor, {
+    accion: "CASO_PRIORIDAD",
+    entidad: "caso",
+    entidadId: id,
+    usuarioId: actor.userId,
+    datos: { de: caso.prioridad, a: prioridad },
+  });
   return presentar(act);
 }
 
@@ -224,12 +314,17 @@ export async function cambiarPrioridad(id: number, actor: Actor, prioridad: Prio
 export async function cambiarEstado(id: number, actor: Actor, d: { estado: EstadoCaso; solucion?: string; motivo?: string }) {
   const caso = await cargarAutorizado(id, actor);
   const r = evaluarCambioEstado({
-    estadoActual: caso.estado, destino: d.estado, rol: actor.rol,
-    esCreador: caso.usuarioId === actor.userId, esTecnicoAsignado: caso.tecnicoId === actor.userId,
+    estadoActual: caso.estado,
+    destino: d.estado,
+    rol: actor.rol,
+    esCreador: caso.usuarioId === actor.userId,
+    esTecnicoAsignado: caso.tecnicoId === actor.userId,
   });
   if (!r.ok) throw AppError.forbidden(r.motivo);
-  if (r.accion === "RESOLVER" && (d.solucion?.trim().length ?? 0) < 10) throw AppError.badRequest("Describe la solución aplicada (mínimo 10 caracteres)");
-  if (r.accion === "RECHAZAR" && (d.motivo?.trim().length ?? 0) < 5) throw AppError.badRequest("Indica el motivo del rechazo (mínimo 5 caracteres)");
+  if (r.accion === "RESOLVER" && (d.solucion?.trim().length ?? 0) < 10)
+    throw AppError.badRequest("Describe la solución aplicada (mínimo 10 caracteres)");
+  if (r.accion === "RECHAZAR" && (d.motivo?.trim().length ?? 0) < 5)
+    throw AppError.badRequest("Indica el motivo del rechazo (mínimo 5 caracteres)");
 
   const ahora = new Date();
   const act = await prisma.$transaction(async (tx) => {
@@ -243,20 +338,51 @@ export async function cambiarEstado(id: number, actor: Actor, d: { estado: Estad
       },
       include: { usuario: personaSel, tecnico: personaSel },
     });
-    const desc = { INICIAR: "Atención iniciada", RESOLVER: `Solución: ${d.solucion?.trim()}`, CERRAR: "Caso cerrado", RECHAZAR: `Solución rechazada: ${d.motivo?.trim()}` }[r.accion];
-    await tx.historialCaso.create({ data: { casoId: id, estadoAnterior: caso.estado, estadoNuevo: d.estado, descripcion: desc, usuarioId: actor.userId } });
-    if (r.accion === "RESOLVER") await tx.observacion.create({ data: { casoId: id, usuarioId: actor.userId, contenido: `Solución propuesta: ${d.solucion?.trim()}`, visibilidad: "PUBLICA" } });
-    if (r.accion === "RECHAZAR") await tx.observacion.create({ data: { casoId: id, usuarioId: actor.userId, contenido: `Rechazo de la solución: ${d.motivo?.trim()}`, visibilidad: "PUBLICA" } });
+    const desc = {
+      INICIAR: "Atención iniciada",
+      RESOLVER: `Solución: ${d.solucion?.trim()}`,
+      CERRAR: "Caso cerrado",
+      RECHAZAR: `Solución rechazada: ${d.motivo?.trim()}`,
+    }[r.accion];
+    await tx.historialCaso.create({
+      data: { casoId: id, estadoAnterior: caso.estado, estadoNuevo: d.estado, descripcion: desc, usuarioId: actor.userId },
+    });
+    if (r.accion === "RESOLVER")
+      await tx.observacion.create({
+        data: { casoId: id, usuarioId: actor.userId, contenido: `Solución propuesta: ${d.solucion?.trim()}`, visibilidad: "PUBLICA" },
+      });
+    if (r.accion === "RECHAZAR")
+      await tx.observacion.create({
+        data: { casoId: id, usuarioId: actor.userId, contenido: `Rechazo de la solución: ${d.motivo?.trim()}`, visibilidad: "PUBLICA" },
+      });
     return c;
   });
 
   const destinatarios = {
     INICIAR: { ids: [act.usuarioId], t: `Tu caso ${act.numeroCaso} está en proceso`, m: "Un técnico inició la atención." },
-    RESOLVER: { ids: [act.usuarioId], t: `Solución propuesta para ${act.numeroCaso}`, m: "Revisa la solución y confírmala para cerrar el caso, o recházala si no resolvió tu problema." },
-    CERRAR: { ids: [act.tecnicoId, act.usuarioId].filter((x): x is number => x !== null && x !== actor.userId), t: `Caso ${act.numeroCaso} cerrado`, m: "El caso fue cerrado. ¡Gracias! Puedes calificar la atención." },
-    RECHAZAR: { ids: act.tecnicoId ? [act.tecnicoId] : [], t: `Solución rechazada en ${act.numeroCaso}`, m: `El usuario rechazó la solución: ${d.motivo?.trim()}` },
+    RESOLVER: {
+      ids: [act.usuarioId],
+      t: `Solución propuesta para ${act.numeroCaso}`,
+      m: "Revisa la solución y confírmala para cerrar el caso, o recházala si no resolvió tu problema.",
+    },
+    CERRAR: {
+      ids: [act.tecnicoId, act.usuarioId].filter((x): x is number => x !== null && x !== actor.userId),
+      t: `Caso ${act.numeroCaso} cerrado`,
+      m: "El caso fue cerrado. ¡Gracias! Puedes calificar la atención.",
+    },
+    RECHAZAR: {
+      ids: act.tecnicoId ? [act.tecnicoId] : [],
+      t: `Solución rechazada en ${act.numeroCaso}`,
+      m: `El usuario rechazó la solución: ${d.motivo?.trim()}`,
+    },
   }[r.accion];
-  await notificar({ usuarioIds: destinatarios.ids, titulo: destinatarios.t, mensaje: destinatarios.m, tipo: `CASO_${r.accion}`, casoId: id });
+  await notificar({
+    usuarioIds: destinatarios.ids,
+    titulo: destinatarios.t,
+    mensaje: destinatarios.m,
+    tipo: `CASO_${r.accion}`,
+    casoId: id,
+  });
   await auditar(actor, { accion: `CASO_${r.accion}`, entidad: "caso", entidadId: id, usuarioId: actor.userId });
   return presentar(act);
 }
@@ -275,13 +401,28 @@ export async function listarObservaciones(id: number, actor: Actor) {
 export async function agregarObservacion(id: number, actor: Actor, d: { contenido: string; visibilidad: VisibilidadObservacion }) {
   const caso = await cargarAutorizado(id, actor);
   if (caso.estado === "CERRADO") throw AppError.conflict("El caso está cerrado y no admite observaciones");
-  if (d.visibilidad === "INTERNA" && !esPersonalInterno(actor.rol)) throw AppError.forbidden("Solo el personal de soporte puede crear notas internas");
-  const o = await prisma.observacion.create({ data: { casoId: id, usuarioId: actor.userId, contenido: d.contenido, visibilidad: d.visibilidad } });
+  if (d.visibilidad === "INTERNA" && !esPersonalInterno(actor.rol))
+    throw AppError.forbidden("Solo el personal de soporte puede crear notas internas");
+  const o = await prisma.observacion.create({
+    data: { casoId: id, usuarioId: actor.userId, contenido: d.contenido, visibilidad: d.visibilidad },
+  });
   if (d.visibilidad === "PUBLICA") {
     const otros = actor.userId === caso.usuarioId ? (caso.tecnicoId ? [caso.tecnicoId] : []) : [caso.usuarioId];
-    await notificar({ usuarioIds: otros, titulo: `Nuevo comentario en ${caso.numeroCaso}`, mensaje: d.contenido.slice(0, 160), tipo: "CASO_OBSERVACION", casoId: id });
+    await notificar({
+      usuarioIds: otros,
+      titulo: `Nuevo comentario en ${caso.numeroCaso}`,
+      mensaje: d.contenido.slice(0, 160),
+      tipo: "CASO_OBSERVACION",
+      casoId: id,
+    });
   }
-  await auditar(actor, { accion: "OBSERVACION_CREADA", entidad: "caso", entidadId: id, usuarioId: actor.userId, datos: { visibilidad: d.visibilidad } });
+  await auditar(actor, {
+    accion: "OBSERVACION_CREADA",
+    entidad: "caso",
+    entidadId: id,
+    usuarioId: actor.userId,
+    datos: { visibilidad: d.visibilidad },
+  });
   return o;
 }
 
@@ -289,10 +430,19 @@ export async function agregarObservacion(id: number, actor: Actor, d: { contenid
 export async function calificar(id: number, actor: Actor, d: { puntuacion: number; comentario?: string }) {
   const caso = await cargar(id);
   if (caso.usuarioId !== actor.userId) throw AppError.forbidden("Solo quien creó el caso puede calificarlo");
-  if (caso.estado !== "RESUELTO" && caso.estado !== "CERRADO") throw AppError.conflict("Solo se pueden calificar casos resueltos o cerrados");
+  if (caso.estado !== "RESUELTO" && caso.estado !== "CERRADO")
+    throw AppError.conflict("Solo se pueden calificar casos resueltos o cerrados");
   if (await prisma.calificacion.findUnique({ where: { casoId: id } })) throw AppError.conflict("El caso ya fue calificado");
-  const c = await prisma.calificacion.create({ data: { casoId: id, usuarioId: actor.userId, puntuacion: d.puntuacion, comentario: d.comentario } });
-  await auditar(actor, { accion: "CASO_CALIFICADO", entidad: "caso", entidadId: id, usuarioId: actor.userId, datos: { puntuacion: d.puntuacion } });
+  const c = await prisma.calificacion.create({
+    data: { casoId: id, usuarioId: actor.userId, puntuacion: d.puntuacion, comentario: d.comentario },
+  });
+  await auditar(actor, {
+    accion: "CASO_CALIFICADO",
+    entidad: "caso",
+    entidadId: id,
+    usuarioId: actor.userId,
+    datos: { puntuacion: d.puntuacion },
+  });
   return c;
 }
 
@@ -303,14 +453,41 @@ export async function puedeAdjuntar(id: number, actor: Actor) {
   return caso;
 }
 
-export async function registrarEvidencias(id: number, actor: Actor, archivos: { originalname: string; filename: string; mimetype: string; size: number }[]) {
+export async function registrarEvidencias(
+  id: number,
+  actor: Actor,
+  archivos: { originalname: string; filename: string; mimetype: string; size: number }[],
+) {
   const creadas = await prisma.$transaction(
-    archivos.map((a) => prisma.evidencia.create({
-      data: { casoId: id, usuarioId: actor.userId, nombreArchivo: a.originalname.slice(0, 200), rutaArchivo: `${id}/${a.filename}`, tipoArchivo: a.mimetype, tamano: a.size },
-    })),
+    archivos.map((a) =>
+      prisma.evidencia.create({
+        data: {
+          casoId: id,
+          usuarioId: actor.userId,
+          nombreArchivo: a.originalname.slice(0, 200),
+          rutaArchivo: `${id}/${a.filename}`,
+          tipoArchivo: a.mimetype,
+          tamano: a.size,
+        },
+      }),
+    ),
   );
-  await prisma.historialCaso.create({ data: { casoId: id, estadoAnterior: null, estadoNuevo: (await cargar(id)).estado, descripcion: `Se adjuntaron ${creadas.length} evidencia(s)`, usuarioId: actor.userId } });
-  await auditar(actor, { accion: "EVIDENCIA_ADJUNTADA", entidad: "caso", entidadId: id, usuarioId: actor.userId, datos: { cantidad: creadas.length } });
+  await prisma.historialCaso.create({
+    data: {
+      casoId: id,
+      estadoAnterior: null,
+      estadoNuevo: (await cargar(id)).estado,
+      descripcion: `Se adjuntaron ${creadas.length} evidencia(s)`,
+      usuarioId: actor.userId,
+    },
+  });
+  await auditar(actor, {
+    accion: "EVIDENCIA_ADJUNTADA",
+    entidad: "caso",
+    entidadId: id,
+    usuarioId: actor.userId,
+    datos: { cantidad: creadas.length },
+  });
   return creadas;
 }
 

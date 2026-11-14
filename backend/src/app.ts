@@ -39,33 +39,55 @@ export function crearApp(): Application {
   app.get("/api/health", async (req, res) => {
     let db: "ok" | "error" | "omitido" = "omitido";
     if (req.query.deep) {
-      try { await prisma.$queryRaw`SELECT 1`; db = "ok"; } catch { db = "error"; }
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        db = "ok";
+      } catch {
+        db = "error";
+      }
     }
     res.status(db === "error" ? 503 : 200).json({
-      success: db !== "error", message: "API de Plataforma Mesa de Ayuda", servicio: "api-core", db, timestamp: new Date().toISOString(),
+      success: db !== "error",
+      message: "API de Plataforma Mesa de Ayuda",
+      servicio: "api-core",
+      db,
+      timestamp: new Date().toISOString(),
     });
   });
 
   // Métricas para Prometheus (RNF-14): deshabilitadas si no se define METRICS_TOKEN.
   app.get("/api/metrics", async (req, res) => {
     if (!env.metricsToken) return res.status(404).json({ success: false, message: "Métricas deshabilitadas (define METRICS_TOKEN)" });
-    if (!tokenMetricasValido(req.headers.authorization)) return res.status(401).json({ success: false, message: "Token de métricas inválido" });
+    if (!tokenMetricasValido(req.headers.authorization))
+      return res.status(401).json({ success: false, message: "Token de métricas inválido" });
     res.type("text/plain; version=0.0.4").send(await metricasTexto());
   });
 
   // Contrato OpenAPI y documentación navegable (RNF-06).
   const contrato = construirOpenApi();
-  app.get("/api/openapi.json", (_req, res) => { res.json(contrato); });
+  app.get("/api/openapi.json", (_req, res) => {
+    res.json(contrato);
+  });
   const swaggerUi = path.dirname(require.resolve("swagger-ui-dist/package.json"));
-  const cspDocs = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+  const cspDocs =
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
   app.get(["/api/docs", "/api/docs/"], (_req, res) => {
     res.setHeader("Content-Security-Policy", cspDocs);
     res.type("html").send(PAGINA_DOCS);
   });
   app.get("/api/docs/inicio.js", (_req, res) => {
-    res.type("application/javascript").send('window.ui = SwaggerUIBundle({ url: "/api/openapi.json", dom_id: "#swagger-ui", deepLinking: true });');
+    res
+      .type("application/javascript")
+      .send('window.ui = SwaggerUIBundle({ url: "/api/openapi.json", dom_id: "#swagger-ui", deepLinking: true });');
   });
-  app.use("/api/docs/recursos", (_req, res, next) => { res.setHeader("Content-Security-Policy", cspDocs); next(); }, express.static(swaggerUi, { index: false }));
+  app.use(
+    "/api/docs/recursos",
+    (_req, res, next) => {
+      res.setHeader("Content-Security-Policy", cspDocs);
+      next();
+    },
+    express.static(swaggerUi, { index: false }),
+  );
 
   app.use("/api", rateLimit({ ventanaMs: 60_000, max: env.rateLimitApiMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto" }));
 
@@ -83,13 +105,15 @@ export function crearApp(): Application {
   // Frontend PWA (archivos estáticos) si existe la carpeta configurada.
   const frontend = path.resolve(process.cwd(), env.frontendDir);
   if (existsSync(path.join(frontend, "index.html"))) {
-    app.use(express.static(frontend, {
-      index: "index.html",
-      setHeaders(res, ruta) {
-        // El service worker y el manifiesto nunca deben quedar en caché larga.
-        if (/(sw\.js|manifest\.webmanifest|index\.html)$/.test(ruta)) res.setHeader("Cache-Control", "no-cache");
-      },
-    }));
+    app.use(
+      express.static(frontend, {
+        index: "index.html",
+        setHeaders(res, ruta) {
+          // El service worker y el manifiesto nunca deben quedar en caché larga.
+          if (/(sw\.js|manifest\.webmanifest|index\.html)$/.test(ruta)) res.setHeader("Cache-Control", "no-cache");
+        },
+      }),
+    );
   }
 
   app.use(notFoundMiddleware);

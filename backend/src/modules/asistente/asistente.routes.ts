@@ -16,8 +16,10 @@ export function crearAsistenteRouter(auth: RequestHandler): Router {
   router.use(auth);
 
   const limite = rateLimit({
-    ventanaMs: 60_000, max: env.ia.maxMensajesPorMinuto,
-    clave: (req) => `u${req.user?.userId}`, mensaje: "Estás escribiendo muy rápido. Espera un momento",
+    ventanaMs: 60_000,
+    max: env.ia.maxMensajesPorMinuto,
+    clave: (req) => `u${req.user?.userId}`,
+    mensaje: "Estás escribiendo muy rápido. Espera un momento",
   });
   const token = (h?: string) => (h ?? "").replace(/^Bearer\s+/i, "");
 
@@ -30,7 +32,10 @@ export function crearAsistenteRouter(auth: RequestHandler): Router {
   });
 
   router.post("/conversaciones/:id/mensajes", limite, async (req, res) => {
-    const { contenido } = validar(z.object({ contenido: z.string().trim().min(1, "Escribe un mensaje").max(1500, "El mensaje es muy largo") }), req.body);
+    const { contenido } = validar(
+      z.object({ contenido: z.string().trim().min(1, "Escribe un mensaje").max(1500, "El mensaje es muy largo") }),
+      req.body,
+    );
     const r = await svc.enviarMensaje(idParam(req.params.id), req.user!.userId, token(req.headers.authorization), contenido);
     res.json({ success: true, data: r });
   });

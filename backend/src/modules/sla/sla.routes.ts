@@ -26,11 +26,16 @@ router.get("/", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (_req, res)
 });
 
 const putSchema = z.object({
-  configuraciones: z.array(z.object({
-    prioridad: z.enum(PRIORIDADES),
-    tiempoMaximo: z.number().int().min(5, "Mínimo 5 minutos").max(43_200, "Máximo 30 días"),
-    activo: z.boolean().default(true),
-  })).min(1).max(3),
+  configuraciones: z
+    .array(
+      z.object({
+        prioridad: z.enum(PRIORIDADES),
+        tiempoMaximo: z.number().int().min(5, "Mínimo 5 minutos").max(43_200, "Máximo 30 días"),
+        activo: z.boolean().default(true),
+      }),
+    )
+    .min(1)
+    .max(3),
 });
 
 router.put("/", authorizeRoles("ADMINISTRADOR"), async (req, res) => {

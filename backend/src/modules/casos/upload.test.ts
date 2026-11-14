@@ -13,9 +13,12 @@ test("validación de tipo, extensión y firma de archivos (RF-CAS-05)", async ()
   assert.equal(extensionValida("application/x-msdownload", "a.exe"), false);
 
   const dir = mkdtempSync(path.join(tmpdir(), "mesa-"));
-  const png = path.join(dir, "a.png"); writeFileSync(png, Buffer.from("89504e470d0a1a0a0000000d", "hex"));
-  const falso = path.join(dir, "b.png"); writeFileSync(falso, "MZ esto no es una imagen");
-  const pdf = path.join(dir, "c.pdf"); writeFileSync(pdf, "%PDF-1.7 contenido");
+  const png = path.join(dir, "a.png");
+  writeFileSync(png, Buffer.from("89504e470d0a1a0a0000000d", "hex"));
+  const falso = path.join(dir, "b.png");
+  writeFileSync(falso, "MZ esto no es una imagen");
+  const pdf = path.join(dir, "c.pdf");
+  writeFileSync(pdf, "%PDF-1.7 contenido");
   assert.equal(firmaValida(png, "image/png"), true);
   assert.equal(firmaValida(falso, "image/png"), false);
   assert.equal(firmaValida(pdf, "application/pdf"), true);

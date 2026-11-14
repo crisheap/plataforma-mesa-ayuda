@@ -31,13 +31,24 @@ const filtrosSchema = paginacion.extend({
   prioridad: z.enum(PRIORIDADES).optional(),
   tecnicoId: z.coerce.number().int().positive().optional(),
   q: z.string().trim().max(100).optional(),
-  desde: fecha, hasta: fecha,
-  slaVencido: z.enum(["true", "false"]).transform((v) => v === "true").optional(),
+  desde: fecha,
+  hasta: fecha,
+  slaVencido: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
 });
 const asignarSchema = z.object({ tecnicoId: z.number().int().positive(), prioridad: z.enum(PRIORIDADES).optional() });
 const prioridadSchema = z.object({ prioridad: z.enum(PRIORIDADES) });
-const estadoSchema = z.object({ estado: z.enum(ESTADOS), solucion: z.string().trim().max(4000).optional(), motivo: z.string().trim().max(1000).optional() });
-const observacionSchema = z.object({ contenido: z.string().trim().min(2, "El comentario es muy corto").max(2000), visibilidad: z.enum(["PUBLICA", "INTERNA"]).default("PUBLICA") });
+const estadoSchema = z.object({
+  estado: z.enum(ESTADOS),
+  solucion: z.string().trim().max(4000).optional(),
+  motivo: z.string().trim().max(1000).optional(),
+});
+const observacionSchema = z.object({
+  contenido: z.string().trim().min(2, "El comentario es muy corto").max(2000),
+  visibilidad: z.enum(["PUBLICA", "INTERNA"]).default("PUBLICA"),
+});
 const calificacionSchema = z.object({ puntuacion: z.number().int().min(1).max(5), comentario: z.string().trim().max(1000).optional() });
 
 router.post("/", async (req, res) => {
@@ -73,7 +84,11 @@ router.patch("/:id/asignar", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), asyn
 });
 router.patch("/:id/prioridad", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
   const { prioridad } = validar(prioridadSchema, req.body);
-  res.json({ success: true, message: "Prioridad actualizada", data: await svc.cambiarPrioridad(idParam(req.params.id), actor(req), prioridad) });
+  res.json({
+    success: true,
+    message: "Prioridad actualizada",
+    data: await svc.cambiarPrioridad(idParam(req.params.id), actor(req), prioridad),
+  });
 });
 router.patch("/:id/estado", async (req, res) => {
   const d = validar(estadoSchema, req.body);
@@ -85,12 +100,16 @@ router.get("/:id/observaciones", async (req, res) => {
 });
 router.post("/:id/observaciones", async (req, res) => {
   const d = validar(observacionSchema, req.body);
-  res.status(201).json({ success: true, message: "Observación registrada", data: await svc.agregarObservacion(idParam(req.params.id), actor(req), d) });
+  res
+    .status(201)
+    .json({ success: true, message: "Observación registrada", data: await svc.agregarObservacion(idParam(req.params.id), actor(req), d) });
 });
 
 router.post("/:id/calificacion", async (req, res) => {
   const d = validar(calificacionSchema, req.body);
-  res.status(201).json({ success: true, message: "Calificación registrada", data: await svc.calificar(idParam(req.params.id), actor(req), d) });
+  res
+    .status(201)
+    .json({ success: true, message: "Calificación registrada", data: await svc.calificar(idParam(req.params.id), actor(req), d) });
 });
 
 // ───────────── Evidencias ─────────────
@@ -99,7 +118,10 @@ router.get("/:id/evidencias", async (req, res) => {
 });
 router.post(
   "/:id/evidencias",
-  async (req, _res, next) => { await svc.puedeAdjuntar(idParam(req.params.id), actor(req)); next(); }, // autoriza ANTES de recibir archivos
+  async (req, _res, next) => {
+    await svc.puedeAdjuntar(idParam(req.params.id), actor(req));
+    next();
+  }, // autoriza ANTES de recibir archivos
   subida.array("archivos", 5),
   async (req, res) => {
     const archivos = (req.files as Express.Multer.File[] | undefined) ?? [];

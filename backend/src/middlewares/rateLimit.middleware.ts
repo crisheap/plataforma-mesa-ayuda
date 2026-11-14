@@ -12,10 +12,13 @@ interface Opciones {
 /** Limitador de ventana fija en memoria (una instancia). Para varias réplicas usar Redis. */
 export function rateLimit(op: Opciones): RequestHandler & { _reset: () => void } {
   const cubos = new Map<string, { inicio: number; n: number }>();
-  const limpieza = setInterval(() => {
-    const ahora = Date.now();
-    for (const [k, v] of cubos) if (ahora - v.inicio > op.ventanaMs) cubos.delete(k);
-  }, Math.max(op.ventanaMs, 60_000));
+  const limpieza = setInterval(
+    () => {
+      const ahora = Date.now();
+      for (const [k, v] of cubos) if (ahora - v.inicio > op.ventanaMs) cubos.delete(k);
+    },
+    Math.max(op.ventanaMs, 60_000),
+  );
   limpieza.unref();
 
   const mw = (req: Request, res: Response, next: NextFunction) => {

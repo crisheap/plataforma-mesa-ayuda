@@ -17,7 +17,11 @@ export async function procesarCorreosPendientes(lote = 25): Promise<number> {
   let enviados = 0;
   for (const n of pendientes) {
     try {
-      await enviarCorreo(n.usuario.correo, `[Mesa de Ayuda] ${n.titulo}`, `Hola ${n.usuario.nombre},\n\n${n.mensaje}\n\nMesa de Ayuda SENA`);
+      await enviarCorreo(
+        n.usuario.correo,
+        `[Mesa de Ayuda] ${n.titulo}`,
+        `Hola ${n.usuario.nombre},\n\n${n.mensaje}\n\nMesa de Ayuda SENA`,
+      );
       await prisma.notificacion.update({ where: { id: n.id }, data: { correoPendiente: false, correoEnviadoAt: new Date() } });
       enviados++;
     } catch (e) {
@@ -90,5 +94,9 @@ export function iniciarWorker(): () => void {
   sla.unref();
   retencion.unref();
   console.log("✓ Worker de notificaciones y alertas SLA iniciado");
-  return () => { clearInterval(correos); clearInterval(sla); clearInterval(retencion); };
+  return () => {
+    clearInterval(correos);
+    clearInterval(sla);
+    clearInterval(retencion);
+  };
 }

@@ -4,37 +4,94 @@ import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
 
 export function vistaLogin({ alIngresar }) {
-  const correo = h("input", { type: "email", name: "correo", autocomplete: "username", required: true, placeholder: "usuario@sena.edu.co", inputmode: "email" });
+  const correo = h("input", {
+    type: "email",
+    name: "correo",
+    autocomplete: "username",
+    required: true,
+    placeholder: "usuario@sena.edu.co",
+    inputmode: "email",
+  });
   const pass = h("input", { type: "password", name: "password", autocomplete: "current-password", required: true });
   const error = h("div", { class: "alert hidden", role: "alert" });
   const boton = h("button", { class: "btn primary", type: "submit", style: null }, "Ingresar");
-  const ver = h("button", { class: "btn sm", type: "button", "aria-pressed": "false", onclick: () => {
-    const mostrar = pass.type === "password"; pass.type = mostrar ? "text" : "password"; ver.textContent = mostrar ? "Ocultar contraseña" : "Mostrar contraseña"; ver.setAttribute("aria-pressed", String(mostrar));
-  } }, "Mostrar contraseña");
+  const ver = h(
+    "button",
+    {
+      class: "btn sm",
+      type: "button",
+      "aria-pressed": "false",
+      onclick: () => {
+        const mostrar = pass.type === "password";
+        pass.type = mostrar ? "text" : "password";
+        ver.textContent = mostrar ? "Ocultar contraseña" : "Mostrar contraseña";
+        ver.setAttribute("aria-pressed", String(mostrar));
+      },
+    },
+    "Mostrar contraseña",
+  );
 
-  const form = h("form", { novalidate: true, onsubmit: async (e) => {
-    e.preventDefault();
-    error.classList.add("hidden");
-    if (!correo.value.trim() || !pass.value) { error.textContent = "Escribe tu correo y contraseña"; error.classList.remove("hidden"); return; }
-    boton.disabled = true; boton.textContent = "Ingresando…";
-    try { await alIngresar(await login(correo.value.trim(), pass.value)); }
-    catch (err) { error.textContent = err.sinConexion ? "No hay conexión con el servidor. Revisa tu internet." : err.message; error.classList.remove("hidden"); pass.value = ""; pass.focus(); }
-    finally { boton.disabled = false; boton.textContent = "Ingresar"; }
-  } },
-    campo("Correo institucional", correo), campo("Contraseña", pass), h("div", { class: "field" }, ver), error, boton);
+  const form = h(
+    "form",
+    {
+      novalidate: true,
+      onsubmit: async (e) => {
+        e.preventDefault();
+        error.classList.add("hidden");
+        if (!correo.value.trim() || !pass.value) {
+          error.textContent = "Escribe tu correo y contraseña";
+          error.classList.remove("hidden");
+          return;
+        }
+        boton.disabled = true;
+        boton.textContent = "Ingresando…";
+        try {
+          await alIngresar(await login(correo.value.trim(), pass.value));
+        } catch (err) {
+          error.textContent = err.sinConexion ? "No hay conexión con el servidor. Revisa tu internet." : err.message;
+          error.classList.remove("hidden");
+          pass.value = "";
+          pass.focus();
+        } finally {
+          boton.disabled = false;
+          boton.textContent = "Ingresar";
+        }
+      },
+    },
+    campo("Correo institucional", correo),
+    campo("Contraseña", pass),
+    h("div", { class: "field" }, ver),
+    error,
+    boton,
+  );
 
   const toggle = h("button", { class: "btn icon-btn", "aria-label": "Cambiar entre modo claro y oscuro", onclick: () => tema.alternar() });
   const pintar = () => toggle.replaceChildren(icono(tema.esOscuro() ? "sol" : "luna"));
-  pintar(); document.addEventListener("tema-cambiado", pintar);
+  pintar();
+  document.addEventListener("tema-cambiado", pintar);
 
-  return h("div", { class: "login" },
+  return h(
+    "div",
+    { class: "login" },
     h("div", { class: "theme-float" }, toggle),
-    h("section", { class: "login-art", "aria-label": "Presentación" },
+    h(
+      "section",
+      { class: "login-art", "aria-label": "Presentación" },
       h("div", { class: "row" }, iconoBot(48), h("strong", {}, "Mesa de Ayuda · SENA")),
-      h("div", {}, h("h1", {}, "Soporte técnico a un clic"), h("p", {}, "Reporta tus casos, sigue su avance y recibe ayuda inmediata de nuestro asistente.")),
-      h("div", { class: "art" }, heroTecnico())),
-    h("section", { class: "login-form" }, h("div", { class: "card" },
-      h("h2", {}, "Inicia sesión"), h("p", { class: "muted" }, "Usa tu correo institucional."), form)));
+      h(
+        "div",
+        {},
+        h("h1", {}, "Soporte técnico a un clic"),
+        h("p", {}, "Reporta tus casos, sigue su avance y recibe ayuda inmediata de nuestro asistente."),
+      ),
+      h("div", { class: "art" }, heroTecnico()),
+    ),
+    h(
+      "section",
+      { class: "login-form" },
+      h("div", { class: "card" }, h("h2", {}, "Inicia sesión"), h("p", { class: "muted" }, "Usa tu correo institucional."), form),
+    ),
+  );
 }
 
 /** Pantalla obligatoria cuando la cuenta tiene contraseña temporal o fue restablecida. */
@@ -43,17 +100,44 @@ export function vistaCambioPasswordObligatorio({ alTerminar }) {
   const nueva = h("input", { type: "password", autocomplete: "new-password", required: true });
   const repetir = h("input", { type: "password", autocomplete: "new-password", required: true });
   const error = h("div", { class: "alert hidden", role: "alert" });
-  const form = h("form", { onsubmit: async (e) => {
-    e.preventDefault(); error.classList.add("hidden");
-    if (nueva.value !== repetir.value) { error.textContent = "Las contraseñas nuevas no coinciden"; error.classList.remove("hidden"); return; }
-    try {
-      await api("/api/auth/password", { method: "PATCH", body: { passwordActual: actual.value, passwordNueva: nueva.value } });
-      toast("Contraseña actualizada. Inicia sesión con la nueva contraseña.");
-      const { logout } = await import("../api.js"); await logout(); alTerminar();
-    } catch (err) { error.textContent = [err.message, ...(err.errors ?? []).map((x) => x.message)].join(" · "); error.classList.remove("hidden"); }
-  } },
-    error, campo("Contraseña actual (temporal)", actual),
+  const form = h(
+    "form",
+    {
+      onsubmit: async (e) => {
+        e.preventDefault();
+        error.classList.add("hidden");
+        if (nueva.value !== repetir.value) {
+          error.textContent = "Las contraseñas nuevas no coinciden";
+          error.classList.remove("hidden");
+          return;
+        }
+        try {
+          await api("/api/auth/password", { method: "PATCH", body: { passwordActual: actual.value, passwordNueva: nueva.value } });
+          toast("Contraseña actualizada. Inicia sesión con la nueva contraseña.");
+          const { logout } = await import("../api.js");
+          await logout();
+          alTerminar();
+        } catch (err) {
+          error.textContent = [err.message, ...(err.errors ?? []).map((x) => x.message)].join(" · ");
+          error.classList.remove("hidden");
+        }
+      },
+    },
+    error,
+    campo("Contraseña actual (temporal)", actual),
     campo("Nueva contraseña", nueva, "Mínimo 10 caracteres con mayúscula, minúscula, número y símbolo."),
-    campo("Repite la nueva contraseña", repetir), h("button", { class: "btn primary", type: "submit" }, "Cambiar contraseña"));
-  return h("div", { class: "login-form", style: null }, h("div", { class: "card" }, h("h2", {}, "Debes cambiar tu contraseña"), h("p", { class: "muted" }, "Por seguridad, define una contraseña personal antes de continuar."), form));
+    campo("Repite la nueva contraseña", repetir),
+    h("button", { class: "btn primary", type: "submit" }, "Cambiar contraseña"),
+  );
+  return h(
+    "div",
+    { class: "login-form", style: null },
+    h(
+      "div",
+      { class: "card" },
+      h("h2", {}, "Debes cambiar tu contraseña"),
+      h("p", { class: "muted" }, "Por seguridad, define una contraseña personal antes de continuar."),
+      form,
+    ),
+  );
 }

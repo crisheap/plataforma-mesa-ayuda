@@ -18,5 +18,10 @@ app.use("/api/asistente", crearAsistenteRouter(authenticateStateless));
 app.use(notFoundMiddleware, errorMiddleware);
 
 const puerto = Number(process.env.ASISTENTE_PORT) || 4100;
-prisma.$connect().then(() => app.listen(puerto, () => console.log(`🤖 asistente-ia-service en http://localhost:${puerto} (casos vía ${env.coreApiUrl})`)))
-  .catch((e) => { console.error(e); process.exit(1); });
+prisma
+  .$connect()
+  .then(() => app.listen(puerto, () => console.log(`🤖 asistente-ia-service en http://localhost:${puerto} (casos vía ${env.coreApiUrl})`)))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

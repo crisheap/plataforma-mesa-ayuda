@@ -54,13 +54,22 @@ test("el contrato OpenAPI es coherente", () => {
   const d = construirOpenApi();
   const ids = new Set<string>();
   for (const [ruta, ops] of Object.entries(d.paths)) {
-    for (const [metodo, op] of Object.entries(ops) as [string, { operationId: string; responses: object; tags: string[]; parameters?: { name: string; in: string }[] }][]) {
+    for (const [metodo, op] of Object.entries(ops) as [
+      string,
+      { operationId: string; responses: object; tags: string[]; parameters?: { name: string; in: string }[] },
+    ][]) {
       assert.ok(!ids.has(op.operationId), `operationId repetido: ${op.operationId}`);
       ids.add(op.operationId);
       assert.ok(Object.keys(op.responses).length > 0, `${metodo} ${ruta} sin respuestas`);
-      assert.ok(d.tags.some((t) => t.name === op.tags[0]), `${metodo} ${ruta} con etiqueta desconocida`);
+      assert.ok(
+        d.tags.some((t) => t.name === op.tags[0]),
+        `${metodo} ${ruta} con etiqueta desconocida`,
+      );
       for (const p of ruta.match(/\{(\w+)\}/g) ?? []) {
-        assert.ok(op.parameters?.some((x) => x.in === "path" && `{${x.name}}` === p), `${metodo} ${ruta} sin el parámetro ${p}`);
+        assert.ok(
+          op.parameters?.some((x) => x.in === "path" && `{${x.name}}` === p),
+          `${metodo} ${ruta} sin el parámetro ${p}`,
+        );
       }
     }
   }

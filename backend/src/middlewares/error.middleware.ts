@@ -8,9 +8,12 @@ export function errorMiddleware(err: unknown, _req: Request, res: Response, _nex
     return res.status(err.statusCode).json({ success: false, message: err.message, errors: err.errors });
   }
   if (err instanceof MulterError) {
-    const msg = err.code === "LIMIT_FILE_SIZE"
-      ? `El archivo supera el máximo de ${env.maxUploadMb} MB`
-      : err.code === "LIMIT_FILE_COUNT" ? "Máximo 5 archivos por solicitud" : "Error al cargar el archivo";
+    const msg =
+      err.code === "LIMIT_FILE_SIZE"
+        ? `El archivo supera el máximo de ${env.maxUploadMb} MB`
+        : err.code === "LIMIT_FILE_COUNT"
+          ? "Máximo 5 archivos por solicitud"
+          : "Error al cargar el archivo";
     return res.status(400).json({ success: false, message: msg });
   }
   const e = err as { type?: string; status?: number; code?: string };

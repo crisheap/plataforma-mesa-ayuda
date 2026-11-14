@@ -12,7 +12,10 @@ test("bloquea al superar el máximo por clave y no afecta a otras", () => {
   let pasa = 0;
   for (let i = 0; i < 3; i++) mw(req("1.1.1.1"), res(), () => pasa++);
   assert.equal(pasa, 3);
-  assert.throws(() => mw(req("1.1.1.1"), res(), () => pasa++), (e) => e instanceof AppError && e.statusCode === 429);
+  assert.throws(
+    () => mw(req("1.1.1.1"), res(), () => pasa++),
+    (e) => e instanceof AppError && e.statusCode === 429,
+  );
   mw(req("2.2.2.2"), res(), () => pasa++);
   assert.equal(pasa, 4);
   mw._reset();
