@@ -7,7 +7,10 @@ let transporte: Transporte | null | undefined;
 
 async function obtenerTransporte(): Promise<Transporte | null> {
   if (transporte !== undefined) return transporte;
-  if (!env.smtp.host) return (transporte = null);
+  if (!env.smtp.host) {
+    transporte = null;
+    return null;
+  }
   try {
     const modulo = "nodemailer"; // dependencia opcional: npm install nodemailer
     const nm = (await import(modulo)) as { createTransport(o: unknown): Transporte };

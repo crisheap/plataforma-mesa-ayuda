@@ -152,10 +152,12 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
     clearTimeout(t);
     t = setTimeout(filtrar, 350);
   });
-  [sEstado, sPrio, venc, selTec].filter(Boolean).forEach((el) => el.addEventListener("change", filtrar));
+  for (const el of [sEstado, sPrio, venc, selTec].filter(Boolean)) el.addEventListener("change", filtrar);
   if (selTec)
     api("/api/usuarios/tecnicos")
-      .then((ts) => ts.forEach((x) => selTec.append(h("option", { value: x.id }, `${x.nombreCompleto} (${x.casosActivos})`))))
+      .then((ts) => {
+        for (const x of ts) selTec.append(h("option", { value: x.id }, `${x.nombreCompleto} (${x.casosActivos})`));
+      })
       .catch(() => undefined);
 
   cargar();

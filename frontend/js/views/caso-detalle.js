@@ -305,7 +305,7 @@ function seccionEvidencias(c, id, puedeAdjuntar, accion) {
       onclick: () => {
         if (!input.files.length) return toast("Selecciona al menos un archivo");
         const fd = new FormData();
-        [...input.files].forEach((f) => fd.append("archivos", f));
+        for (const f of input.files) fd.append("archivos", f);
         accion(() => api(`/api/casos/${id}/evidencias`, { method: "POST", form: fd }), "Evidencias adjuntadas");
       },
     },

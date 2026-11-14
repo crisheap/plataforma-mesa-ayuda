@@ -170,7 +170,7 @@ function burbuja(quien, texto, { id, acciones = [], fuentes = [] } = {}) {
 }
 
 async function valorar(mensajeId, util, boton) {
-  boton.parentElement.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  boton.parentElement.querySelectorAll("button").forEach((b) => { b.disabled = true; });
   boton.textContent = util ? "👍 ¡Gracias!" : "👎 Gracias";
   try {
     await api(`/api/asistente/conversaciones/${conversacionId}/mensajes/${mensajeId}/util`, { method: "PATCH", body: { util } });

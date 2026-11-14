@@ -3,7 +3,7 @@ import { h, montar, campo, toast, fecha, vacio, paginador, cargando, errorBox, R
 import * as tema from "../theme.js";
 import { puedeInstalar, instalar, estaInstalada, alCambiarInstalable, estadoPush, activarPush, desactivarPush } from "../pwa.js";
 
-export async function vistaPerfil({ usuario: u }) {
+export async function vistaPerfil() {
   const p = await api("/api/auth/me");
   const sel = h(
     "select",

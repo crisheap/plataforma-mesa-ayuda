@@ -91,7 +91,9 @@ export async function metricasTexto(): Promise<string> {
   for (const [k, s] of latencias) {
     const [m, r] = k.split("|");
     const et = `metodo="${m}",ruta="${esc(r)}"`;
-    LIMITES_SEG.forEach((lim, i) => l.push(`mesa_http_duracion_segundos_bucket{${et},le="${lim}"} ${s.cubetas[i]}`));
+    LIMITES_SEG.forEach((lim, i) => {
+      l.push(`mesa_http_duracion_segundos_bucket{${et},le="${lim}"} ${s.cubetas[i]}`);
+    });
     l.push(
       `mesa_http_duracion_segundos_bucket{${et},le="+Inf"} ${s.conteo}`,
       `mesa_http_duracion_segundos_sum{${et}} ${s.suma.toFixed(6)}`,

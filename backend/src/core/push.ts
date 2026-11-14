@@ -9,7 +9,10 @@ let lib: WebPush | null | undefined;
 
 async function cargar(): Promise<WebPush | null> {
   if (lib !== undefined) return lib;
-  if (!env.vapid.publica || !env.vapid.privada) return (lib = null);
+  if (!env.vapid.publica || !env.vapid.privada) {
+    lib = null;
+    return null;
+  }
   try {
     const nombre = "web-push"; // dependencia opcional: npm install web-push
     const m = (await import(nombre)) as { default?: WebPush } & WebPush;

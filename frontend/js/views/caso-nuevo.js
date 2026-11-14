@@ -57,7 +57,7 @@ export async function vistaCasoNuevo() {
             );
           if (archivos.files.length) {
             const fd = new FormData();
-            [...archivos.files].forEach((f) => fd.append("archivos", f));
+            for (const f of archivos.files) fd.append("archivos", f);
             try {
               await api(`/api/casos/${caso.id}/evidencias`, { method: "POST", form: fd });
             } catch (er) {

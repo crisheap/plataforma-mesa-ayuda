@@ -111,7 +111,11 @@ self.addEventListener("fetch", (e) => {
 self.addEventListener("sync", (e) => {
   if (e.tag === "enviar-cola") {
     // El envío necesita el token de la sesión, que vive en la página: se le pide que vacíe la cola.
-    e.waitUntil(self.clients.matchAll({ type: "window" }).then((cs) => cs.forEach((c) => c.postMessage({ tipo: "VACIAR_COLA" }))));
+    e.waitUntil(
+      self.clients.matchAll({ type: "window" }).then((cs) => {
+        for (const c of cs) c.postMessage({ tipo: "VACIAR_COLA" });
+      }),
+    );
   }
 });
 

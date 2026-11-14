@@ -645,7 +645,11 @@ function operacion(o: Operacion) {
 
 export function construirOpenApi(version = "2.1.0") {
   const paths: Record<string, Record<string, unknown>> = {};
-  for (const o of OPERACIONES) (paths[aOpenApi(o.ruta)] ??= {})[o.metodo] = operacion(o);
+  for (const o of OPERACIONES) {
+    const ruta = aOpenApi(o.ruta);
+    paths[ruta] ??= {};
+    paths[ruta][o.metodo] = operacion(o);
+  }
   return {
     openapi: "3.1.0",
     info: {

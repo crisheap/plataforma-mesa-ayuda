@@ -13,7 +13,7 @@ const RUTAS_CON_PASSWORD_TEMPORAL = /^\/api\/auth\/(me|password|tema|logout)(\/|
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   const cab = req.headers.authorization;
   if (!cab?.startsWith("Bearer ")) throw AppError.unauthorized("Token no proporcionado");
-  let payload;
+  let payload: ReturnType<typeof verificarAccessToken>;
   try {
     payload = verificarAccessToken(cab.slice(7));
   } catch {

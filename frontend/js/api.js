@@ -23,7 +23,7 @@ export const alCambiarSesion = (fn) => {
   oyentes.add(fn);
   return () => oyentes.delete(fn);
 };
-const notificar = () => oyentes.forEach((fn) => fn(usuario));
+const notificar = () => oyentes.forEach((fn) => { fn(usuario); });
 
 function guardarSesion(d) {
   accessToken = d.token;

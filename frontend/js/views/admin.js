@@ -35,7 +35,7 @@ export async function vistaUsuarios({ usuario: yo }) {
   const cargar = async () => {
     montar(lista, cargando());
     const p = new URLSearchParams({ page: f.page, pageSize: f.pageSize });
-    ["q", "rol", "estado"].forEach((k) => f[k] && p.set(k, f[k]));
+    ["q", "rol", "estado"].forEach((k) => { f[k] && p.set(k, f[k]); });
     try {
       const d = await api(`/api/usuarios?${p}`);
       montar(
@@ -374,7 +374,7 @@ export async function vistaReportes() {
   );
   const tec = h("select", { "aria-label": "Técnico" }, h("option", { value: "" }, "Todos los técnicos"));
   api("/api/usuarios/tecnicos")
-    .then((ts) => ts.forEach((t) => tec.append(h("option", { value: t.id }, t.nombreCompleto))))
+    .then((ts) => ts.forEach((t) => { tec.append(h("option", { value: t.id }, t.nombreCompleto)); }))
     .catch(() => undefined);
   const qs = () => {
     const p = new URLSearchParams();
@@ -450,7 +450,7 @@ export async function vistaReportes() {
       montar(cont, errorBox(e));
     }
   };
-  [desde, hasta, prio, tec].forEach((el) => el.addEventListener("change", cargar));
+  [desde, hasta, prio, tec].forEach((el) => { el.addEventListener("change", cargar); });
   cargar();
   return h(
     "div",
