@@ -1,15 +1,22 @@
-name: Actualizar package-lock.json
+name: Mantenimiento (lockfile y formato)
 
-# Regenera backend/package-lock.json a partir de package.json y lo versiona.
-# Ejecútalo desde la pestaña Actions cuando cambien las dependencias.
+# Ejecútalo desde la pestaña Actions:
+#  - «lockfile»: regenera backend/package-lock.json cuando cambian las dependencias.
+#  - «formato»: aplica el formato y las correcciones seguras de Biome.
 on:
   workflow_dispatch:
+    inputs:
+      tarea:
+        description: Qué actualizar
+        type: choice
+        options: [lockfile, formato]
+        default: lockfile
 
 permissions:
   contents: write
 
 jobs:
-  lockfile:
+  mantenimiento:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +24,19 @@ jobs:
         with:
           node-version: 22
       - name: Generar lockfile
+        if: inputs.tarea == 'lockfile'
         working-directory: backend
         run: npm install --package-lock-only --no-audit --no-fund
+      - name: Aplicar formato
+        if: inputs.tarea == 'formato'
+        working-directory: backend
+        run: npm ci && (npm run fix || true)
       - name: Versionar si cambió
         run: |
-          if git diff --quiet --exit-code -- backend/package-lock.json 2>/dev/null && git ls-files --error-unmatch backend/package-lock.json >/dev/null 2>&1; then
-            echo "Sin cambios"; exit 0
-          fi
+          git add -A backend frontend carga
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/package-lock.json
-          git commit -m "Actualiza backend/package-lock.json"
+          if [ "${{ inputs.tarea }}" = "formato" ]; then msg="Aplica formato y correcciones automáticas de Biome"; else msg="Actualiza backend/package-lock.json"; fi
+          git commit -m "$msg"
           git push
