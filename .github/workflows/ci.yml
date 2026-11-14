@@ -25,6 +25,10 @@ jobs:
         run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
       - run: npm run prisma:generate
       - run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Formato (Prettier)
+        run: npm run format:check
       - run: npm test
 
   integracion:
@@ -65,7 +69,7 @@ jobs:
         run: npm run test:integracion
 
   docker:
-    name: Despliegue con Docker Compose
+    name: Docker, respaldos, carga, accesibilidad y Lighthouse
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +80,11 @@ jobs:
           sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
           sed -i 's|^ADMIN_INITIAL_PASSWORD=.*|ADMIN_INITIAL_PASSWORD=Admin#2026Docker!|' .env
           sed -i 's|^CORS_ORIGINS=.*|CORS_ORIGINS=http://localhost:4000|' .env
+          {
+            echo "METRICS_TOKEN=token-metricas-ci"
+            echo "RATE_LIMIT_API_MIN=100000"
+            echo "LOG_PETICIONES=json"
+          } >> .env
       - name: Construir y levantar
         run: docker compose up -d --build
       - name: Esperar a la API
@@ -92,6 +101,68 @@ jobs:
           code=$(curl -s -o /dev/null -w "%{http_code}" -H "content-type: application/json" \
             -d '{"correo":"admin@mesaayuda.local","password":"Admin#2026Docker!"}' http://localhost:4000/api/auth/login)
           test "$code" = "200"
+      - name: Documentación de la API
+        run: |
+          curl -fsS http://localhost:4000/api/openapi.json | grep -q '"openapi":"3.1.0"'
+          curl -fsS http://localhost:4000/api/docs | grep -q "swagger-ui"
+
+      - name: Respaldo y restauración (RNF-08)
+        run: |
+          docker compose --profile respaldos run --rm -e RESPALDO_UNA_VEZ=true respaldos
+          archivo=$(ls respaldos | grep '\.dump$' | head -1)
+          test -s "respaldos/$archivo"
+          docker compose exec -T db createdb -U mesa restaurada
+          docker compose --profile respaldos run --rm -e PGDATABASE=restaurada --entrypoint sh respaldos /scripts/restaurar.sh "/respaldos/$archivo"
+          usuarios=$(docker compose exec -T db psql -U mesa -d restaurada -tAc 'SELECT count(*) FROM usuarios')
+          echo "Usuarios en la base restaurada: $usuarios"
+          test "$usuarios" -ge 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dependencias para las pruebas web
+        working-directory: backend
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Preparar datos de prueba
+        env:
+          ADMIN_INITIAL_PASSWORD: Admin#2026Docker!
+        run: node carga/preparar.mjs > credenciales.json
+
+      - uses: grafana/setup-k6-action@v1
+      - name: Prueba de carga con k6 (RNF-04, p95 ≤ 3 s)
+        run: |
+          k6 run -e BASE_URL=http://localhost:4000 -e VUS=25 -e DURACION=40s \
+            -e CORREO="$(jq -r .usuario.correo credenciales.json)" -e PASSWORD="$(jq -r .usuario.password credenciales.json)" \
+            --summary-export=carga-resumen.json carga/escenario.js
+
+      - name: Métricas después de la carga (RNF-14)
+        run: |
+          curl -fsS -H "Authorization: Bearer token-metricas-ci" http://localhost:4000/api/metrics > metricas.txt
+          grep -E '^mesa_http_peticiones_total\{metodo="GET",ruta="/api/casos/mis-casos",estado="200"\}' metricas.txt
+          grep -E '^mesa_db_disponible 1' metricas.txt
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/api/metrics)" = "401"
+
+      - name: Accesibilidad (axe) y PWA con Playwright (RNF-10, RNF-11)
+        working-directory: backend
+        env:
+          CREDENCIALES: ../credenciales.json
+        run: npx playwright test
+
+      - name: Lighthouse (RNF-04, RNF-10)
+        run: npx --yes @lhci/cli@0.15.x autorun --config=lighthouserc.json
+
+      - name: Guardar reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-calidad
+          path: |
+            backend/playwright-report
+            lighthouse
+            carga-resumen.json
+            metricas.txt
+          if-no-files-found: ignore
+
       - name: Registros en caso de fallo
         if: failure()
         run: docker compose logs --no-color

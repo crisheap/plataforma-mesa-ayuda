@@ -11,6 +11,7 @@ import bcrypt from "bcrypt";
 process.env.JWT_SECRET = "secreto-de-prueba-secreto-de-prueba-123";
 process.env.DATABASE_URL = "postgresql://x:x@localhost:5432/x";
 process.env.CORS_ORIGINS = "http://permitido.test";
+process.env.METRICS_TOKEN = "token-de-metricas-de-prueba";
 
 type U = { id: number; nombre: string; apellido: string; correo: string; password: string; estado: string; intentosFallidos: number; bloqueadoHasta: Date | null; preferenciaTema: string; debeCambiarPassword: boolean; ultimoAcceso: Date | null; createdAt: Date; rol: { nombre: string } };
 const usuarios = new Map<number, U>();
@@ -147,4 +148,33 @@ test("tema: valor inválido rechazado", async () => {
   const ok = await fetch(base + "/api/auth/tema", { method: "PATCH", headers: { "content-type": "application/json", authorization: `Bearer ${u}` }, body: JSON.stringify({ preferenciaTema: "OSCURO" }) });
   assert.equal(ok.status, 200);
   assert.equal(usuarios.get(1)!.preferenciaTema, "OSCURO");
+});
+
+test("contrato OpenAPI y documentación navegable (RNF-06)", async () => {
+  const r = await get("/api/openapi.json");
+  assert.equal(r.status, 200);
+  const doc = await r.json();
+  assert.equal(doc.openapi, "3.1.0");
+  assert.ok(doc.paths["/api/casos/{id}"].get);
+  const d = await get("/api/docs");
+  assert.equal(d.status, 200);
+  assert.match(await d.text(), /swagger-ui/);
+  assert.match(d.headers.get("content-security-policy") ?? "", /style-src 'self' 'unsafe-inline'/);
+  // La CSP estricta se conserva en el resto de la aplicación
+  assert.doesNotMatch((await get("/api/health")).headers.get("content-security-policy") ?? "", /unsafe-inline/);
+  assert.equal((await get("/api/docs/recursos/swagger-ui-bundle.js")).status, 200);
+});
+
+test("observabilidad: X-Request-Id y métricas protegidas por token (RNF-14)", async () => {
+  const h = await get("/api/health");
+  assert.match(h.headers.get("x-request-id") ?? "", /^[\w-]{8,}$/);
+  assert.equal((await get("/api/health", undefined, { "x-request-id": "peticion-123456" })).headers.get("x-request-id"), "peticion-123456");
+  assert.equal((await get("/api/metrics")).status, 401);
+  assert.equal((await get("/api/metrics", "otro-token")).status, 401);
+  const m = await get("/api/metrics", "token-de-metricas-de-prueba");
+  assert.equal(m.status, 200);
+  const texto = await m.text();
+  assert.match(texto, /mesa_http_peticiones_total\{metodo="GET",ruta="\/api\/health",estado="200"\} \d+/);
+  assert.match(texto, /mesa_http_duracion_segundos_bucket/);
+  assert.match(texto, /mesa_db_disponible [01]/);
 });

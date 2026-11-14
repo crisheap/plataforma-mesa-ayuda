@@ -22,3 +22,13 @@ Thumbs.db
 .idea/
 *.log
 ~$*.docx
+
+# Respaldos locales de la base de datos
+respaldos/
+
+# Reportes de pruebas
+backend/playwright-report/
+backend/test-results/
+lighthouse/
+.lighthouseci/
+credenciales.json

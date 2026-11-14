@@ -224,3 +224,22 @@ test("asistente Botito: guía con la base de conocimiento y consulta solo casos 
   const ajeno = await llamar("POST", `/api/asistente/conversaciones/${c2.json.data.conversacion.id}/mensajes`, tokens.otro, { contenido: `¿Cómo va el caso ${numeroCaso}?` });
   assert.doesNotMatch(ajeno.json.data.mensaje.contenido, /No puedo entrar a la plataforma/);
 });
+
+test("retención: borra solo las conversaciones de Botito sin actividad reciente y lo audita", async () => {
+  const { purgarConversacionesAntiguas } = await import("../src/jobs/worker");
+  const hace = (dias: number) => new Date(Date.now() - dias * 24 * 60 * 60 * 1000);
+  const vieja = await prisma.conversacionAsistente.create({
+    data: { usuarioId: ids.usuario, createdAt: hace(400), mensajes: { create: [{ rol: "USUARIO", contenido: "hola", createdAt: hace(400) }] } },
+  });
+  const reactivada = await prisma.conversacionAsistente.create({
+    data: { usuarioId: ids.usuario, createdAt: hace(400), mensajes: { create: [{ rol: "USUARIO", contenido: "sigo aquí", createdAt: hace(2) }] } },
+  });
+  const borradas = await purgarConversacionesAntiguas(180);
+  assert.ok(borradas >= 1);
+  assert.equal(await prisma.conversacionAsistente.findUnique({ where: { id: vieja.id } }), null);
+  assert.equal(await prisma.mensajeAsistente.count({ where: { conversacionId: vieja.id } }), 0);
+  assert.ok(await prisma.conversacionAsistente.findUnique({ where: { id: reactivada.id } }));
+  assert.equal(await purgarConversacionesAntiguas(0), 0, "con 0 días la retención está desactivada");
+  const a = await llamar("GET", "/api/auditoria?accion=RETENCION_ASISTENTE", tokens.supervisor);
+  assert.ok(a.json.data.items.length >= 1);
+});

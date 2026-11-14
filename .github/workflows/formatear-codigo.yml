@@ -1,0 +1,31 @@
+name: Formatear código
+
+# Aplica Prettier y las correcciones automáticas de ESLint, y versiona el resultado.
+# Ejecútalo desde la pestaña Actions (por ejemplo, después de cambiar la configuración de formato).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  formatear:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run format
+      - run: npm run lint -- --fix || true
+      - name: Versionar si cambió
+        run: |
+          if git diff --quiet; then echo "Sin cambios"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Aplica formato (Prettier) y correcciones automáticas de ESLint"
+          git push

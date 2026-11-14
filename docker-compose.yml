@@ -56,6 +56,25 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mesa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mesa_ayuda}?schema=public
     depends_on: [api]
 
+  respaldos:                      # RNF-08: docker compose --profile respaldos up -d
+    profiles: [respaldos]
+    image: postgres:16
+    entrypoint: ["sh", "/scripts/respaldo.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-mesa}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-mesa_ayuda}
+      RESPALDO_CADA_HORAS: ${RESPALDO_CADA_HORAS:-24}
+      RESPALDO_CONSERVAR_DIAS: ${RESPALDO_CONSERVAR_DIAS:-14}
+      RESPALDO_UNA_VEZ: ${RESPALDO_UNA_VEZ:-false}
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./respaldos:/respaldos           # copia esta carpeta fuera del servidor (otro disco o la nube)
+      - evidencias:/evidencias
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+
 volumes:
   pgdata:
   evidencias:

@@ -17,12 +17,20 @@ import auditoriaRoutes from "./modules/auditoria/auditoria.routes";
 import reportesRoutes from "./modules/reportes/reportes.routes";
 import { notificacionesRouter, pushRouter } from "./modules/notificaciones/notificaciones.routes";
 import { crearAsistenteRouter } from "./modules/asistente/asistente.routes";
+import { metricasTexto, observarPeticiones, tokenMetricasValido } from "./core/observabilidad";
+import { construirOpenApi } from "./docs/openapi";
+
+const PAGINA_DOCS = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API · Plataforma Mesa de Ayuda</title><link rel="stylesheet" href="/api/docs/recursos/swagger-ui.css"></head>
+<body><div id="swagger-ui"></div><script src="/api/docs/recursos/swagger-ui-bundle.js"></script><script src="/api/docs/inicio.js"></script></body></html>`;
 
 export function crearApp(): Application {
   const app = express();
   app.disable("x-powered-by");
   if (env.trustProxy) app.set("trust proxy", 1);
 
+  app.use(observarPeticiones);
   app.use(securityHeaders);
   app.use(corsRestringido);
   app.use(express.json({ limit: "1mb" }));
@@ -38,7 +46,28 @@ export function crearApp(): Application {
     });
   });
 
-  app.use("/api", rateLimit({ ventanaMs: 60_000, max: 600, mensaje: "Demasiadas solicitudes. Intenta en un minuto" }));
+  // Métricas para Prometheus (RNF-14): deshabilitadas si no se define METRICS_TOKEN.
+  app.get("/api/metrics", async (req, res) => {
+    if (!env.metricsToken) return res.status(404).json({ success: false, message: "Métricas deshabilitadas (define METRICS_TOKEN)" });
+    if (!tokenMetricasValido(req.headers.authorization)) return res.status(401).json({ success: false, message: "Token de métricas inválido" });
+    res.type("text/plain; version=0.0.4").send(await metricasTexto());
+  });
+
+  // Contrato OpenAPI y documentación navegable (RNF-06).
+  const contrato = construirOpenApi();
+  app.get("/api/openapi.json", (_req, res) => { res.json(contrato); });
+  const swaggerUi = path.dirname(require.resolve("swagger-ui-dist/package.json"));
+  const cspDocs = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+  app.get(["/api/docs", "/api/docs/"], (_req, res) => {
+    res.setHeader("Content-Security-Policy", cspDocs);
+    res.type("html").send(PAGINA_DOCS);
+  });
+  app.get("/api/docs/inicio.js", (_req, res) => {
+    res.type("application/javascript").send('window.ui = SwaggerUIBundle({ url: "/api/openapi.json", dom_id: "#swagger-ui", deepLinking: true });');
+  });
+  app.use("/api/docs/recursos", (_req, res, next) => { res.setHeader("Content-Security-Policy", cspDocs); next(); }, express.static(swaggerUi, { index: false }));
+
+  app.use("/api", rateLimit({ ventanaMs: 60_000, max: env.rateLimitApiMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto" }));
 
   app.use("/api/auth", authRoutes);
   app.use("/api/usuarios", usuarioRoutes);

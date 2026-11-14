@@ -59,4 +59,15 @@ export const env = {
   embedAsistente: booleano("EMBED_ASISTENTE", true),
   runWorker: booleano("RUN_WORKER", true),
   adminInitialPassword: process.env.ADMIN_INITIAL_PASSWORD ?? "",
+
+  // Retención de las conversaciones de Botito (RF-IA-07, RNF-13). 0 = no borrar nunca.
+  asistenteRetencionDias: Math.max(0, numero("ASISTENTE_RETENCION_DIAS", 180)),
+
+  // Observabilidad (RNF-14)
+  logPeticiones: (["json", "texto", "no"].includes(process.env.LOG_PETICIONES ?? "")
+    ? process.env.LOG_PETICIONES
+    : nodeEnv === "production" ? "json" : "no") as "json" | "texto" | "no",
+  metricsToken: process.env.METRICS_TOKEN ?? "",
+  // Peticiones por minuto y por IP a /api (súbelo detrás de un proxy que agrupe usuarios o en pruebas de carga).
+  rateLimitApiMin: Math.max(1, numero("RATE_LIMIT_API_MIN", 600)),
 } as const;

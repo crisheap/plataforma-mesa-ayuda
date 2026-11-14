@@ -1,6 +1,8 @@
 import { prisma } from "../config/prisma";
 import { enviarCorreo } from "../core/mailer";
 import { idsSupervisores, notificar } from "../core/notificar";
+import { auditar } from "../core/audit";
+import { env } from "../config/env";
 
 const MAX_INTENTOS = 5;
 
@@ -51,12 +53,42 @@ export async function procesarAlertasSla(): Promise<number> {
   return vencidos.length;
 }
 
+/** Fecha antes de la cual una conversación sin actividad se considera vencida. */
+export function corteRetencion(dias: number, ahora = new Date()): Date | null {
+  if (!Number.isFinite(dias) || dias <= 0) return null;
+  return new Date(ahora.getTime() - dias * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Borra las conversaciones de Botito sin actividad en los últimos ASISTENTE_RETENCION_DIAS días
+ * (RF-IA-07, RNF-13). Los mensajes se borran en cascada; la acción queda en la auditoría.
+ */
+export async function purgarConversacionesAntiguas(dias = env.asistenteRetencionDias, ahora = new Date()): Promise<number> {
+  const corte = corteRetencion(dias, ahora);
+  if (!corte) return 0;
+  const { count } = await prisma.conversacionAsistente.deleteMany({
+    where: { createdAt: { lt: corte }, mensajes: { none: { createdAt: { gte: corte } } } },
+  });
+  if (count > 0) {
+    await auditar(null, {
+      accion: "RETENCION_ASISTENTE",
+      entidad: "ConversacionAsistente",
+      descripcion: `Se borraron ${count} conversación(es) del asistente sin actividad desde ${corte.toISOString().slice(0, 10)}`,
+      datos: { conversaciones: count, dias },
+    });
+  }
+  return count;
+}
+
 /** Inicia las tareas periódicas. Devuelve una función para detenerlas. */
 export function iniciarWorker(): () => void {
   const correos = setInterval(() => procesarCorreosPendientes().catch((e) => console.error("[worker]", e)), 30_000);
   const sla = setInterval(() => procesarAlertasSla().catch((e) => console.error("[worker]", e)), 60_000);
+  const retencion = setInterval(() => purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e)), 6 * 60 * 60_000);
+  setTimeout(() => purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e)), 60_000).unref();
   correos.unref();
   sla.unref();
+  retencion.unref();
   console.log("✓ Worker de notificaciones y alertas SLA iniciado");
-  return () => { clearInterval(correos); clearInterval(sla); };
+  return () => { clearInterval(correos); clearInterval(sla); clearInterval(retencion); };
 }
