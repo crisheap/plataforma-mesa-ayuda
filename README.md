@@ -1,11 +1,13 @@
 # Plataforma Mesa de Ayuda – SENA
 
 [![CI](https://github.com/crisheap/plataforma-mesa-ayuda/actions/workflows/ci.yml/badge.svg)](https://github.com/crisheap/plataforma-mesa-ayuda/actions/workflows/ci.yml)
-![Versión](https://img.shields.io/badge/versión-2.0-2E7D00)
+![Versión](https://img.shields.io/badge/versión-2.2-2E7D00)
 ![Node.js](https://img.shields.io/badge/Node.js-22_LTS-339933?logo=nodedotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-4169E1?logo=postgresql&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-instalable-5A0FC8?logo=pwa&logoColor=white)
+![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![WCAG](https://img.shields.io/badge/WCAG_2.2-AA_(axe)-1F5FA8)
 
 Plataforma web para que funcionarios y aprendices **reporten incidentes y solicitudes técnicas**, que la mesa de ayuda los **asigne y resuelva dentro de tiempos acordados (SLA)** y que la entidad **mida la calidad del servicio**. Incluye un asistente virtual, **Botito**, que orienta al usuario paso a paso y, si no logra resolver el problema, le ayuda a crear el caso correctamente.
 
@@ -28,6 +30,7 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 - [Pruebas](#pruebas)
 - [API](#api)
 - [Seguridad](#seguridad)
+- [Operación: respaldos, monitoreo y retención](#operación-respaldos-monitoreo-y-retención)
 - [Trazabilidad requerimientos → código](#trazabilidad-requerimientos--código)
 - [Documentación](#documentación)
 - [Límites conocidos y próximos pasos](#límites-conocidos-y-próximos-pasos)
@@ -107,7 +110,8 @@ stateDiagram-v2
 | Archivos y reportes | Multer (validación de tipo, tamaño y firma) · ExcelJS |
 | Frontend | PWA en JavaScript nativo, sin dependencias ni compilación · Service Worker · IndexedDB |
 | Opcionales | Nodemailer (correo) · web-push (notificaciones) · API de un modelo de lenguaje para Botito |
-| Despliegue | Docker y Docker Compose |
+| Despliegue | Docker y Docker Compose · respaldos con `pg_dump` |
+| Calidad | Biome (análisis estático y formato) · Playwright + axe-core · k6 · Lighthouse · contrato OpenAPI con Swagger UI |
 
 ## Estructura del repositorio
 
@@ -116,18 +120,24 @@ stateDiagram-v2
 ├─ backend/
 │  ├─ prisma/            schema.prisma, migraciones (inicial + v2) y seed
 │  ├─ integracion/       pruebas de integración contra PostgreSQL
+│  ├─ e2e/               accesibilidad (axe) y comportamiento PWA con Playwright
 │  └─ src/
-│     ├─ core/           reglas de negocio puras: estados, SLA, auditoría, notificaciones, correo, push
+│     ├─ core/           reglas puras: estados, SLA, auditoría, notificaciones, correo, push, observabilidad
 │     ├─ middlewares/    autenticación, roles, seguridad, límite de peticiones, errores
 │     ├─ modules/        auth · usuarios · roles · casos · sla · reportes · auditoria · notificaciones · asistente
-│     ├─ jobs/           tareas periódicas (correos pendientes y alertas de SLA)
+│     ├─ docs/           contrato OpenAPI (/api/openapi.json y /api/docs)
+│     ├─ jobs/           tareas periódicas: correos, alertas de SLA y retención de Botito
 │     ├─ asistente/      punto de entrada del asistente como servicio aparte
 │     ├─ worker/         punto de entrada del worker como servicio aparte
 │     ├─ app.ts          configuración de Express
 │     └─ server.ts       arranque de la API
 ├─ frontend/             PWA: index.html, sw.js, manifest, css/, js/ (vistas, API, tema, bot), icons/
-├─ docs/                 ERS y documentación técnica, manual de instalación, capturas
-├─ .github/workflows/    integración continua y actualización de package-lock.json
+├─ carga/                prueba de carga (k6) y preparación de datos de prueba
+├─ scripts/              respaldo y restauración de la base de datos y las evidencias
+├─ docs/                 ERS, manuales de instalación y de usuario, capturas
+├─ .github/workflows/    integración continua y mantenimiento (lockfile y formato)
+├─ biome.json            reglas de análisis estático y formato
+├─ lighthouserc.json     umbrales de Lighthouse
 ├─ docker-compose.yml
 └─ .env.docker.example
 ```
@@ -161,7 +171,7 @@ Para generar un `JWT_SECRET` seguro:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-> 📘 ¿Primera vez instalando un proyecto así? El [Manual de instalación](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.1.docx) explica cada paso para Windows, macOS y Linux, con un recorrido de prueba y una tabla de solución de problemas.
+> 📘 ¿Primera vez instalando un proyecto así? El [Manual de instalación](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.2.docx) explica cada paso para Windows, macOS y Linux, con un recorrido de prueba y una tabla de solución de problemas.
 
 ### Con Docker
 
@@ -191,6 +201,10 @@ Variables principales de `backend/.env` (la lista completa y comentada está en 
 | `VAPID_*` | No | Notificaciones push (`npx web-push generate-vapid-keys`). |
 | `IA_PROVIDER` · `IA_API_KEY` · `IA_MODEL` | No | `local` (por defecto) responde con la base de conocimiento, sin servicios externos; `anthropic` usa un modelo de lenguaje. |
 | `EMBED_ASISTENTE` · `RUN_WORKER` | No | `true` por defecto: el asistente y el worker corren dentro de la API. |
+| `ASISTENTE_RETENCION_DIAS` | No | Días sin actividad tras los cuales se borran las conversaciones de Botito (180; `0` = no borrar). |
+| `LOG_PETICIONES` · `METRICS_TOKEN` | No | Registro por petición (`json`, `texto` o `no`) y token para leer `/api/metrics`. |
+| `RATE_LIMIT_API_MIN` | No | Peticiones por minuto y por IP a `/api` (600). |
+| `RESPALDO_CADA_HORAS` · `RESPALDO_CONSERVAR_DIAS` | No | Frecuencia (24 h) y conservación (14 días) de los respaldos con Docker. |
 
 ## Scripts disponibles
 
@@ -207,6 +221,8 @@ Se ejecutan dentro de `backend/`.
 | `npm run prisma:studio` | Explorador visual de la base de datos |
 | `npm run typecheck` · `npm test` | Verificar tipos y ejecutar las pruebas unitarias |
 | `npm run test:integracion` | Flujo completo contra PostgreSQL (usa una base de datos vacía de prueba) |
+| `npm run test:e2e` | Accesibilidad y PWA con Playwright (aplicación encendida; requiere `npx playwright install`) |
+| `npm run check` · `npm run fix` | Revisar o aplicar el análisis estático y el formato con Biome |
 
 Para comprobar que el servidor está sano: `http://localhost:4000/api/health?deep=1` debe responder `"db": "ok"`.
 
@@ -215,33 +231,38 @@ Para comprobar que el servidor está sano: `http://localhost:4000/api/health?dee
 ```bash
 cd backend
 npm run typecheck
-npm test                  # 30 pruebas unitarias y de la capa HTTP, sin base de datos
-npm run test:integracion  # 13 pruebas del flujo completo contra PostgreSQL
+npm run check             # Biome: análisis estático y formato
+npm test                  # unitarias, capa HTTP y contrato OpenAPI, sin base de datos
+npm run test:integracion  # flujo completo contra PostgreSQL
+npm run test:e2e          # accesibilidad y PWA con Playwright (aplicación encendida)
 ```
 
 **Unitarias y HTTP** (`node:test`, sin base de datos):
 
 - **Reglas de negocio:** transiciones de estado del caso, control de propiedad, número de caso.
-- **SLA:** cálculo de vencimiento y semáforo.
+- **SLA:** cálculo de vencimiento y semáforo; fecha de corte de la retención de Botito.
 - **Seguridad:** política de contraseñas, límite de peticiones, firmas de archivos subidos.
 - **Asistente:** búsqueda en la base de conocimiento, enmascarado de datos sensibles (conservando el número de caso), clasificación del problema.
-- **Capa HTTP** (con base de datos simulada): validación, autenticación, autorización por rol, bloqueo de cuenta, cambio obligatorio de contraseña, cabeceras de seguridad y CORS.
+- **Capa HTTP** (con base de datos simulada): validación, autenticación, autorización por rol, bloqueo de cuenta, cambio obligatorio de contraseña, cabeceras de seguridad, CORS, documentación de la API y métricas.
+- **Contrato:** cada ruta declarada en el código está en el OpenAPI, y el OpenAPI no documenta rutas inexistentes.
 
-**Integración** (base de datos real, migrada y con el seed): recorre el flujo del manual con los cuatro roles. Cubre el cambio obligatorio de contraseña, la creación de usuarios, el registro con evidencias válidas e inválidas, el control de propiedad, la asignación con SLA, la atención con notas internas, el rechazo, el cierre y la calificación. También verifica el historial, las notificaciones, los reportes, la auditoría inmutable (trigger), el bloqueo manual, los permisos de SLA y el asistente. Usa una base de datos vacía: las pruebas crean usuarios y casos y necesitan el mismo `ADMIN_INITIAL_PASSWORD` del seed.
+**Integración** (base de datos real, migrada y con el seed): recorre el flujo del manual con los cuatro roles. Cubre el cambio obligatorio de contraseña, la creación de usuarios, el registro con evidencias válidas e inválidas, el control de propiedad, la asignación con SLA, la atención con notas internas, el rechazo, el cierre y la calificación. También verifica el historial, las notificaciones, los reportes, la auditoría inmutable (trigger), el bloqueo manual, los permisos de SLA, el asistente y la retención de conversaciones. Usa una base de datos vacía: las pruebas crean usuarios y casos y necesitan el mismo `ADMIN_INITIAL_PASSWORD` del seed.
 
 **Integración continua (GitHub Actions)**, en cada `push` y pull request:
 
 | Trabajo | Qué verifica |
 |---|---|
-| Tipos y pruebas unitarias | `npm ci`, `prisma generate`, `typecheck` y `npm test` |
+| Tipos y pruebas unitarias | `npm ci`, `prisma generate`, `typecheck`, Biome y `npm test` |
 | Integración con PostgreSQL | Servicio `postgres:16`, migraciones, seed y `npm run test:integracion` |
-| Despliegue con Docker Compose | Construye las imágenes, levanta base de datos + migraciones + API y comprueba `/api/health?deep=1`, la PWA y el inicio de sesión |
+| Docker, respaldos, carga, accesibilidad y Lighthouse | Levanta la aplicación con Docker Compose y comprueba salud, PWA, inicio de sesión y `/api/docs`; hace un respaldo y lo restaura en otra base; ejecuta una prueba de carga con k6 (25 usuarios virtuales, p95 ≤ 3 s y menos de 1 % de errores); revisa las métricas; recorre las pantallas de los cuatro roles con axe (WCAG 2.2 AA, temas claro y oscuro, escritorio y celular), verifica el service worker y el uso sin conexión, y audita con Lighthouse (accesibilidad y buenas prácticas ≥ 90) |
 
-El workflow **Actualizar package-lock.json** (pestaña *Actions*, ejecución manual) regenera el lockfile cuando cambian las dependencias.
+Los reportes de Playwright, Lighthouse, k6 y las métricas quedan como artefacto **reportes-calidad** de cada ejecución.
+
+El workflow **Mantenimiento** (pestaña *Actions*, ejecución manual) regenera `package-lock.json` o aplica el formato de Biome.
 
 ## API
 
-Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `login`, `refresh`, `logout` y `health`, las rutas exigen `Authorization: Bearer <token>`.
+La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato en **`/api/openapi.json`** (OpenAPI 3.1). Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `login`, `refresh`, `logout`, `health`, `openapi.json` y `docs`, las rutas exigen `Authorization: Bearer <token>`.
 
 | Recurso | Rutas principales |
 |---|---|
@@ -253,7 +274,7 @@ Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores
 | SLA, reportes y auditoría | `GET/PUT /api/sla` · `GET /api/reportes/kpis` · `GET /api/reportes/casos.xlsx` · `GET /api/auditoria` |
 | Notificaciones | `GET /api/notificaciones` · `PATCH /:id/leida` · `PATCH /leer-todas` · `GET /api/push/clave-publica` · `POST /api/push/suscripciones` |
 | Asistente | `POST /api/asistente/conversaciones` · `POST /:id/mensajes` · `PATCH /:id/mensajes/:mid/util` · `POST /sugerencia-caso` · `GET/POST/PATCH /conocimiento` |
-| Salud | `GET /api/health` (`?deep=1` verifica la base de datos) |
+| Sistema | `GET /api/health` (`?deep=1` verifica la base de datos) · `GET /api/openapi.json` · `GET /api/docs` · `GET /api/metrics` (con `METRICS_TOKEN`) |
 
 ## Seguridad
 
@@ -265,6 +286,33 @@ Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores
 - **Asistente:** consulta los casos con el token del propio usuario, enmascara datos sensibles, nunca pide contraseñas y filtra correos ajenos en sus respuestas.
 - **Cabeceras:** CSP estricta, `X-Frame-Options`, `nosniff`, HSTS en producción y CORS restringido.
 - **Secretos:** ningún `.env` real se versiona; solo las plantillas `.env.example` y `.env.docker.example`.
+- **Accesibilidad:** las pantallas de los cuatro roles se revisan con axe en cada cambio; no se aceptan violaciones graves ni críticas de WCAG 2.2 AA.
+
+## Operación: respaldos, monitoreo y retención
+
+**Respaldos (RNF-08).** El perfil `respaldos` de Docker Compose guarda la base de datos (`pg_dump`, formato *custom*) y las evidencias en la carpeta `respaldos/` cada 24 horas y conserva 14 días. La integración continua comprueba en cada cambio que un respaldo se restaura correctamente.
+
+```bash
+docker compose --profile respaldos up -d                                            # respaldos programados
+docker compose --profile respaldos run --rm -e RESPALDO_UNA_VEZ=true respaldos      # respaldo inmediato
+docker compose stop api                                                             # restaurar
+docker compose --profile respaldos run --rm --entrypoint sh respaldos /scripts/restaurar.sh /respaldos/ARCHIVO.dump
+docker compose start api
+```
+
+Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
+
+**Monitoreo (RNF-14).** Cada respuesta lleva `X-Request-Id`. Con `LOG_PETICIONES=json` (por defecto en producción), cada petición se registra en una línea JSON con método, ruta, estado, duración y usuario. `GET /api/metrics`, protegido con `METRICS_TOKEN`, expone en formato Prometheus:
+
+| Métrica | Uso sugerido para alertas |
+|---|---|
+| `mesa_http_peticiones_total{metodo,ruta,estado}` | Tasa de errores 5xx |
+| `mesa_http_duracion_segundos` (histograma) | p95 por ruta mayor de 3 s (RNF-04) |
+| `mesa_casos{estado}` · `mesa_casos_sla_vencido` | Casos abiertos y con SLA vencido |
+| `mesa_correos_pendientes` | Correos represados (SMTP caído) |
+| `mesa_db_disponible` | Base de datos sin respuesta |
+
+**Retención (RF-IA-07, RNF-13).** El worker borra cada 6 horas las conversaciones de Botito sin actividad en los últimos `ASISTENTE_RETENCION_DIAS` días (180 por defecto) y deja el registro en la auditoría. El plazo final debe confirmarlo la entidad según su política de tratamiento de datos.
 
 ## Trazabilidad requerimientos → código
 
@@ -299,8 +347,8 @@ Los 17 hallazgos del análisis de brechas (H-01 a H-17, sección 10 del ERS) est
 
 | Documento | Para quién | Contenido |
 |---|---|---|
-| [ERS y documentación técnica v2.1](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.1.docx) | Equipo técnico y evaluadores | Requerimientos con su estado actual, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico, hallazgos corregidos, plan por fases y matriz de trazabilidad |
-| [Manual de instalación v2.1](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.1.docx) | Quien instala la plataforma | Instalación paso a paso, recorrido de prueba y solución de problemas |
+| [ERS y documentación técnica v2.2](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.2.docx) | Equipo técnico y evaluadores | Requerimientos con su estado actual, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico, hallazgos corregidos, plan por fases y matriz de trazabilidad |
+| [Manual de instalación v2.2](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.2.docx) | Quien instala la plataforma | Instalación paso a paso, recorrido de prueba, respaldos, documentación de la API, métricas y solución de problemas |
 | [Manual de usuario v2.1](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.1.docx) | Usuarios, técnicos, supervisores y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
 
 Más detalle en [`docs/README.md`](docs/README.md).
@@ -313,6 +361,8 @@ Más detalle en [`docs/README.md`](docs/README.md).
 - El service worker guarda en caché solo `mis-casos`, `asignados` y el detalle de un caso, y la vacía al cerrar sesión. En equipos compartidos hay que cerrar la sesión siempre.
 - El envío de SMS (RF-NOT-01) depende de contratar un proveedor.
 
-**Pendientes de operación:** respaldos automáticos, monitoreo con alertas, pruebas de carga, ESLint y contrato OpenAPI, y auditorías automáticas de accesibilidad (axe) y PWA (Lighthouse).
+- La herramienta de análisis estático es Biome y no ESLint: `typescript-eslint` aún no admite TypeScript 7 (exige `typescript < 6.1`).
 
-**Pendientes que dependen de terceros:** validar la paleta y la ilustración con el manual de marca de Betowa (RF-UI-03) y definir la política de retención de las conversaciones del asistente (RF-IA-07, RNF-13).
+**Pendientes de operación en producción:** configurar el proxy con TLS, conectar `/api/metrics` a un servidor de monitoreo con alertas, medir la disponibilidad real (RNF-03) y el rendimiento con usuarios reales (RNF-04), y capacitar a los usuarios.
+
+**Pendientes que dependen de terceros:** validar la paleta y la ilustración con el manual de marca de Betowa (RF-UI-03), confirmar el plazo de retención de las conversaciones de Botito (180 días por defecto) y contratar un proveedor de SMS si se requiere (RF-NOT-01).
