@@ -23,6 +23,7 @@ const ESTADOS = ["ABIERTO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"] as 
  * Número de contacto del solicitante (RF-CAS-14): opcional; admite +, espacios, guiones y
  * paréntesis, y debe tener entre 7 y 15 dígitos. Se guarda normalizado (sin espacios repetidos).
  */
+const FORMATO_TELEFONO = /^\+?[\d\s()-]+$/;
 const telefonoContacto = z
   .string()
   .trim()
@@ -35,7 +36,8 @@ const telefonoContacto = z
   )
   .refine((v) => {
     const digitos = v?.replace(/\D/g, "").length ?? 0;
-    return v === undefined || (digitos >= 7 && digitos <= 15);
+    // Si el formato ya es inválido, el mensaje anterior basta (un solo error por campo).
+    return v === undefined || !FORMATO_TELEFONO.test(v) || (digitos >= 7 && digitos <= 15);
   }, "El número de contacto debe tener entre 7 y 15 dígitos");
 
 const crearSchema = z.object({
