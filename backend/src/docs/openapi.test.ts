@@ -23,6 +23,7 @@ const MONTAJES: [string, string, string][] = [
   ["modules/notificaciones/notificaciones.routes.ts", "/api/notificaciones", "notificacionesRouter"],
   ["modules/notificaciones/notificaciones.routes.ts", "/api/push", "pushRouter"],
   ["modules/asistente/asistente.routes.ts", "/api/asistente", "router"],
+  ["modules/configuracion/configuracion.routes.ts", "/api/configuracion", "router"],
 ];
 
 function rutasDelCodigo(): Set<string> {

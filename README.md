@@ -42,10 +42,11 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
 | **Supervisor** | Ver todos los casos · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · KPIs, reportes y bitácora de auditoría |
-| **Administrador** | Gestionar usuarios (crear, editar, bloquear, inactivar) · restablecer contraseñas · configurar tiempos de SLA · administrar la base de conocimiento del asistente |
+| **Administrador** | Gestionar usuarios (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · definir los dominios empresariales · configurar tiempos de SLA · administrar la base de conocimiento del asistente |
 
 Además, para todos los roles:
 
+- **Correo de bienvenida y activación de la cuenta:** al crear un usuario se envía un mensaje de bienvenida al nuevo sistema con un enlace de un solo uso (vence en 48 h) para que la persona cree su propia contraseña. La contraseña nunca viaja por correo. Si la cuenta tiene correo personal, la bienvenida llega allí; las notificaciones de los casos siguen llegando al correo de acceso.
 - **Número único de caso** con formato `CASO-AAAA-NNNNNN`, generado de forma atómica.
 - **SLA con semáforo** (en tiempo, en riesgo, vencido) y alertas automáticas al vencer.
 - **Notificaciones** en la aplicación (campana con contador), por correo y push web.
@@ -197,7 +198,10 @@ Variables principales de `backend/.env` (la lista completa y comentada está en 
 | `CORS_ORIGINS` | En producción | Orígenes permitidos, separados por coma. |
 | `JWT_EXPIRES_IN` · `REFRESH_TOKEN_DAYS` | No | Vigencia del token de acceso (15 min) y del de refresco (7 días). |
 | `UPLOAD_DIR` · `MAX_UPLOAD_MB` | No | Carpeta y tamaño máximo de evidencias (10 MB). |
-| `SMTP_*` | No | Correo real. Sin `SMTP_HOST`, los correos se escriben en la consola. |
+| `SMTP_*` | No | Correo real. Sin `SMTP_HOST`, los correos se escriben en la consola y el administrador ve el enlace de activación en pantalla. |
+| `APP_URL` | En producción | Dirección pública de la plataforma con la que se arman los enlaces de los correos (por defecto `http://localhost:PORT`). |
+| `ACCESO_VIGENCIA_HORAS` | No | Horas de vigencia del enlace de activación o restablecimiento (48). |
+| `DOMINIOS_EMPRESARIALES` | No | Dominios iniciales que se consideran empresariales (`sena.edu.co,misena.edu.co`). Luego se cambian desde **Configuración**. |
 | `VAPID_*` | No | Notificaciones push (`npx web-push generate-vapid-keys`). |
 | `IA_PROVIDER` · `IA_API_KEY` · `IA_MODEL` | No | `local` (por defecto) responde con la base de conocimiento, sin servicios externos; `anthropic` usa un modelo de lenguaje. |
 | `EMBED_ASISTENTE` · `RUN_WORKER` | No | `true` por defecto: el asistente y el worker corren dentro de la API. |
@@ -262,12 +266,13 @@ El workflow **Mantenimiento** (pestaña *Actions*, ejecución manual) regenera `
 
 ## API
 
-La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato en **`/api/openapi.json`** (OpenAPI 3.1). Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `login`, `refresh`, `logout`, `health`, `openapi.json` y `docs`, las rutas exigen `Authorization: Bearer <token>`.
+La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato en **`/api/openapi.json`** (OpenAPI 3.1). Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `login`, `refresh`, `logout`, `acceso/verificar`, `acceso/activar`, `health`, `openapi.json` y `docs`, las rutas exigen `Authorization: Bearer <token>`.
 
 | Recurso | Rutas principales |
 |---|---|
-| Autenticación | `POST /api/auth/login` · `POST /refresh` · `POST /logout` · `GET /me` · `PATCH /password` · `PATCH /tema` |
-| Usuarios | `GET/POST /api/usuarios` · `GET/PATCH /:id` · `PATCH /:id/estado` · `PATCH /:id/restablecer-password` · `GET /tecnicos` |
+| Autenticación | `POST /api/auth/login` · `POST /refresh` · `POST /logout` · `GET /me` · `PATCH /password` · `PATCH /tema` · `POST /acceso/verificar` · `POST /acceso/activar` |
+| Usuarios | `GET/POST /api/usuarios` · `GET/PATCH /:id` · `PATCH /:id/estado` · `PATCH /:id/restablecer-password` · `POST /:id/enviar-acceso` · `GET /tecnicos` |
+| Configuración | `GET/PUT /api/configuracion/correo` (dominios empresariales; solo administrador) |
 | Casos | `POST /api/casos` · `GET /` · `GET /mis-casos` · `GET /asignados` · `GET /por-numero/:numero` · `GET /:id` · `GET /:id/historial` |
 | Atención | `PATCH /api/casos/:id/asignar` · `PATCH /:id/prioridad` · `PATCH /:id/estado` · `GET/POST /:id/observaciones` · `POST /:id/calificacion` |
 | Evidencias | `GET/POST /api/casos/:id/evidencias` · `GET /:id/evidencias/:evidenciaId/descargar` |
@@ -320,6 +325,9 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 |---|---|
 | RF-CAS-01…04, 11, 13 · Casos, número único, observaciones, calificación | `modules/casos/`, `core/reglas.ts` |
 | RF-CAS-14 · Número de contacto del solicitante | `telefonoContacto` en `casos.routes.ts` y migración `20261114230000_telefono_contacto`; `views/caso-nuevo.js` y `views/caso-detalle.js` |
+| RF-USU-09 · Tipo de correo y correo personal | `tipoCorreo`, `correoPersonal` en `schema.prisma` y migración `20261115000000_correos_y_acceso`; `core/correos.ts`; `views/admin.js` |
+| RF-USU-10 · Bienvenida y enlace de activación | `core/acceso.ts` (tabla `tokens_acceso`), `POST /api/usuarios/:id/enviar-acceso`, `POST /api/auth/acceso/*`; `views/activar.js` |
+| RF-ADM-05 · Dominios empresariales | `modules/configuracion/`, `GET/PUT /api/configuracion/correo`; `vistaConfiguracion` en `views/admin.js` |
 | RF-CAS-05 · Evidencias | `modules/casos/upload.ts`, `casos.routes.ts` |
 | RF-CAS-06/07/10 · Detalle, «mis casos», panel del técnico | `GET /api/casos/:id`, `/mis-casos`, `/asignados` |
 | RF-CAS-08/09 · Asignación y prioridad | `PATCH /:id/asignar`, `/:id/prioridad`, `GET /api/usuarios/tecnicos` |

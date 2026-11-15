@@ -14,6 +14,7 @@ import roleRoutes from "./modules/roles/roles.routes";
 import casoRoutes from "./modules/casos/casos.routes";
 import slaRoutes from "./modules/sla/sla.routes";
 import auditoriaRoutes from "./modules/auditoria/auditoria.routes";
+import configuracionRoutes from "./modules/configuracion/configuracion.routes";
 import reportesRoutes from "./modules/reportes/reportes.routes";
 import { notificacionesRouter, pushRouter } from "./modules/notificaciones/notificaciones.routes";
 import { crearAsistenteRouter } from "./modules/asistente/asistente.routes";
@@ -99,6 +100,7 @@ export function crearApp(): Application {
   app.use("/api/push", pushRouter);
   app.use("/api/sla", slaRoutes);
   app.use("/api/auditoria", auditoriaRoutes);
+  app.use("/api/configuracion", configuracionRoutes);
   app.use("/api/reportes", reportesRoutes);
   if (env.embedAsistente) app.use("/api/asistente", crearAsistenteRouter(authenticate));
 

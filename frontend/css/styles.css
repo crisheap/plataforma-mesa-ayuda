@@ -647,6 +647,31 @@ main {
 .login-form .card {
   width: min(440px, 100%);
 }
+/* Página del enlace de acceso (RF-USU-10) */
+.activar {
+  min-height: 100vh;
+}
+.titulo-acceso {
+  font-size: 1.4rem;
+  margin: 1rem 0 0.5rem;
+}
+.reglas {
+  list-style: none;
+  padding: 0;
+  margin: -0.25rem 0 1rem;
+  color: var(--text-muted);
+}
+.reglas li.ok {
+  color: var(--b-verde-fg);
+  font-weight: 600;
+}
+.romper {
+  word-break: break-all;
+}
+.campo-oculto {
+  display: none;
+}
+
 .theme-float {
   position: fixed;
   top: 12px;

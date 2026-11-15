@@ -19,11 +19,91 @@ import {
 } from "../ui.js";
 
 const ESTADOS_USR = { ACTIVO: ["Activo", "b-verde"], BLOQUEADO: ["Bloqueado", "b-rojo"], INACTIVO: ["Inactivo", "b-gris"] };
+const TIPOS_CORREO = { EMPRESARIAL: "Empresarial", PERSONAL: "Personal" };
+
+/** Misma regla del servidor (RF-USU-09): empresarial si el dominio o un subdominio está en la lista. */
+const tipoDeCorreo = (correo, dominios) => {
+  const d = (correo.split("@")[1] ?? "").trim().toLowerCase();
+  return dominios.some((e) => d === e || d.endsWith(`.${e}`)) ? "EMPRESARIAL" : "PERSONAL";
+};
+
+/** Resultado del envío del enlace de acceso (RF-USU-10). */
+async function mostrarAcceso(u, a) {
+  const enlace = a.enlace;
+  await modal({
+    titulo: a.enviado ? "Correo de acceso enviado" : "No se pudo enviar el correo",
+    cuerpo: h(
+      "div",
+      {},
+      a.enviado
+        ? h("p", {}, `Se envió a `, h("strong", {}, a.enviadoA), ` el enlace para que ${u.nombreCompleto} cree su contraseña.`)
+        : h("div", { class: "alert", role: "alert" }, a.error ?? "Revisa la configuración del correo saliente."),
+      h("p", { class: "small muted" }, `El enlace sirve una sola vez y vence el ${fecha(a.expiraEn)}. Los enlaces anteriores dejan de funcionar.`),
+      enlace
+        ? [
+            h("p", {}, "El servidor no tiene correo saliente configurado (SMTP). Entrega este enlace a la persona por un medio seguro:"),
+            h("p", {}, h("code", { class: "romper" }, enlace)),
+          ]
+        : null,
+    ),
+    acciones: [
+      ...(enlace
+        ? [
+            {
+              texto: "Copiar enlace",
+              valor: () => {
+                navigator.clipboard?.writeText(enlace);
+                toast("Enlace copiado");
+                return true;
+              },
+            },
+          ]
+        : []),
+      { texto: "Listo", valor: true, primario: true },
+    ],
+  });
+}
+
+/** Campos de correo de una cuenta: tipo y correo personal (este solo aplica si el de acceso es empresarial). */
+function camposCorreo({ correoAcceso, tipoInicial, personalInicial, dominios }) {
+  const tipo = h("select", {}, opciones(TIPOS_CORREO, tipoInicial));
+  const personal = h("input", { type: "email", autocomplete: "off", maxlength: "150", placeholder: "nombre@gmail.com", value: personalInicial ?? "" });
+  const bloquePersonal = campo(
+    "Correo personal (opcional)",
+    personal,
+    "Recibe la bienvenida y los enlaces para crear o restablecer la contraseña. Las notificaciones de los casos llegan al correo de acceso.",
+  );
+  let tocado = false;
+  const pintar = () => {
+    if (!tocado && correoAcceso?.value.includes("@")) tipo.value = tipoDeCorreo(correoAcceso.value, dominios());
+    bloquePersonal.classList.toggle("campo-oculto", tipo.value === "PERSONAL");
+  };
+  tipo.addEventListener("change", () => {
+    tocado = true;
+    pintar();
+  });
+  correoAcceso?.addEventListener("input", pintar);
+  pintar();
+  return {
+    nodos: [
+      campo("Tipo de correo de acceso", tipo, "Se deduce del dominio (ver Configuración); puedes cambiarlo."),
+      bloquePersonal,
+    ],
+    valores: () => ({ tipoCorreo: tipo.value, correoPersonal: tipo.value === "EMPRESARIAL" ? personal.value.trim() : "" }),
+  };
+}
 const msgs = (e) => [e.message, ...(e.errors ?? []).map((x) => x.message)].join(" · ");
 
 // ───────────── Usuarios (RF-USU-04/05/06) ─────────────
 export async function vistaUsuarios({ usuario: yo }) {
-  const f = { page: 1, pageSize: 15, q: "", rol: "", estado: "" };
+  const f = { page: 1, pageSize: 15, q: "", rol: "", estado: "", tipoCorreo: "" };
+  let cfg = { dominiosEmpresariales: [], smtpConfigurado: true, vigenciaEnlaceHoras: 48 };
+  api("/api/configuracion/correo")
+    .then((d) => {
+      cfg = d;
+    })
+    .catch(() => undefined);
+  const sTipo = h("select", { "aria-label": "Filtrar por tipo de correo" }, opciones(TIPOS_CORREO, "", "Todos los correos"));
   const lista = h("div", { "aria-live": "polite" });
   const q = h("input", { type: "search", placeholder: "Buscar por nombre o correo", "aria-label": "Buscar usuarios" });
   const sRol = h("select", { "aria-label": "Filtrar por rol" }, opciones(ROLES, "", "Todos los roles"));
@@ -36,7 +116,7 @@ export async function vistaUsuarios({ usuario: yo }) {
   const cargar = async () => {
     montar(lista, cargando());
     const p = new URLSearchParams({ page: f.page, pageSize: f.pageSize });
-    ["q", "rol", "estado"].forEach((k) => {
+    ["q", "rol", "estado", "tipoCorreo"].forEach((k) => {
       f[k] && p.set(k, f[k]);
     });
     try {
@@ -72,7 +152,14 @@ export async function vistaUsuarios({ usuario: yo }) {
                         h("strong", {}, u.nombreCompleto),
                         u.debeCambiarPassword ? h("div", { class: "small muted" }, "Debe cambiar contraseña") : null,
                       ),
-                      h("td", {}, u.correo),
+                      h(
+                        "td",
+                        {},
+                        u.correo,
+                        " ",
+                        h("span", { class: `badge ${u.tipoCorreo === "PERSONAL" ? "b-gris" : "b-azul"}` }, TIPOS_CORREO[u.tipoCorreo]),
+                        u.correoPersonal ? h("div", { class: "small muted" }, `Personal: ${u.correoPersonal}`) : null,
+                      ),
                       h("td", {}, ROLES[u.rol.nombre]),
                       h("td", {}, h("span", { class: `badge ${ESTADOS_USR[u.estado][1]}` }, ESTADOS_USR[u.estado][0])),
                       h("td", {}, fecha(u.ultimoAcceso)),
@@ -144,14 +231,32 @@ export async function vistaUsuarios({ usuario: yo }) {
         ),
       );
     }
-    b.push(h("button", { class: "btn sm", onclick: () => restablecer(u) }, "Restablecer contraseña"));
+    if (u.estado === "ACTIVO") b.push(h("button", { class: "btn sm", onclick: () => enviarAcceso(u) }, "Enviar acceso"));
+    b.push(h("button", { class: "btn sm", onclick: () => restablecer(u) }, "Contraseña temporal"));
     return b;
+  }
+  async function enviarAcceso(u) {
+    const destino = u.correoPersonal ?? u.correo;
+    if (
+      !(await confirmar(
+        "Enviar enlace de acceso",
+        `Se enviará a ${destino} un enlace para que ${u.nombreCompleto} cree o restablezca su contraseña. Vence en ${cfg.vigenciaEnlaceHoras} horas y anula los enlaces anteriores.`,
+        "Enviar",
+      ))
+    )
+      return;
+    try {
+      await mostrarAcceso(u, await api(`/api/usuarios/${u.id}/enviar-acceso`, { method: "POST", body: {} }));
+      cargar();
+    } catch (e) {
+      toast(msgs(e), { ms: 7000 });
+    }
   }
   async function restablecer(u) {
     if (
       !(await confirmar(
         "Restablecer contraseña",
-        `Se generará una contraseña temporal para ${u.nombreCompleto}. Deberá cambiarla al ingresar.`,
+        `Se generará una contraseña temporal para ${u.nombreCompleto} que verás en pantalla y deberás entregarle; deberá cambiarla al ingresar. Si prefieres que la persona cree su contraseña desde su correo, usa «Enviar acceso».`,
         "Restablecer",
       ))
     )
@@ -188,6 +293,7 @@ export async function vistaUsuarios({ usuario: yo }) {
       a = h("input", { value: u.apellido, maxlength: "80" });
     const r = h("select", {}, opciones(ROLES, u.rol.nombre));
     if (u.id === yo.id) r.disabled = true;
+    const correos = camposCorreo({ tipoInicial: u.tipoCorreo, personalInicial: u.correoPersonal, dominios: () => cfg.dominiosEmpresariales });
     const ok = await modal({
       titulo: "Editar usuario",
       cuerpo: h(
@@ -196,6 +302,8 @@ export async function vistaUsuarios({ usuario: yo }) {
         campo("Nombre", n),
         campo("Apellido", a),
         campo("Rol", r, u.id === yo.id ? "No puedes cambiar tu propio rol." : undefined),
+        h("p", { class: "small" }, "Correo de acceso: ", h("strong", {}, u.correo)),
+        correos.nodos,
       ),
       acciones: [
         { texto: "Cancelar", valor: false },
@@ -207,7 +315,7 @@ export async function vistaUsuarios({ usuario: yo }) {
       () =>
         api(`/api/usuarios/${u.id}`, {
           method: "PATCH",
-          body: { nombre: n.value.trim(), apellido: a.value.trim(), ...(u.id === yo.id ? {} : { rol: r.value }) },
+          body: { nombre: n.value.trim(), apellido: a.value.trim(), ...(u.id === yo.id ? {} : { rol: r.value }), ...correos.valores() },
         }),
       "Usuario actualizado",
     )();
@@ -215,8 +323,10 @@ export async function vistaUsuarios({ usuario: yo }) {
   async function crear() {
     const n = h("input", { maxlength: "80" }),
       a = h("input", { maxlength: "80" }),
-      c = h("input", { type: "email" }),
+      c = h("input", { type: "email", autocomplete: "off", maxlength: "150" }),
       r = h("select", {}, opciones(ROLES, "USUARIO"));
+    const correos = camposCorreo({ correoAcceso: c, tipoInicial: "EMPRESARIAL", dominios: () => cfg.dominiosEmpresariales });
+    const enviar = h("input", { type: "checkbox", id: "enviar-acceso", checked: true });
     const ok = await modal({
       titulo: "Nuevo usuario",
       cuerpo: h(
@@ -224,8 +334,22 @@ export async function vistaUsuarios({ usuario: yo }) {
         {},
         campo("Nombre", n),
         campo("Apellido", a),
-        campo("Correo institucional", c),
-        campo("Rol", r, "Se generará una contraseña temporal que el usuario deberá cambiar."),
+        campo("Correo de acceso", c, "Con este correo iniciará sesión y recibirá las notificaciones de sus casos."),
+        correos.nodos,
+        campo("Rol", r),
+        h(
+          "label",
+          { class: "row", for: "enviar-acceso" },
+          enviar,
+          "Enviar correo de bienvenida con un enlace para crear la contraseña",
+        ),
+        h(
+          "p",
+          { class: "small muted" },
+          cfg.smtpConfigurado
+            ? `El enlace vence en ${cfg.vigenciaEnlaceHoras} horas. Si desmarcas la opción, verás una contraseña temporal para entregarla tú.`
+            : "El servidor aún no tiene correo saliente configurado (SMTP): verás el enlace en pantalla para entregarlo a la persona.",
+        ),
       ),
       acciones: [
         { texto: "Cancelar", valor: false },
@@ -236,8 +360,20 @@ export async function vistaUsuarios({ usuario: yo }) {
     try {
       const res = await api("/api/usuarios", {
         method: "POST",
-        body: { nombre: n.value.trim(), apellido: a.value.trim(), correo: c.value.trim(), rol: r.value },
+        body: {
+          nombre: n.value.trim(),
+          apellido: a.value.trim(),
+          correo: c.value.trim(),
+          rol: r.value,
+          ...correos.valores(),
+          enviarAcceso: enviar.checked,
+        },
       });
+      if (res.acceso) {
+        await mostrarAcceso(res.usuario, res.acceso);
+        cargar();
+        return;
+      }
       await modal({
         titulo: "Usuario creado",
         cuerpo: h(
@@ -273,6 +409,11 @@ export async function vistaUsuarios({ usuario: yo }) {
     f.page = 1;
     cargar();
   });
+  sTipo.addEventListener("change", () => {
+    f.tipoCorreo = sTipo.value;
+    f.page = 1;
+    cargar();
+  });
   cargar();
   return h(
     "div",
@@ -283,8 +424,80 @@ export async function vistaUsuarios({ usuario: yo }) {
       h("h1", {}, "Usuarios y técnicos"),
       h("button", { class: "btn primary", onclick: crear }, "Nuevo usuario"),
     ),
-    h("div", { class: "card row" }, h("div", { class: "grow" }, q), sRol, sEst),
+    h("div", { class: "card row" }, h("div", { class: "grow" }, q), sRol, sEst, sTipo),
     lista,
+  );
+}
+
+// ───────────── Configuración: correo (RF-ADM-05) ─────────────
+export async function vistaConfiguracion() {
+  const d = await api("/api/configuracion/correo");
+  const area = h("textarea", { rows: "5", spellcheck: "false", placeholder: "sena.edu.co\nmisena.edu.co" }, d.dominiosEmpresariales.join("\n"));
+  const reclasificar = h("input", { type: "checkbox", id: "reclasificar" });
+  const guardar = h(
+    "button",
+    {
+      class: "btn primary",
+      type: "button",
+      onclick: async () => {
+        const dominios = area.value.split(/[\s,;]+/).filter(Boolean);
+        guardar.disabled = true;
+        try {
+          const r = await api("/api/configuracion/correo", {
+            method: "PUT",
+            body: { dominiosEmpresariales: dominios, reclasificar: reclasificar.checked },
+          });
+          area.value = r.dominios.join("\n");
+          reclasificar.checked = false;
+          toast(r.reclasificados ? `Configuración guardada: ${r.reclasificados} cuenta(s) cambiaron de tipo` : "Configuración guardada");
+        } catch (e) {
+          toast(msgs(e), { ms: 7000 });
+        } finally {
+          guardar.disabled = false;
+        }
+      },
+    },
+    "Guardar",
+  );
+  return h(
+    "div",
+    {},
+    h("div", { class: "page-title" }, h("h1", {}, "Configuración")),
+    h(
+      "section",
+      { class: "card" },
+      h("h2", {}, "Dominios de correo empresariales"),
+      h(
+        "p",
+        { class: "muted" },
+        "Las cuentas cuyo correo de acceso termine en uno de estos dominios se marcan como empresariales y pueden tener además un correo personal. Las demás (Gmail, Hotmail, Outlook…) se marcan como personales. Puedes cambiar el tipo de cada usuario al editarlo.",
+      ),
+      campo("Un dominio por línea", area, `Proveedores personales comunes: ${d.proveedoresPersonales.join(", ")}.`),
+      h("label", { class: "row", for: "reclasificar" }, reclasificar, "Actualizar también el tipo de correo de las cuentas existentes"),
+      h("div", { class: "row" }, guardar),
+    ),
+    h(
+      "section",
+      { class: "card" },
+      h("h2", {}, "Correos de bienvenida y acceso"),
+      h(
+        "dl",
+        { class: "small" },
+        h("dt", { class: "muted" }, "Correo saliente (SMTP)"),
+        h(
+          "dd",
+          {},
+          d.smtpConfigurado
+            ? h("span", { class: "badge b-verde" }, "Configurado")
+            : [h("span", { class: "badge b-ambar" }, "Sin configurar"), " Los correos se escriben en la consola del servidor y el enlace se muestra al administrador."],
+        ),
+        h("dt", { class: "muted" }, "Dirección de la plataforma en los enlaces"),
+        h("dd", {}, h("code", {}, d.appUrl)),
+        h("dt", { class: "muted" }, "Vigencia de los enlaces"),
+        h("dd", {}, `${d.vigenciaEnlaceHoras} horas, un solo uso`),
+      ),
+      h("p", { class: "small muted" }, "Estos valores se cambian en el archivo .env del servidor: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, APP_URL y ACCESO_VIGENCIA_HORAS."),
+    ),
   );
 }
 

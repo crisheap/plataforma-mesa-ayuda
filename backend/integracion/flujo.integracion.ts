@@ -280,3 +280,74 @@ test("retención: borra solo las conversaciones de Botito sin actividad reciente
   const a = await llamar("GET", "/api/auditoria?accion=RETENCION_ASISTENTE", tokens.supervisor);
   assert.ok(a.json.data.items.length >= 1);
 });
+
+test("correos de acceso: dominios empresariales, correo personal y enlace de activación (RF-USU-09/10, RF-ADM-05)", async () => {
+  // Configuración: el administrador define los dominios empresariales y reclasifica las cuentas
+  const cfg = await llamar("PUT", "/api/configuracion/correo", tokens.admin, { dominiosEmpresariales: ["@Integracion.test"], reclasificar: true });
+  assert.equal(cfg.status, 200, JSON.stringify(cfg.json));
+  assert.deepEqual(cfg.json.data.dominios, ["integracion.test"]);
+  assert.equal((await llamar("PUT", "/api/configuracion/correo", tokens.admin, { dominiosEmpresariales: ["gmail.com"] })).status, 400);
+  assert.equal((await llamar("GET", "/api/configuracion/correo", tokens.supervisor)).status, 403);
+  const tecnico = await llamar("GET", `/api/usuarios/${ids.tecnico}`, tokens.admin);
+  assert.equal(tecnico.json.data.tipoCorreo, "EMPRESARIAL");
+
+  // Cuenta empresarial con correo personal: la bienvenida va al personal
+  const nuevo = await llamar("POST", "/api/usuarios", tokens.admin, {
+    nombre: "Sofía", apellido: "Gómez", correo: "sofia@integracion.test", rol: "USUARIO", correoPersonal: "Sofia.Gomez@Gmail.com", enviarAcceso: true,
+  });
+  assert.equal(nuevo.status, 201, JSON.stringify(nuevo.json));
+  assert.equal(nuevo.json.data.usuario.tipoCorreo, "EMPRESARIAL");
+  assert.equal(nuevo.json.data.usuario.correoPersonal, "sofia.gomez@gmail.com");
+  assert.equal(nuevo.json.data.passwordTemporal, undefined, "ninguna contraseña viaja en la respuesta");
+  const acceso = nuevo.json.data.acceso;
+  assert.equal(acceso.enviadoA, "sofia.gomez@gmail.com");
+  assert.ok(acceso.enlace, "sin SMTP, la respuesta incluye el enlace para pruebas");
+  const token = new URL(acceso.enlace.replace("#/", "")).searchParams.get("token")!;
+  assert.ok(token.length >= 40);
+
+  // Cuenta con correo de acceso personal: no necesita otro correo
+  const personal = await llamar("POST", "/api/usuarios", tokens.admin, {
+    nombre: "Pedro", apellido: "Ruiz", correo: "pedro.ruiz@hotmail.com", rol: "USUARIO", correoPersonal: "otro@gmail.com", enviarAcceso: true,
+  });
+  assert.equal(personal.json.data.usuario.tipoCorreo, "PERSONAL");
+  assert.equal(personal.json.data.usuario.correoPersonal, null);
+  assert.equal(personal.json.data.acceso.enviadoA, "pedro.ruiz@hotmail.com");
+  const repetido = await llamar("POST", "/api/usuarios", tokens.admin, {
+    nombre: "Ana", apellido: "Mora", correo: "ana@integracion.test", rol: "USUARIO", correoPersonal: "ana@integracion.test",
+  });
+  assert.equal(repetido.status, 400, "el correo personal no puede repetir el de acceso");
+
+  // Activación con el enlace
+  const v = await llamar("POST", "/api/auth/acceso/verificar", undefined, { token });
+  assert.equal(v.status, 200);
+  assert.equal(v.json.data.correo, "sofia@integracion.test");
+  assert.equal(v.json.data.motivo, "BIENVENIDA");
+  assert.equal((await llamar("POST", "/api/auth/acceso/activar", undefined, { token, passwordNueva: "corta" })).status, 400);
+  const act = await llamar("POST", "/api/auth/acceso/activar", undefined, { token, passwordNueva: "Bienvenida#2026" });
+  assert.equal(act.status, 200, JSON.stringify(act.json));
+  const sesion = await login("sofia@integracion.test", "Bienvenida#2026");
+  assert.equal(sesion.usuario.debeCambiarPassword, false, "ya creó su propia contraseña");
+  assert.equal((await llamar("POST", "/api/auth/acceso/activar", undefined, { token, passwordNueva: "Otra#Clave2026" })).status, 400, "un solo uso");
+
+  // Reenviar anula el enlace anterior; un enlace vencido no sirve
+  const id = nuevo.json.data.usuario.id;
+  const e1 = (await llamar("POST", `/api/usuarios/${id}/enviar-acceso`, tokens.admin)).json.data;
+  const e2 = (await llamar("POST", `/api/usuarios/${id}/enviar-acceso`, tokens.admin)).json.data;
+  const t1 = new URL(e1.enlace.replace("#/", "")).searchParams.get("token")!;
+  const t2 = new URL(e2.enlace.replace("#/", "")).searchParams.get("token")!;
+  assert.equal((await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: t1 })).status, 400, "el anterior quedó anulado");
+  const v2 = await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: t2 });
+  assert.equal(v2.json.data.motivo, "RESTABLECER", "ya había ingresado: el enlace es de restablecimiento");
+  await prisma.tokenAcceso.updateMany({ where: { usuarioId: id, usadoEn: null }, data: { expiraEn: new Date(Date.now() - 1000) } });
+  assert.equal((await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: t2 })).status, 400, "vencido");
+
+  // Edición del tipo y del correo personal
+  const ed = await llamar("PATCH", `/api/usuarios/${ids.tecnico}`, tokens.admin, { correoPersonal: "carlos.martinez@gmail.com" });
+  assert.equal(ed.json.data.correoPersonal, "carlos.martinez@gmail.com");
+  const ed2 = await llamar("PATCH", `/api/usuarios/${ids.tecnico}`, tokens.admin, { tipoCorreo: "PERSONAL" });
+  assert.equal(ed2.json.data.correoPersonal, null, "al pasar a personal se quita el correo adicional");
+
+  const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
+  const acciones = a.json.data.items.map((i: { accion: string }) => i.accion);
+  for (const acc of ["CONFIG_CORREO", "ACCESO_ENVIADO", "CUENTA_ACTIVADA"]) assert.ok(acciones.includes(acc), `falta ${acc}`);
+});

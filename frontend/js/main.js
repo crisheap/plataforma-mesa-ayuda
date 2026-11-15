@@ -5,11 +5,12 @@ import * as tema from "./theme.js";
 import { registrarServiceWorker } from "./pwa.js";
 import { montarBot, desmontarBot } from "./bot.js";
 import { vistaLogin, vistaCambioPasswordObligatorio } from "./views/login.js";
+import { vistaActivar } from "./views/activar.js";
 import { vistaInicio } from "./views/inicio.js";
 import { vistaMisCasos, vistaAsignados, vistaTodos } from "./views/casos.js";
 import { vistaCasoDetalle } from "./views/caso-detalle.js";
 import { vistaCasoNuevo } from "./views/caso-nuevo.js";
-import { vistaUsuarios, vistaSla, vistaReportes, vistaAuditoria, vistaConocimiento } from "./views/admin.js";
+import { vistaUsuarios, vistaSla, vistaReportes, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
 import { vistaPerfil, vistaNotificaciones } from "./views/cuenta.js";
 
 const TODOS = ["USUARIO", "TECNICO", "SUPERVISOR", "ADMINISTRADOR"];
@@ -29,6 +30,7 @@ const RUTAS = [
   ["usuarios", vistaUsuarios, ["ADMINISTRADOR"], "Usuarios"],
   ["sla", vistaSla, ["ADMINISTRADOR"], "Configuración de SLA"],
   ["conocimiento", vistaConocimiento, ["ADMINISTRADOR"], "Base de conocimiento"],
+  ["configuracion", vistaConfiguracion, ["ADMINISTRADOR"], "Configuración"],
 ];
 const NAV = [
   ["inicio", "🏠", "Inicio", TODOS],
@@ -44,6 +46,7 @@ const NAV = [
   ["usuarios", "👥", "Usuarios", ["ADMINISTRADOR"]],
   ["sla", "⏱️", "SLA", ["ADMINISTRADOR"]],
   ["conocimiento", "📚", "Base del asistente", ["ADMINISTRADOR"]],
+  ["configuracion", "⚙️", "Configuración", ["ADMINISTRADOR"]],
   ["__sep", "", "Cuenta", TODOS],
   ["perfil", "👤", "Mi perfil", TODOS],
 ];
@@ -202,6 +205,10 @@ let token = 0;
 async function enrutar() {
   const u = getUsuario();
   const hash = location.hash || "#/";
+  // Enlace de acceso del correo de bienvenida: página pública, con o sin sesión (RF-USU-10).
+  if (hash.startsWith("#/activar")) {
+    return montar(root, vistaActivar({ token: new URLSearchParams(hash.split("?")[1] ?? "").get("token") }));
+  }
   if (!u) {
     if (hash !== "#/login") history.replaceState(null, "", "#/login");
     return montar(root, vistaLogin({ alIngresar: despuesDeLogin }));

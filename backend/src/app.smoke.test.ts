@@ -248,3 +248,13 @@ test("observabilidad: X-Request-Id y métricas protegidas por token (RNF-14)", a
   assert.match(texto, /mesa_http_duracion_segundos_bucket/);
   assert.match(texto, /mesa_db_disponible [01]/);
 });
+
+test("enlace de acceso y configuración de correo: validación y permisos (RF-USU-10, RF-ADM-05)", async () => {
+  // Rutas públicas: sin token, pero validan el enlace
+  assert.equal((await post("/api/auth/acceso/verificar", { token: "corto" })).status, 400);
+  assert.equal((await post("/api/auth/acceso/activar", { token: "corto", passwordNueva: "x" })).status, 400);
+  // La configuración de correo es solo para el administrador
+  const u = (await (await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok" })).json()).data.token;
+  assert.equal((await get("/api/configuracion/correo", u)).status, 403);
+  assert.equal((await get("/api/configuracion/correo")).status, 401);
+});

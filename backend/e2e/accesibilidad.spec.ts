@@ -65,13 +65,19 @@ for (const esquema of ["light", "dark"] as const) {
 
     test("pantallas de administración", async ({ page }) => {
       await ingresar(page, cred.admin.correo, cred.admin.password);
-      for (const ruta of ["casos", "reportes", "auditoria", "usuarios", "sla", "conocimiento"]) {
+      for (const ruta of ["casos", "reportes", "auditoria", "usuarios", "sla", "conocimiento", "configuracion"]) {
         await page.goto(`/#/${ruta}`);
         await revisar(page, `${ruta} (${esquema})`);
       }
     });
   });
 }
+
+test("página de activación de cuenta", async ({ page }) => {
+  await page.goto("/#/activar?token=enlace-que-no-existe-0000000000");
+  await expect(page.getByRole("heading", { name: /no está disponible/i })).toBeVisible();
+  await revisar(page, "activar (enlace no válido)");
+});
 
 test.describe("PWA", () => {
   test("manifiesto instalable y service worker activo", async ({ page, request }) => {

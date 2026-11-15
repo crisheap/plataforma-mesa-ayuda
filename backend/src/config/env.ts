@@ -75,4 +75,16 @@ export const env = {
   metricsToken: process.env.METRICS_TOKEN ?? "",
   // Peticiones por minuto y por IP a /api (súbelo detrás de un proxy que agrupe usuarios o en pruebas de carga).
   rateLimitApiMin: Math.max(1, numero("RATE_LIMIT_API_MIN", 600)),
+
+  // Correos de acceso (RF-USU-09/10, RF-ADM-05)
+  // Dirección pública de la plataforma, para los enlaces de los correos de bienvenida.
+  appUrl: (process.env.APP_URL ?? `http://localhost:${numero("PORT", 4000)}`).replace(/\/+$/, ""),
+  // Horas de vigencia de los enlaces para crear o restablecer la contraseña.
+  accesoVigenciaHoras: Math.max(1, numero("ACCESO_VIGENCIA_HORAS", 48)),
+  // Dominios empresariales iniciales (el administrador puede cambiarlos desde Configuración).
+  dominiosEmpresariales: (process.env.DOMINIOS_EMPRESARIALES ?? "sena.edu.co,misena.edu.co")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean),
+  smtpConfigurado: !!process.env.SMTP_HOST,
 } as const;

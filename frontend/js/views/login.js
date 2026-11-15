@@ -9,7 +9,7 @@ export function vistaLogin({ alIngresar }) {
     name: "correo",
     autocomplete: "username",
     required: true,
-    placeholder: "usuario@sena.edu.co",
+    placeholder: "tucorreo@sena.edu.co",
     inputmode: "email",
   });
   const pass = h("input", { type: "password", name: "password", autocomplete: "current-password", required: true });
@@ -58,7 +58,7 @@ export function vistaLogin({ alIngresar }) {
         }
       },
     },
-    campo("Correo institucional", correo),
+    campo("Correo de acceso", correo),
     campo("Contraseña", pass),
     h("div", { class: "field" }, ver),
     error,
@@ -89,7 +89,7 @@ export function vistaLogin({ alIngresar }) {
     h(
       "section",
       { class: "login-form" },
-      h("div", { class: "card" }, h("h2", {}, "Inicia sesión"), h("p", { class: "muted" }, "Usa tu correo institucional."), form),
+      h("div", { class: "card" }, h("h2", {}, "Inicia sesión"), h("p", { class: "muted" }, "Usa el correo con el que te registró la Mesa de Ayuda."), form),
     ),
   );
 }

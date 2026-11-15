@@ -109,7 +109,23 @@ const OPERACIONES: Operacion[] = [
     resumen: "Cerrar sesión y revocar el token de refresco",
     publica: true,
     cuerpo: obj({ refreshToken: txt() }),
+  },  {
+    metodo: "post",
+    ruta: "/api/auth/acceso/verificar",
+    tag: "Autenticación",
+    resumen: "Validar un enlace de acceso y obtener el nombre y el correo de la cuenta",
+    publica: true,
+    cuerpo: obj({ token: txt(20, 100) }, ["token"]),
   },
+  {
+    metodo: "post",
+    ruta: "/api/auth/acceso/activar",
+    tag: "Autenticación",
+    resumen: "Crear la contraseña con el enlace de acceso (un solo uso)",
+    publica: true,
+    cuerpo: obj({ token: txt(20, 100), passwordNueva: txt(10, 200) }, ["token", "passwordNueva"]),
+  },
+
   {
     metodo: "get",
     ruta: "/api/auth/me",
@@ -149,13 +165,19 @@ const OPERACIONES: Operacion[] = [
     tag: "Usuarios",
     resumen: "Listar usuarios",
     roles: "Administrador",
-    query: { ...paginacion, q: txt(0, 80), rol: enumer(...ROLES), estado: enumer("ACTIVO", "BLOQUEADO", "INACTIVO") },
+    query: {
+      ...paginacion,
+      q: txt(0, 80),
+      rol: enumer(...ROLES),
+      estado: enumer("ACTIVO", "BLOQUEADO", "INACTIVO"),
+      tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
+    },
   },
   {
     metodo: "post",
     ruta: "/api/usuarios",
     tag: "Usuarios",
-    resumen: "Crear usuario (devuelve la contraseña temporal una sola vez)",
+    resumen: "Crear usuario: con enviarAcceso envía la bienvenida con un enlace para crear la contraseña; si no, devuelve una contraseña temporal una sola vez",
     roles: "Administrador",
     codigo: 201,
     cuerpo: obj(
@@ -165,6 +187,9 @@ const OPERACIONES: Operacion[] = [
         correo: { type: "string", format: "email" },
         rol: enumer(...ROLES),
         password: txt(0, 72),
+        tipoCorreo: { ...enumer("EMPRESARIAL", "PERSONAL"), description: "Si se omite, se deduce del dominio (dominios empresariales configurados)." },
+        correoPersonal: { type: ["string", "null"], format: "email", description: "Recibe la bienvenida y los enlaces de acceso. Solo aplica a correos de acceso empresariales." },
+        enviarAcceso: { type: "boolean", description: "true: envía el correo de bienvenida con el enlace de activación (48 h)." },
       },
       ["nombre", "apellido", "correo", "rol"],
     ),
@@ -183,7 +208,13 @@ const OPERACIONES: Operacion[] = [
     tag: "Usuarios",
     resumen: "Editar nombre, apellido o rol",
     roles: "Administrador",
-    cuerpo: obj({ nombre: txt(2, 80), apellido: txt(2, 80), rol: enumer(...ROLES) }),
+    cuerpo: obj({
+      nombre: txt(2, 80),
+      apellido: txt(2, 80),
+      rol: enumer(...ROLES),
+      tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
+      correoPersonal: { type: ["string", "null"], format: "email" },
+    }),
   },
   {
     metodo: "patch",
@@ -200,7 +231,15 @@ const OPERACIONES: Operacion[] = [
     resumen: "Restablecer la contraseña con una temporal",
     roles: "Administrador",
     cuerpo: obj({ passwordNueva: txt(0, 72) }),
+  },  {
+    metodo: "post",
+    ruta: "/api/usuarios/:id/enviar-acceso",
+    tag: "Usuarios",
+    resumen: "Enviar o reenviar el enlace para crear o restablecer la contraseña (anula los anteriores)",
+    roles: "Administrador",
+    respuesta: ref("Acceso"),
   },
+
   { metodo: "get", ruta: "/api/roles", tag: "Usuarios", resumen: "Catálogo de roles (solo lectura)", roles: "Administrador" },
   { metodo: "get", ruta: "/api/roles/:id", tag: "Usuarios", resumen: "Detalle de un rol", roles: "Administrador" },
 
@@ -349,6 +388,21 @@ const OPERACIONES: Operacion[] = [
   },
 
   // SLA, reportes y auditoría
+  {
+    metodo: "get",
+    ruta: "/api/configuracion/correo",
+    tag: "Administración",
+    resumen: "Dominios de correo empresariales, estado del correo saliente y vigencia de los enlaces",
+    roles: "Administrador",
+  },
+  {
+    metodo: "put",
+    ruta: "/api/configuracion/correo",
+    tag: "Administración",
+    resumen: "Guardar los dominios empresariales; con reclasificar, actualiza el tipo de correo de las cuentas",
+    roles: "Administrador",
+    cuerpo: obj({ dominiosEmpresariales: { type: "array", maxItems: 50, items: { type: "string", examples: ["sena.edu.co"] } }, reclasificar: { type: "boolean" } }, ["dominiosEmpresariales"]),
+  },
   { metodo: "get", ruta: "/api/sla", tag: "Administración", resumen: "Tiempos de SLA por prioridad", roles: "Supervisor, Administrador" },
   {
     metodo: "put",
@@ -545,6 +599,8 @@ const COMPONENTES = {
         rol: enumer(...ROLES),
         estado: enumer("ACTIVO", "BLOQUEADO", "INACTIVO"),
         preferenciaTema: enumer("CLARO", "OSCURO", "SISTEMA"),
+        tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
+        correoPersonal: { type: ["string", "null"], format: "email" },
         debeCambiarPassword: { type: "boolean" },
       },
       [],
@@ -583,6 +639,13 @@ const COMPONENTES = {
       [],
       false,
     ),
+    Acceso: obj({
+      enviadoA: { type: "string", format: "email" },
+      enviado: { type: "boolean" },
+      expiraEn: fecha,
+      enlace: { type: "string", description: "Solo si el servidor no tiene SMTP configurado (desarrollo)." },
+      error: { type: "string" },
+    }),
     Articulo: obj({
       titulo: txt(5, 150),
       contenido: txt(20, 6000),

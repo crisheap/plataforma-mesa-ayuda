@@ -52,6 +52,18 @@ enum EstadoCaso {
   CERRADO
 }
 
+/// Tipo del correo de acceso (RF-USU-09): se deduce del dominio y el administrador puede cambiarlo.
+enum TipoCorreo {
+  EMPRESARIAL
+  PERSONAL
+}
+
+/// Motivo de un enlace de acceso de un solo uso (RF-USU-10).
+enum MotivoAcceso {
+  BIENVENIDA
+  RESTABLECER
+}
+
 enum TemaPreferido {
   CLARO
   OSCURO
@@ -92,6 +104,9 @@ model Usuario {
   ultimoAcceso        DateTime?
   preferenciaTema     TemaPreferido @default(SISTEMA)
   debeCambiarPassword Boolean       @default(false)
+  /// Correo con el que inicia sesión (correo) y su tipo; el personal recibe la bienvenida y los enlaces de acceso.
+  tipoCorreo          TipoCorreo    @default(EMPRESARIAL)
+  correoPersonal      String?       @db.VarChar(150)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -110,6 +125,7 @@ model Usuario {
   refreshTokens     RefreshToken[]
   suscripcionesPush SuscripcionPush[]
   conversaciones    ConversacionAsistente[]
+  tokensAcceso      TokenAcceso[]
 
   @@map("usuarios")
 }
@@ -358,4 +374,28 @@ model ArticuloConocimiento {
   updatedAt     DateTime       @updatedAt
 
   @@map("articulos_conocimiento")
+}
+
+/// Enlace de un solo uso para crear o restablecer la contraseña (RF-USU-10). Se guarda solo el hash.
+model TokenAcceso {
+  id        Int          @id @default(autoincrement())
+  usuarioId Int
+  usuario   Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tokenHash String       @unique @db.Char(64)
+  motivo    MotivoAcceso
+  expiraEn  DateTime
+  usadoEn   DateTime?
+  createdAt DateTime     @default(now())
+
+  @@index([usuarioId])
+  @@map("tokens_acceso")
+}
+
+/// Parámetros del sistema editables por el administrador (p. ej. dominios de correo empresariales, RF-ADM-05).
+model ConfiguracionSistema {
+  clave     String   @id @db.VarChar(60)
+  valor     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracion_sistema")
 }

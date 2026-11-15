@@ -1,9 +1,11 @@
-import type { Prisma, RolNombre } from "../../generated/prisma/client";
+import type { Prisma, RolNombre, TipoCorreo } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/errors";
 import { generarPasswordTemporal, hashPassword, validarPolitica } from "../../utils/password";
 import { nombreCompleto } from "../../utils/nombre";
 import { revocarSesiones } from "../auth/auth.service";
+import { clasificarCorreo, dominiosEmpresariales } from "../../core/correos";
+import { emitirAcceso, type ResultadoAcceso } from "../../core/acceso";
 
 const publico = {
   id: true,
@@ -16,6 +18,8 @@ const publico = {
   ultimoAcceso: true,
   createdAt: true,
   debeCambiarPassword: true,
+  tipoCorreo: true,
+  correoPersonal: true,
   rol: { select: { id: true, nombre: true } },
 } satisfies Prisma.UsuarioSelect;
 
@@ -37,42 +41,79 @@ async function rolId(nombre: RolNombre): Promise<number> {
   return r.id;
 }
 
-export async function crear(d: { nombre: string; apellido: string; correo: string; rol: RolNombre; password?: string }) {
+/**
+ * Tipo de correo y correo personal coherentes (RF-USU-09): si el correo de acceso es personal,
+ * no hace falta otro; el personal no puede repetir el de acceso.
+ */
+function correoPersonalValido(correo: string, tipo: TipoCorreo, personal: string | null | undefined): string | null {
+  if (tipo === "PERSONAL" || !personal) return null;
+  if (personal === correo)
+    throw AppError.badRequest("El correo personal debe ser distinto del correo de acceso", [
+      { field: "correoPersonal", message: "Debe ser distinto del correo de acceso" },
+    ]);
+  return personal;
+}
+
+export async function crear(d: {
+  nombre: string;
+  apellido: string;
+  correo: string;
+  rol: RolNombre;
+  password?: string;
+  tipoCorreo?: TipoCorreo;
+  correoPersonal?: string;
+  enviarAcceso?: boolean;
+}): Promise<{ usuario: ReturnType<typeof mapear>; passwordTemporal?: string; acceso?: ResultadoAcceso }> {
   if (await prisma.usuario.findUnique({ where: { correo: d.correo } })) throw AppError.conflict("Ya existe un usuario con ese correo");
+  const tipoCorreo = d.tipoCorreo ?? clasificarCorreo(d.correo, await dominiosEmpresariales());
+  const correoPersonal = correoPersonalValido(d.correo, tipoCorreo, d.correoPersonal);
   let temporal: string | undefined;
   let password = d.password;
-  if (password) exigirPolitica(password);
+  if (d.enviarAcceso) password = generarPasswordTemporal(); // nadie la conoce: la persona crea la suya con el enlace
+  else if (password) exigirPolitica(password);
   else password = temporal = generarPasswordTemporal();
   const u = await prisma.usuario.create({
     data: {
       nombre: d.nombre,
       apellido: d.apellido,
       correo: d.correo,
+      tipoCorreo,
+      correoPersonal,
       password: await hashPassword(password),
       rolId: await rolId(d.rol),
       debeCambiarPassword: true, // toda cuenta nueva debe cambiar la contraseña inicial
     },
     select: publico,
   });
+  if (d.enviarAcceso) return { usuario: mapear(u), acceso: await emitirAcceso(u.id, "BIENVENIDA") };
   return { usuario: mapear(u), passwordTemporal: temporal };
+}
+
+/** Envía (o reenvía) el enlace de acceso: bienvenida si nunca ha ingresado; si no, restablecimiento. */
+export async function enviarAcceso(id: number) {
+  const u = await obtener(id);
+  return emitirAcceso(id, u.ultimoAcceso ? "RESTABLECER" : "BIENVENIDA");
 }
 
 export async function listar(f: {
   q?: string;
   rol?: RolNombre;
   estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO";
+  tipoCorreo?: TipoCorreo;
   page: number;
   pageSize: number;
 }) {
   const where: Prisma.UsuarioWhereInput = {
     ...(f.rol ? { rol: { nombre: f.rol } } : {}),
     ...(f.estado ? { estado: f.estado } : {}),
+    ...(f.tipoCorreo ? { tipoCorreo: f.tipoCorreo } : {}),
     ...(f.q
       ? {
           OR: [
             { nombre: { contains: f.q, mode: "insensitive" } },
             { apellido: { contains: f.q, mode: "insensitive" } },
             { correo: { contains: f.q, mode: "insensitive" } },
+            { correoPersonal: { contains: f.q, mode: "insensitive" } },
           ],
         }
       : {}),
@@ -114,8 +155,12 @@ async function exigirNoUltimoAdmin(id: number) {
   }
 }
 
-export async function actualizar(id: number, d: { nombre?: string; apellido?: string; rol?: RolNombre }, actorId: number) {
-  await obtener(id);
+export async function actualizar(
+  id: number,
+  d: { nombre?: string; apellido?: string; rol?: RolNombre; tipoCorreo?: TipoCorreo; correoPersonal?: string | null },
+  actorId: number,
+) {
+  const previo = await obtener(id);
   if (d.rol) {
     if (id === actorId) throw AppError.badRequest("No puedes cambiar tu propio rol");
     const actual = await prisma.usuario.findUnique({ where: { id }, select: { rol: { select: { nombre: true } } } });
@@ -123,7 +168,18 @@ export async function actualizar(id: number, d: { nombre?: string; apellido?: st
   }
   const u = await prisma.usuario.update({
     where: { id },
-    data: { nombre: d.nombre, apellido: d.apellido, ...(d.rol ? { rolId: await rolId(d.rol) } : {}) },
+    data: {
+      nombre: d.nombre,
+      apellido: d.apellido,
+      ...(d.rol ? { rolId: await rolId(d.rol) } : {}),
+      ...(d.tipoCorreo !== undefined || d.correoPersonal !== undefined
+        ? (() => {
+            const tipo = d.tipoCorreo ?? previo.tipoCorreo;
+            const personal = d.correoPersonal !== undefined ? d.correoPersonal : previo.correoPersonal;
+            return { tipoCorreo: tipo, correoPersonal: correoPersonalValido(previo.correo, tipo, personal) };
+          })()
+        : {}),
+    },
     select: publico,
   });
   return mapear(u);

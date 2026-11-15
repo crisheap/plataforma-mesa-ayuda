@@ -1,7 +1,7 @@
 import { env } from "../config/env";
 
 interface Transporte {
-  sendMail(o: { from: string; to: string; subject: string; text: string }): Promise<unknown>;
+  sendMail(o: { from: string; to: string; subject: string; text: string; html?: string }): Promise<unknown>;
 }
 let transporte: Transporte | null | undefined;
 
@@ -27,12 +27,12 @@ async function obtenerTransporte(): Promise<Transporte | null> {
   return transporte;
 }
 
-/** Envía un correo; sin SMTP configurado lo escribe en consola (desarrollo). */
-export async function enviarCorreo(a: string, asunto: string, texto: string): Promise<void> {
+/** Envía un correo (texto y, opcionalmente, HTML); sin SMTP configurado lo escribe en consola (desarrollo). */
+export async function enviarCorreo(a: string, asunto: string, texto: string, html?: string): Promise<void> {
   const t = await obtenerTransporte();
   if (!t) {
     console.log(`[correo:consola] Para: ${a} | Asunto: ${asunto}\n${texto}\n`);
     return;
   }
-  await t.sendMail({ from: env.smtp.from, to: a, subject: asunto, text: texto });
+  await t.sendMail({ from: env.smtp.from, to: a, subject: asunto, text: texto, ...(html ? { html } : {}) });
 }

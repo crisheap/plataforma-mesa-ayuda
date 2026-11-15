@@ -4,6 +4,7 @@ import { authenticate } from "../../middlewares/auth.middleware";
 import { rateLimit } from "../../middlewares/rateLimit.middleware";
 import { validar } from "../../utils/validate";
 import * as svc from "./auth.service";
+import { activarAcceso, verificarAcceso } from "../../core/acceso";
 
 const router = Router();
 
@@ -20,6 +21,9 @@ const loginSchema = z.object({
 const passwordSchema = z.object({ passwordActual: z.string().min(1), passwordNueva: z.string().min(1).max(200) });
 const temaSchema = z.object({ preferenciaTema: z.enum(["CLARO", "OSCURO", "SISTEMA"]) });
 const refreshSchema = z.object({ refreshToken: z.string().min(20) });
+const tokenAcceso = z.string().trim().min(20, "Enlace inválido").max(100, "Enlace inválido");
+const verificarSchema = z.object({ token: tokenAcceso });
+const activarSchema = z.object({ token: tokenAcceso, passwordNueva: z.string().min(1, "Escribe la contraseña").max(200) });
 
 router.post("/login", limiteLogin, async (req, res) => {
   const { correo, password } = validar(loginSchema, req.body);
@@ -30,6 +34,18 @@ router.post("/login", limiteLogin, async (req, res) => {
 router.post("/refresh", limiteLogin, async (req, res) => {
   const { refreshToken } = validar(refreshSchema, req.body);
   res.json({ success: true, data: await svc.refrescar(refreshToken) });
+});
+
+// Enlace de acceso (RF-USU-10): rutas públicas, con el mismo límite de intentos que el login.
+router.post("/acceso/verificar", limiteLogin, async (req, res) => {
+  const { token } = validar(verificarSchema, req.body);
+  res.json({ success: true, data: await verificarAcceso(token) });
+});
+
+router.post("/acceso/activar", limiteLogin, async (req, res) => {
+  const { token, passwordNueva } = validar(activarSchema, req.body);
+  const r = await activarAcceso(token, passwordNueva, req.ip);
+  res.json({ success: true, message: "Contraseña creada. Ya puedes iniciar sesión", data: r });
 });
 
 router.post("/logout", async (req, res) => {
