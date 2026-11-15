@@ -38,7 +38,11 @@ async function mostrarAcceso(u, a) {
       a.enviado
         ? h("p", {}, `Se envió a `, h("strong", {}, a.enviadoA), ` el enlace para que ${u.nombreCompleto} cree su contraseña.`)
         : h("div", { class: "alert", role: "alert" }, a.error ?? "Revisa la configuración del correo saliente."),
-      h("p", { class: "small muted" }, `El enlace sirve una sola vez y vence el ${fecha(a.expiraEn)}. Los enlaces anteriores dejan de funcionar.`),
+      h(
+        "p",
+        { class: "small muted" },
+        `El enlace sirve una sola vez y vence el ${fecha(a.expiraEn)}. Los enlaces anteriores dejan de funcionar.`,
+      ),
       enlace
         ? [
             h("p", {}, "El servidor no tiene correo saliente configurado (SMTP). Entrega este enlace a la persona por un medio seguro:"),
@@ -67,7 +71,13 @@ async function mostrarAcceso(u, a) {
 /** Campos de correo de una cuenta: tipo y correo personal (este solo aplica si el de acceso es empresarial). */
 function camposCorreo({ correoAcceso, tipoInicial, personalInicial, dominios }) {
   const tipo = h("select", {}, opciones(TIPOS_CORREO, tipoInicial));
-  const personal = h("input", { type: "email", autocomplete: "off", maxlength: "150", placeholder: "nombre@gmail.com", value: personalInicial ?? "" });
+  const personal = h("input", {
+    type: "email",
+    autocomplete: "off",
+    maxlength: "150",
+    placeholder: "nombre@gmail.com",
+    value: personalInicial ?? "",
+  });
   const bloquePersonal = campo(
     "Correo personal (opcional)",
     personal,
@@ -85,10 +95,7 @@ function camposCorreo({ correoAcceso, tipoInicial, personalInicial, dominios }) 
   correoAcceso?.addEventListener("input", pintar);
   pintar();
   return {
-    nodos: [
-      campo("Tipo de correo de acceso", tipo, "Se deduce del dominio (ver Configuración); puedes cambiarlo."),
-      bloquePersonal,
-    ],
+    nodos: [campo("Tipo de correo de acceso", tipo, "Se deduce del dominio (ver Configuración); puedes cambiarlo."), bloquePersonal],
     valores: () => ({ tipoCorreo: tipo.value, correoPersonal: tipo.value === "EMPRESARIAL" ? personal.value.trim() : "" }),
   };
 }
@@ -293,7 +300,11 @@ export async function vistaUsuarios({ usuario: yo }) {
       a = h("input", { value: u.apellido, maxlength: "80" });
     const r = h("select", {}, opciones(ROLES, u.rol.nombre));
     if (u.id === yo.id) r.disabled = true;
-    const correos = camposCorreo({ tipoInicial: u.tipoCorreo, personalInicial: u.correoPersonal, dominios: () => cfg.dominiosEmpresariales });
+    const correos = camposCorreo({
+      tipoInicial: u.tipoCorreo,
+      personalInicial: u.correoPersonal,
+      dominios: () => cfg.dominiosEmpresariales,
+    });
     const ok = await modal({
       titulo: "Editar usuario",
       cuerpo: h(
@@ -337,12 +348,7 @@ export async function vistaUsuarios({ usuario: yo }) {
         campo("Correo de acceso", c, "Con este correo iniciará sesión y recibirá las notificaciones de sus casos."),
         correos.nodos,
         campo("Rol", r),
-        h(
-          "label",
-          { class: "row", for: "enviar-acceso" },
-          enviar,
-          "Enviar correo de bienvenida con un enlace para crear la contraseña",
-        ),
+        h("label", { class: "row", for: "enviar-acceso" }, enviar, "Enviar correo de bienvenida con un enlace para crear la contraseña"),
         h(
           "p",
           { class: "small muted" },
@@ -432,7 +438,11 @@ export async function vistaUsuarios({ usuario: yo }) {
 // ───────────── Configuración: correo (RF-ADM-05) ─────────────
 export async function vistaConfiguracion() {
   const d = await api("/api/configuracion/correo");
-  const area = h("textarea", { rows: "5", spellcheck: "false", placeholder: "sena.edu.co\nmisena.edu.co" }, d.dominiosEmpresariales.join("\n"));
+  const area = h(
+    "textarea",
+    { rows: "5", spellcheck: "false", placeholder: "sena.edu.co\nmisena.edu.co" },
+    d.dominiosEmpresariales.join("\n"),
+  );
   const reclasificar = h("input", { type: "checkbox", id: "reclasificar" });
   const guardar = h(
     "button",
@@ -489,14 +499,21 @@ export async function vistaConfiguracion() {
           {},
           d.smtpConfigurado
             ? h("span", { class: "badge b-verde" }, "Configurado")
-            : [h("span", { class: "badge b-ambar" }, "Sin configurar"), " Los correos se escriben en la consola del servidor y el enlace se muestra al administrador."],
+            : [
+                h("span", { class: "badge b-ambar" }, "Sin configurar"),
+                " Los correos se escriben en la consola del servidor y el enlace se muestra al administrador.",
+              ],
         ),
         h("dt", { class: "muted" }, "Dirección de la plataforma en los enlaces"),
         h("dd", {}, h("code", {}, d.appUrl)),
         h("dt", { class: "muted" }, "Vigencia de los enlaces"),
         h("dd", {}, `${d.vigenciaEnlaceHoras} horas, un solo uso`),
       ),
-      h("p", { class: "small muted" }, "Estos valores se cambian en el archivo .env del servidor: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, APP_URL y ACCESO_VIGENCIA_HORAS."),
+      h(
+        "p",
+        { class: "small muted" },
+        "Estos valores se cambian en el archivo .env del servidor: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, APP_URL y ACCESO_VIGENCIA_HORAS.",
+      ),
     ),
   );
 }

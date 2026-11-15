@@ -20,7 +20,8 @@ import { auditar } from "./audit";
 const ROLES: Record<string, string> = { USUARIO: "Usuario", TECNICO: "Técnico", SUPERVISOR: "Supervisor", ADMINISTRADOR: "Administrador" };
 const fechaLarga = (d: Date) =>
   new Intl.DateTimeFormat("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" }).format(d);
-const escHtml = (t: string) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+const escHtml = (t: string) =>
+  t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 
 export interface ResultadoAcceso {
   enviadoA: string;
@@ -136,7 +137,8 @@ async function tokenVigente(token: string) {
     where: { tokenHash: hashToken(token) },
     include: { usuario: { select: { id: true, nombre: true, apellido: true, correo: true, estado: true } } },
   });
-  if (!t || t.usadoEn || t.expiraEn < new Date()) throw AppError.badRequest("El enlace no es válido, ya se usó o venció. Pide uno nuevo al administrador");
+  if (!t || t.usadoEn || t.expiraEn < new Date())
+    throw AppError.badRequest("El enlace no es válido, ya se usó o venció. Pide uno nuevo al administrador");
   if (t.usuario.estado !== "ACTIVO") throw AppError.forbidden("La cuenta no está activa. Contacta al administrador");
   return t;
 }

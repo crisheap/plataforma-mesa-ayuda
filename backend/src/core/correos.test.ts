@@ -38,7 +38,14 @@ test("correo de bienvenida: enlace, usuario de acceso y consejos, sin contraseñ
   assert.match(c.html, /Laura &lt;Pérez&gt;/, "el nombre se escapa en el HTML");
   assert.doesNotMatch(c.html, /<Pérez>/);
 
-  const r = redactarCorreoAcceso({ nombre: "Laura", correoAcceso: "l@x.co", rol: "Técnico", enlace: "https://x/#/activar?token=t", expiraEn: new Date(), motivo: "RESTABLECER" });
+  const r = redactarCorreoAcceso({
+    nombre: "Laura",
+    correoAcceso: "l@x.co",
+    rol: "Técnico",
+    enlace: "https://x/#/activar?token=t",
+    expiraEn: new Date(),
+    motivo: "RESTABLECER",
+  });
   assert.match(r.asunto, /Restablece tu contraseña/);
   assert.match(r.html, /Restablecer mi contraseña/);
 });

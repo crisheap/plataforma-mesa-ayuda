@@ -45,10 +45,17 @@ router.get("/correo", async (_req, res) => {
 router.put("/correo", async (req, res) => {
   const d = validar(correoSchema, req.body);
   const r = await guardarDominiosEmpresariales(d.dominiosEmpresariales, d.reclasificar ?? false);
-  await auditar(req, { accion: "CONFIG_CORREO", entidad: "configuracion", descripcion: `Dominios: ${r.dominios.join(", ") || "(ninguno)"}`, datos: r });
+  await auditar(req, {
+    accion: "CONFIG_CORREO",
+    entidad: "configuracion",
+    descripcion: `Dominios: ${r.dominios.join(", ") || "(ninguno)"}`,
+    datos: r,
+  });
   res.json({
     success: true,
-    message: d.reclasificar ? `Configuración guardada. ${r.reclasificados} cuenta(s) cambiaron de tipo de correo` : "Configuración guardada",
+    message: d.reclasificar
+      ? `Configuración guardada. ${r.reclasificados} cuenta(s) cambiaron de tipo de correo`
+      : "Configuración guardada",
     data: r,
   });
 });

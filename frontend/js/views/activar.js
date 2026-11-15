@@ -58,7 +58,11 @@ export function vistaActivar({ token }) {
     pintarReglas();
     nueva.addEventListener("input", pintarReglas);
     const error = h("div", { class: "alert hidden", role: "alert" });
-    const boton = h("button", { class: "btn primary", type: "submit" }, d.motivo === "BIENVENIDA" ? "Crear contraseña" : "Guardar contraseña");
+    const boton = h(
+      "button",
+      { class: "btn primary", type: "submit" },
+      d.motivo === "BIENVENIDA" ? "Crear contraseña" : "Guardar contraseña",
+    );
 
     const form = h(
       "form",

@@ -69,7 +69,8 @@ export async function crear(d: {
   const correoPersonal = correoPersonalValido(d.correo, tipoCorreo, d.correoPersonal);
   let temporal: string | undefined;
   let password = d.password;
-  if (d.enviarAcceso) password = generarPasswordTemporal(); // nadie la conoce: la persona crea la suya con el enlace
+  if (d.enviarAcceso)
+    password = generarPasswordTemporal(); // nadie la conoce: la persona crea la suya con el enlace
   else if (password) exigirPolitica(password);
   else password = temporal = generarPasswordTemporal();
   const u = await prisma.usuario.create({

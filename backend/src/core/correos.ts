@@ -61,7 +61,10 @@ export async function guardarDominiosEmpresariales(lista: string[], reclasificar
     for (const u of usuarios) {
       const tipo = clasificarCorreo(u.correo, dominios);
       if (tipo !== u.tipoCorreo) {
-        await prisma.usuario.update({ where: { id: u.id }, data: { tipoCorreo: tipo, ...(tipo === "PERSONAL" ? { correoPersonal: null } : {}) } });
+        await prisma.usuario.update({
+          where: { id: u.id },
+          data: { tipoCorreo: tipo, ...(tipo === "PERSONAL" ? { correoPersonal: null } : {}) },
+        });
         reclasificados++;
       }
     }

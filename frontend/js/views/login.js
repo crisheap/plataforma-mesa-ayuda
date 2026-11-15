@@ -89,7 +89,13 @@ export function vistaLogin({ alIngresar }) {
     h(
       "section",
       { class: "login-form" },
-      h("div", { class: "card" }, h("h2", {}, "Inicia sesión"), h("p", { class: "muted" }, "Usa el correo con el que te registró la Mesa de Ayuda."), form),
+      h(
+        "div",
+        { class: "card" },
+        h("h2", {}, "Inicia sesión"),
+        h("p", { class: "muted" }, "Usa el correo con el que te registró la Mesa de Ayuda."),
+        form,
+      ),
     ),
   );
 }

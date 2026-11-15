@@ -58,7 +58,12 @@ router.post("/", async (req, res) => {
   const r = await svc.crear({ ...d, correoPersonal: d.correoPersonal ?? undefined });
   await auditar(req, { accion: "USUARIO_CREADO", entidad: "usuario", entidadId: r.usuario.id, descripcion: `Rol ${r.usuario.rol.nombre}` });
   if (r.acceso)
-    await auditar(req, { accion: "ACCESO_ENVIADO", entidad: "usuario", entidadId: r.usuario.id, datos: { motivo: "BIENVENIDA", enviado: r.acceso.enviado } });
+    await auditar(req, {
+      accion: "ACCESO_ENVIADO",
+      entidad: "usuario",
+      entidadId: r.usuario.id,
+      datos: { motivo: "BIENVENIDA", enviado: r.acceso.enviado },
+    });
   const message = r.acceso
     ? r.acceso.enviado
       ? `Usuario creado. Se envió el correo de bienvenida a ${r.acceso.enviadoA}`

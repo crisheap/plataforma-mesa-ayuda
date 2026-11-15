@@ -283,7 +283,10 @@ test("retención: borra solo las conversaciones de Botito sin actividad reciente
 
 test("correos de acceso: dominios empresariales, correo personal y enlace de activación (RF-USU-09/10, RF-ADM-05)", async () => {
   // Configuración: el administrador define los dominios empresariales y reclasifica las cuentas
-  const cfg = await llamar("PUT", "/api/configuracion/correo", tokens.admin, { dominiosEmpresariales: ["@Integracion.test"], reclasificar: true });
+  const cfg = await llamar("PUT", "/api/configuracion/correo", tokens.admin, {
+    dominiosEmpresariales: ["@Integracion.test"],
+    reclasificar: true,
+  });
   assert.equal(cfg.status, 200, JSON.stringify(cfg.json));
   assert.deepEqual(cfg.json.data.dominios, ["integracion.test"]);
   assert.equal((await llamar("PUT", "/api/configuracion/correo", tokens.admin, { dominiosEmpresariales: ["gmail.com"] })).status, 400);
@@ -293,7 +296,12 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
 
   // Cuenta empresarial con correo personal: la bienvenida va al personal
   const nuevo = await llamar("POST", "/api/usuarios", tokens.admin, {
-    nombre: "Sofía", apellido: "Gómez", correo: "sofia@integracion.test", rol: "USUARIO", correoPersonal: "Sofia.Gomez@Gmail.com", enviarAcceso: true,
+    nombre: "Sofía",
+    apellido: "Gómez",
+    correo: "sofia@integracion.test",
+    rol: "USUARIO",
+    correoPersonal: "Sofia.Gomez@Gmail.com",
+    enviarAcceso: true,
   });
   assert.equal(nuevo.status, 201, JSON.stringify(nuevo.json));
   assert.equal(nuevo.json.data.usuario.tipoCorreo, "EMPRESARIAL");
@@ -307,13 +315,22 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
 
   // Cuenta con correo de acceso personal: no necesita otro correo
   const personal = await llamar("POST", "/api/usuarios", tokens.admin, {
-    nombre: "Pedro", apellido: "Ruiz", correo: "pedro.ruiz@hotmail.com", rol: "USUARIO", correoPersonal: "otro@gmail.com", enviarAcceso: true,
+    nombre: "Pedro",
+    apellido: "Ruiz",
+    correo: "pedro.ruiz@hotmail.com",
+    rol: "USUARIO",
+    correoPersonal: "otro@gmail.com",
+    enviarAcceso: true,
   });
   assert.equal(personal.json.data.usuario.tipoCorreo, "PERSONAL");
   assert.equal(personal.json.data.usuario.correoPersonal, null);
   assert.equal(personal.json.data.acceso.enviadoA, "pedro.ruiz@hotmail.com");
   const repetido = await llamar("POST", "/api/usuarios", tokens.admin, {
-    nombre: "Ana", apellido: "Mora", correo: "ana@integracion.test", rol: "USUARIO", correoPersonal: "ana@integracion.test",
+    nombre: "Ana",
+    apellido: "Mora",
+    correo: "ana@integracion.test",
+    rol: "USUARIO",
+    correoPersonal: "ana@integracion.test",
   });
   assert.equal(repetido.status, 400, "el correo personal no puede repetir el de acceso");
 
@@ -327,7 +344,11 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
   assert.equal(act.status, 200, JSON.stringify(act.json));
   const sesion = await login("sofia@integracion.test", "Bienvenida#2026");
   assert.equal(sesion.usuario.debeCambiarPassword, false, "ya creó su propia contraseña");
-  assert.equal((await llamar("POST", "/api/auth/acceso/activar", undefined, { token, passwordNueva: "Otra#Clave2026" })).status, 400, "un solo uso");
+  assert.equal(
+    (await llamar("POST", "/api/auth/acceso/activar", undefined, { token, passwordNueva: "Otra#Clave2026" })).status,
+    400,
+    "un solo uso",
+  );
 
   // Reenviar anula el enlace anterior; un enlace vencido no sirve
   const id = nuevo.json.data.usuario.id;
