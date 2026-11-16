@@ -59,9 +59,7 @@ export async function kpis(f: RangoFiltro) {
     ${f.tecnicoId ? Prisma.sql`AND "tecnicoId" = ${f.tecnicoId}` : Prisma.empty}
     ${f.prioridad ? Prisma.sql`AND "prioridad" = ${f.prioridad}::"Prioridad"` : Prisma.empty}
     ${f.estado ? Prisma.sql`AND "estado" = ${f.estado}::"EstadoCaso"` : Prisma.empty}`;
-  const [agg] = await prisma.$queryRaw<
-    { promedio: number | null; cumplidos: bigint; incumplidos: bigint; fueraDeTiempo: bigint }[]
-  >`
+  const [agg] = await prisma.$queryRaw<{ promedio: number | null; cumplidos: bigint; incumplidos: bigint; fueraDeTiempo: bigint }[]>`
     SELECT AVG(EXTRACT(EPOCH FROM ("fechaResolucion" - "fechaCreacion")) / 60) AS promedio,
       COUNT(*) FILTER (WHERE "slaVenceEn" IS NOT NULL AND "fechaResolucion" IS NOT NULL AND "fechaResolucion" > "slaVenceEn") AS "fueraDeTiempo",
       COUNT(*) FILTER (WHERE "slaVenceEn" IS NOT NULL AND "fechaResolucion" IS NOT NULL AND "fechaResolucion" <= "slaVenceEn") AS cumplidos,
@@ -92,7 +90,18 @@ export async function kpis(f: RangoFiltro) {
     where: { id: { in: idsTecnicos } },
     select: { id: true, nombre: true, apellido: true },
   });
-  const filasTecnico = new Map<number | null, { tecnicoId: number | null; tecnico: string; casos: number; porRealizar: number; enProceso: number; realizados: number; vencidos: number }>();
+  const filasTecnico = new Map<
+    number | null,
+    {
+      tecnicoId: number | null;
+      tecnico: string;
+      casos: number;
+      porRealizar: number;
+      enProceso: number;
+      realizados: number;
+      vencidos: number;
+    }
+  >();
   for (const t of porTecnicoEstado) {
     const u = tecnicos.find((x) => x.id === t.tecnicoId);
     const fila = filasTecnico.get(t.tecnicoId) ?? {
@@ -135,9 +144,7 @@ export async function kpis(f: RangoFiltro) {
     porEstado: Object.fromEntries(porEstado.map((e) => [e.estado, e._count._all])),
     porPrioridad: Object.fromEntries(porPrioridad.map((p) => [p.prioridad, p._count._all])),
     // Técnicos de mayor a menor carga; «Sin asignar» siempre al final.
-    porTecnico: [...filasTecnico.values()].sort(
-      (a, b) => Number(a.tecnicoId == null) - Number(b.tecnicoId == null) || b.casos - a.casos,
-    ),
+    porTecnico: [...filasTecnico.values()].sort((a, b) => Number(a.tecnicoId == null) - Number(b.tecnicoId == null) || b.casos - a.casos),
     tiempoMedioResolucionMin: agg?.promedio == null ? null : Math.round(Number(agg.promedio)),
     cumplimientoSla: {
       cumplidos,

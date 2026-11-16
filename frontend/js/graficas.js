@@ -63,7 +63,15 @@ export function tablaDatos(resumen, columnas, filas) {
         "table",
         {},
         h("caption", { class: "sr-only" }, resumen),
-        h("thead", {}, h("tr", {}, columnas.map((c, i) => h("th", { scope: "col", class: i ? "num" : null }, c)))),
+        h(
+          "thead",
+          {},
+          h(
+            "tr",
+            {},
+            columnas.map((c, i) => h("th", { scope: "col", class: i ? "num" : null }, c)),
+          ),
+        ),
         h(
           "tbody",
           {},
@@ -123,7 +131,14 @@ export function lineas({ series, etiquetas, descripcion }) {
   const X = (i) => m.l + (n <= 1 ? iw / 2 : (i * iw) / (n - 1));
   const Y = (v) => m.t + ih - (v / maxY) * ih;
 
-  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, class: "viz-svg", role: "img", "aria-label": descripcion, tabindex: "0", focusable: "true" });
+  const svg = s("svg", {
+    viewBox: `0 0 ${W} ${H}`,
+    class: "viz-svg",
+    role: "img",
+    "aria-label": descripcion,
+    tabindex: "0",
+    focusable: "true",
+  });
   // Rejilla y eje Y (recesivos)
   for (let k = 0; k <= 4; k++) {
     const v = (maxY * k) / 4;

@@ -444,7 +444,8 @@ const OPERACIONES: Operacion[] = [
     metodo: "get",
     ruta: "/api/reportes/kpis",
     tag: "Reportes",
-    resumen: "Datos del dashboard: total, por realizar, en proceso, realizados y vencidos; tendencia de creados y realizados; casos por estado, prioridad y técnico; tiempos, SLA y satisfacción",
+    resumen:
+      "Datos del dashboard: total, por realizar, en proceso, realizados y vencidos; tendencia de creados y realizados; casos por estado, prioridad y técnico; tiempos, SLA y satisfacción",
     roles: "Supervisor, Administrador",
     query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
   },

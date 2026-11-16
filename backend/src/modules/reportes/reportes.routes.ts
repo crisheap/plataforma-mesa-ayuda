@@ -45,12 +45,17 @@ router.get("/casos.xlsx", async (req, res) => {
   d.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }];
   d.addRow(["Dashboard de casos – Plataforma Mesa de Ayuda SENA"]).font = { bold: true, size: 14 };
   const filtrosTxt = [
-    f.desde || f.hasta ? `Creados ${f.desde ? `desde ${fechaCorta(f.desde)}` : ""} ${f.hasta ? `hasta ${fechaCorta(f.hasta)}` : ""}`.trim() : "Todas las fechas",
+    f.desde || f.hasta
+      ? `Creados ${f.desde ? `desde ${fechaCorta(f.desde)}` : ""} ${f.hasta ? `hasta ${fechaCorta(f.hasta)}` : ""}`.trim()
+      : "Todas las fechas",
     f.prioridad ? `prioridad ${f.prioridad}` : null,
     f.tecnicoId ? `técnico ${resumen.porTecnico.find((t) => t.tecnicoId === f.tecnicoId)?.tecnico ?? f.tecnicoId}` : null,
     f.estado ? `estado ${f.estado}` : null,
   ].filter(Boolean);
-  d.addRow([`Filtros: ${filtrosTxt.join(" · ")}. Generado el ${fechaCorta(new Date())}.`]).font = { italic: true, color: { argb: "FF55655B" } };
+  d.addRow([`Filtros: ${filtrosTxt.join(" · ")}. Generado el ${fechaCorta(new Date())}.`]).font = {
+    italic: true,
+    color: { argb: "FF55655B" },
+  };
   d.addRow([]);
 
   const rs = resumen.resumen;

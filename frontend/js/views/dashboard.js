@@ -26,7 +26,13 @@ function tarjeta(etiqueta, valor, { clase, detalle, alerta } = {}) {
   return h(
     "div",
     { class: `card tile${alerta ? " tile-alerta" : ""}` },
-    h("div", { class: "tile-l" }, clase ? muestra(clase) : null, alerta ? h("span", { class: "icono-critico", "aria-hidden": "true" }, "⚠") : null, etiqueta),
+    h(
+      "div",
+      { class: "tile-l" },
+      clase ? muestra(clase) : null,
+      alerta ? h("span", { class: "icono-critico", "aria-hidden": "true" }, "⚠") : null,
+      etiqueta,
+    ),
     h("div", { class: "tile-n" }, num.format(valor)),
     detalle ? h("div", { class: "tile-d" }, detalle) : null,
   );
@@ -105,7 +111,11 @@ export async function vistaDashboard() {
         "section",
         { class: "card" },
         h("h2", {}, "Casos creados y realizados"),
-        h("p", { class: "muted small" }, `${desde.value ? "" : "Últimos 30 días · "}${rango}, ${PERIODO[t.unidad]}. Usa las flechas del teclado para recorrer la gráfica.`),
+        h(
+          "p",
+          { class: "muted small" },
+          `${desde.value ? "" : "Últimos 30 días · "}${rango}, ${PERIODO[t.unidad]}. Usa las flechas del teclado para recorrer la gráfica.`,
+        ),
         leyenda(series.map((x) => ({ etiqueta: x.etiqueta, clase: x.clase, valor: x.valores.reduce((a, b) => a + b, 0) }))),
         lineas({ series, etiquetas: etqs, descripcion: `Casos creados y realizados ${PERIODO[t.unidad]}, ${rango}` }),
         tablaDatos(
@@ -129,7 +139,9 @@ export async function vistaDashboard() {
                   total: f.casos,
                   partes: [f.porRealizar, f.enProceso, f.realizados],
                   extra: f.vencidos ? `${f.vencidos} vencidos` : "",
-                  extraNodo: f.vencidos ? h("span", { class: "badge b-rojo" }, `⚠ ${f.vencidos} vencido${f.vencidos === 1 ? "" : "s"}`) : null,
+                  extraNodo: f.vencidos
+                    ? h("span", { class: "badge b-rojo" }, `⚠ ${f.vencidos} vencido${f.vencidos === 1 ? "" : "s"}`)
+                    : null,
                 })),
                 GRUPOS,
               ),
@@ -157,13 +169,23 @@ export async function vistaDashboard() {
           "dl",
           { class: "indicadores" },
           h("dt", {}, "Cumplimiento de SLA"),
-          h("dd", {}, h("strong", {}, sla === null ? "—" : `${sla}%`), sla === null ? null : medidor(sla, 100, `Cumplimiento de SLA ${sla}%`)),
+          h(
+            "dd",
+            {},
+            h("strong", {}, sla === null ? "—" : `${sla}%`),
+            sla === null ? null : medidor(sla, 100, `Cumplimiento de SLA ${sla}%`),
+          ),
           h("dt", {}, "Tiempo medio de resolución"),
           h("dd", {}, h("strong", {}, minutos(k.tiempoMedioResolucionMin))),
           h("dt", {}, "Resueltos fuera de tiempo"),
           h("dd", {}, h("strong", {}, num.format(r.resueltosFueraDeTiempo))),
           h("dt", {}, "Satisfacción"),
-          h("dd", {}, h("strong", {}, k.satisfaccion.promedio ?? "—"), ` de 5 · ${num.format(k.satisfaccion.calificaciones)} calificaciones`),
+          h(
+            "dd",
+            {},
+            h("strong", {}, k.satisfaccion.promedio ?? "—"),
+            ` de 5 · ${num.format(k.satisfaccion.calificaciones)} calificaciones`,
+          ),
         ),
         h("h3", {}, "Por prioridad"),
         h(
@@ -171,7 +193,10 @@ export async function vistaDashboard() {
           { class: "indicadores" },
           Object.entries(PRIORIDADES).map(([key, et]) => {
             const n = k.porPrioridad[key] ?? 0;
-            return [h("dt", {}, et), h("dd", {}, h("strong", {}, num.format(n)), medidor(n, r.total, `Prioridad ${et}: ${n} de ${r.total}`))];
+            return [
+              h("dt", {}, et),
+              h("dd", {}, h("strong", {}, num.format(n)), medidor(n, r.total, `Prioridad ${et}: ${n} de ${r.total}`)),
+            ];
           }),
         ),
       );

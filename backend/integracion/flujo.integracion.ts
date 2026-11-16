@@ -210,7 +210,11 @@ test("reportes: KPIs y Excel para supervisor; prohibidos para el usuario", async
   assert.ok(t.puntos.reduce((s: number, p: { creados: number }) => s + p.creados, 0) >= 1, "la tendencia incluye los casos de hoy");
   const porTec = k.json.data.porTecnico;
   for (const f of porTec) assert.equal(f.porRealizar + f.enProceso + f.realizados, f.casos);
-  assert.equal(porTec.reduce((s: number, f: { casos: number }) => s + f.casos, 0), r.total, "técnicos + sin asignar = total");
+  assert.equal(
+    porTec.reduce((s: number, f: { casos: number }) => s + f.casos, 0),
+    r.total,
+    "técnicos + sin asignar = total",
+  );
   const adm = await llamar("GET", "/api/reportes/kpis?prioridad=ALTA", tokens.admin);
   assert.equal(adm.status, 200);
   const x = await fetch(`${base}/api/reportes/casos.xlsx`, { headers: { authorization: `Bearer ${tokens.supervisor}` } });
