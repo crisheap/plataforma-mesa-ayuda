@@ -86,7 +86,7 @@ export async function vistaDashboard() {
                 GRUPOS.map((g) => ({ etiqueta: g.etiqueta, valor: r[g.clave], clase: g.clase })),
                 `Reparto de ${r.total} casos: ${GRUPOS.map((g) => `${g.etiqueta.toLowerCase()} ${r[g.clave]}`).join(", ")}`,
               ),
-              leyenda(GRUPOS.map((g) => ({ etiqueta: g.etiqueta, clase: g.clase, valor: r[g.clave] }))),
+              leyenda(GRUPOS.map((g) => ({ etiqueta: g.etiqueta, clase: g.clase, valor: r[g.clave], pct: pct(r[g.clave], r.total) }))),
               r.vencidos
                 ? h(
                     "p",

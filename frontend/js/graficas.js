@@ -46,7 +46,16 @@ export function leyenda(series) {
   return h(
     "ul",
     { class: "leyenda" },
-    series.map((x) => h("li", {}, muestra(x.clase), x.etiqueta, x.valor === undefined ? null : h("strong", {}, num.format(x.valor)))),
+    series.map((x) =>
+      h(
+        "li",
+        {},
+        muestra(x.clase),
+        x.etiqueta,
+        x.valor === undefined ? null : h("strong", {}, num.format(x.valor)),
+        x.pct === undefined ? null : h("span", { class: "muted" }, `(${x.pct})`),
+      ),
+    ),
   );
 }
 
@@ -99,7 +108,8 @@ export function segmentada(partes, descripcion) {
     if (!p.valor) continue;
     const frac = p.valor / total;
     const pct = `${Math.round(frac * 100)}%`;
-    const bloque = h("div", { class: `bloque ${p.clase}` }, frac >= 0.08 ? pct : "");
+    // Sin texto dentro: el blanco no alcanza contraste AA sobre todos los colores; la leyenda da el número y el %.
+    const bloque = h("div", { class: `bloque ${p.clase}` });
     bloque.style.flexGrow = String(p.valor);
     tipEn(bloque, `${p.etiqueta}: ${num.format(p.valor)} (${pct})`);
     barra.append(bloque);

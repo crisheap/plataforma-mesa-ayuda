@@ -555,13 +555,6 @@ tbody tr.click:hover {
   min-width: 2px;
   border-radius: 4px;
   background: var(--c);
-  color: #ffffff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 28px;
-  padding-left: 0.5rem;
-  overflow: hidden;
-  white-space: nowrap;
 }
 .segmentada .vacio-seg {
   background: var(--surface-2);
