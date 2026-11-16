@@ -6,6 +6,7 @@
  * Ejecución:  npm run test:integracion   (la CI la ejecuta con un servicio de PostgreSQL)
  */
 import { test, before, after } from "node:test";
+import ExcelJS from "exceljs";
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
 
@@ -199,9 +200,33 @@ test("el historial registra cada transición y hay notificaciones para el usuari
 test("reportes: KPIs y Excel para supervisor; prohibidos para el usuario", async () => {
   const k = await llamar("GET", "/api/reportes/kpis", tokens.supervisor);
   assert.equal(k.status, 200);
+  const r = k.json.data.resumen;
+  assert.equal(r.total, k.json.data.totalCasos);
+  assert.equal(r.porRealizar + r.enProceso + r.realizados, r.total, "los grupos suman el total");
+  assert.ok(r.realizados >= 1, "el caso cerrado cuenta como realizado");
+  const t = k.json.data.tendencia;
+  assert.equal(t.unidad, "day");
+  assert.equal(t.puntos.length, 30);
+  assert.ok(t.puntos.reduce((s: number, p: { creados: number }) => s + p.creados, 0) >= 1, "la tendencia incluye los casos de hoy");
+  const porTec = k.json.data.porTecnico;
+  for (const f of porTec) assert.equal(f.porRealizar + f.enProceso + f.realizados, f.casos);
+  assert.equal(porTec.reduce((s: number, f: { casos: number }) => s + f.casos, 0), r.total, "técnicos + sin asignar = total");
+  const adm = await llamar("GET", "/api/reportes/kpis?prioridad=ALTA", tokens.admin);
+  assert.equal(adm.status, 200);
   const x = await fetch(`${base}/api/reportes/casos.xlsx`, { headers: { authorization: `Bearer ${tokens.supervisor}` } });
   assert.equal(x.status, 200);
   assert.match(x.headers.get("content-type") ?? "", /spreadsheetml/);
+  const libro = new ExcelJS.Workbook();
+  await libro.xlsx.load(Buffer.from(await x.arrayBuffer()));
+  assert.deepEqual(
+    libro.worksheets.map((w) => w.name),
+    ["Dashboard", "Casos", "Resumen"],
+  );
+  const hojaD = libro.getWorksheet("Dashboard")!;
+  const valores = hojaD.getColumn(1).values.map(String);
+  for (const k of ["Total de casos", "Por realizar (abiertos y asignados)", "En proceso", "Realizados (resueltos y cerrados)"])
+    assert.ok(valores.includes(k), `falta ${k} en la hoja Dashboard`);
+  assert.ok(libro.getWorksheet("Casos")!.getRow(1).values.toString().includes("Grupo"));
   assert.equal((await llamar("GET", "/api/reportes/kpis", tokens.usuario)).status, 403);
 });
 

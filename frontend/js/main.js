@@ -10,7 +10,8 @@ import { vistaInicio } from "./views/inicio.js";
 import { vistaMisCasos, vistaAsignados, vistaTodos } from "./views/casos.js";
 import { vistaCasoDetalle } from "./views/caso-detalle.js";
 import { vistaCasoNuevo } from "./views/caso-nuevo.js";
-import { vistaUsuarios, vistaSla, vistaReportes, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
+import { vistaUsuarios, vistaSla, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
+import { vistaDashboard } from "./views/dashboard.js";
 import { vistaPerfil, vistaNotificaciones } from "./views/cuenta.js";
 
 const TODOS = ["USUARIO", "TECNICO", "SUPERVISOR", "ADMINISTRADOR"];
@@ -25,7 +26,8 @@ const RUTAS = [
   ["casos/:id", vistaCasoDetalle, TODOS, "Detalle del caso"],
   ["notificaciones", vistaNotificaciones, TODOS, "Notificaciones"],
   ["perfil", vistaPerfil, TODOS, "Mi perfil"],
-  ["reportes", vistaReportes, STAFF, "Reportes y KPIs"],
+  ["dashboard", vistaDashboard, STAFF, "Dashboard"],
+  ["reportes", vistaDashboard, STAFF, "Dashboard"],
   ["auditoria", vistaAuditoria, STAFF, "Bitácora de auditoría"],
   ["usuarios", vistaUsuarios, ["ADMINISTRADOR"], "Usuarios"],
   ["sla", vistaSla, ["ADMINISTRADOR"], "Configuración de SLA"],
@@ -40,7 +42,7 @@ const NAV = [
   ["notificaciones", "🔔", "Notificaciones", TODOS],
   ["__sep", "", "Supervisión", STAFF],
   ["casos", "📋", "Todos los casos", STAFF],
-  ["reportes", "📊", "Reportes y KPIs", STAFF],
+  ["dashboard", "📊", "Dashboard", STAFF],
   ["auditoria", "🧾", "Auditoría", STAFF],
   ["__sep", "", "Administración", ["ADMINISTRADOR"]],
   ["usuarios", "👥", "Usuarios", ["ADMINISTRADOR"]],

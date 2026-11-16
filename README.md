@@ -41,7 +41,7 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 |---|---|
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
-| **Supervisor** | Ver todos los casos · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · KPIs, reportes y bitácora de auditoría |
+| **Supervisor** | Ver todos los casos · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría |
 | **Administrador** | Gestionar usuarios (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · definir los dominios empresariales · configurar tiempos de SLA · administrar la base de conocimiento del asistente |
 
 Además, para todos los roles:
@@ -53,7 +53,8 @@ Además, para todos los roles:
 - **Aplicación web progresiva (PWA):** instalable en celular y computador, funciona sin conexión y envía los casos redactados offline al volver la red.
 - **Tema diurno y nocturno** sin destello al cargar, con contraste WCAG 2.2 AA.
 - **Nombre completo y rol** del usuario en el encabezado y en la bienvenida.
-- **Reportes en Excel** filtrables por fecha, técnico y prioridad.
+- **Dashboard** para el Supervisor y el Administrador: total de casos, por realizar, en proceso, realizados y vencidos; gráfica de casos creados frente a realizados; carga de cada técnico; cumplimiento de SLA y satisfacción. Cada gráfica tiene su tabla de datos y se puede recorrer con el teclado.
+- **Reportes en Excel** filtrables por fecha, técnico y prioridad, con una hoja **Dashboard** que resume lo mismo que la pantalla.
 - **Bitácora de auditoría inmutable**, protegida por un trigger de PostgreSQL.
 
 ## Capturas
@@ -336,6 +337,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-USU-01…08 · Acceso, perfil, usuarios, contraseñas | `modules/auth/`, `modules/usuarios/` |
 | RF-ADM-01 · SLA | `modules/sla/`, `core/sla.ts`, `jobs/worker.ts` |
 | RF-ADM-02/03 · Reportes Excel y KPIs | `modules/reportes/` |
+| RF-ADM-06 · Dashboard con gráficas | `GET /api/reportes/kpis` (`resumen`, `tendencia`, `porTecnico`); hoja Dashboard del Excel; `views/dashboard.js`, `graficas.js` |
 | RF-ADM-04 · Auditoría inmutable | migración `20261105000000_v2_mejoras`, `modules/auditoria/` |
 | RF-PWA-01…06 · PWA | `frontend/manifest.webmanifest`, `sw.js`, `js/pwa.js`, `js/api.js` |
 | RF-IA-01…08 · Asistente Botito | `modules/asistente/`, `frontend/js/bot.js` |

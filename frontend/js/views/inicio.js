@@ -82,7 +82,7 @@ export async function vistaInicio({ usuario: u }) {
         "div",
         { class: "row" },
         h("a", { class: "btn primary", href: "#/casos" }, "Gestionar casos"),
-        h("a", { class: "btn", href: "#/reportes" }, "Ver reportes y KPIs"),
+        h("a", { class: "btn", href: "#/dashboard" }, "Ver el dashboard"),
       ),
     );
   }

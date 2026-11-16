@@ -1,4 +1,4 @@
-import { api, descargar } from "../api.js";
+import { api } from "../api.js";
 import {
   envolturaTabla,
   h,
@@ -15,7 +15,6 @@ import {
   fecha,
   minutos,
   ROLES,
-  etiquetaEstado,
 } from "../ui.js";
 
 const ESTADOS_USR = { ACTIVO: ["Activo", "b-verde"], BLOQUEADO: ["Bloqueado", "b-rojo"], INACTIVO: ["Inactivo", "b-gris"] };
@@ -591,126 +590,6 @@ export async function vistaSla() {
       ),
       h("button", { class: "btn primary", onclick: guardar }, "Guardar cambios"),
     ),
-  );
-}
-
-// ───────────── Reportes y KPIs (RF-ADM-02/03) ─────────────
-export async function vistaReportes() {
-  const cont = h("div", { "aria-live": "polite" });
-  const desde = h("input", { type: "date", "aria-label": "Desde" }),
-    hasta = h("input", { type: "date", "aria-label": "Hasta" });
-  const prio = h(
-    "select",
-    { "aria-label": "Prioridad" },
-    opciones({ ALTA: "Alta", MEDIA: "Media", BAJA: "Baja" }, "", "Todas las prioridades"),
-  );
-  const tec = h("select", { "aria-label": "Técnico" }, h("option", { value: "" }, "Todos los técnicos"));
-  api("/api/usuarios/tecnicos")
-    .then((ts) =>
-      ts.forEach((t) => {
-        tec.append(h("option", { value: t.id }, t.nombreCompleto));
-      }),
-    )
-    .catch(() => undefined);
-  const qs = () => {
-    const p = new URLSearchParams();
-    if (desde.value) p.set("desde", `${desde.value}T00:00:00`);
-    if (hasta.value) p.set("hasta", `${hasta.value}T23:59:59`);
-    if (prio.value) p.set("prioridad", prio.value);
-    if (tec.value) p.set("tecnicoId", tec.value);
-    return p.toString();
-  };
-  const barra = (n, total) =>
-    h(
-      "div",
-      { class: "bar", role: "img", "aria-label": `${n} de ${total}` },
-      h("span", { class: "fill", "data-w": total ? Math.round((n / total) * 100) : 0 }),
-    );
-  const cargar = async () => {
-    montar(cont, cargando());
-    try {
-      const k = await api(`/api/reportes/kpis?${qs()}`);
-      const total = k.totalCasos || 1;
-      const bloque = (titulo, obj, etiqueta = (x) => x) =>
-        h(
-          "section",
-          { class: "card" },
-          h("h3", {}, titulo),
-          Object.keys(obj).length
-            ? Object.entries(obj).map(([key, n]) =>
-                h(
-                  "div",
-                  { class: "stack" },
-                  h("div", { class: "row between" }, h("span", {}, etiqueta(key)), h("strong", {}, String(n))),
-                  barra(n, total),
-                ),
-              )
-            : vacio("Sin datos"),
-        );
-      montar(
-        cont,
-        h(
-          "div",
-          { class: "grid cols-4" },
-          ...[
-            [k.totalCasos, "Casos totales"],
-            [minutos(k.tiempoMedioResolucionMin), "Tiempo medio de resolución"],
-            [k.cumplimientoSla.porcentaje === null ? "—" : `${k.cumplimientoSla.porcentaje}%`, "Cumplimiento de SLA"],
-            [k.satisfaccion.promedio ?? "—", `Satisfacción (${k.satisfaccion.calificaciones} calif.)`],
-            [k.slaVencidosAbiertos, "SLA vencido (abiertos)"],
-          ].map(([n, l]) => h("div", { class: "card kpi" }, h("div", { class: "n" }, String(n)), h("div", { class: "l" }, l))),
-        ),
-        h(
-          "div",
-          { class: "grid cols-2" },
-          bloque("Casos por estado", k.porEstado, etiquetaEstado),
-          bloque("Casos por prioridad", k.porPrioridad, (x) => ({ ALTA: "Alta", MEDIA: "Media", BAJA: "Baja" })[x]),
-        ),
-        h(
-          "section",
-          { class: "card" },
-          h("h3", {}, "Casos por técnico"),
-          k.porTecnico.length
-            ? h(
-                "ul",
-                {},
-                k.porTecnico.map((t) => h("li", {}, `${t.tecnico}: `, h("strong", {}, String(t.casos)))),
-              )
-            : vacio("Sin casos asignados"),
-        ),
-      );
-      cont.querySelectorAll(".bar .fill").forEach((el) => {
-        el.style.width = `${el.dataset.w}%`;
-      });
-    } catch (e) {
-      montar(cont, errorBox(e));
-    }
-  };
-  [desde, hasta, prio, tec].forEach((el) => {
-    el.addEventListener("change", cargar);
-  });
-  cargar();
-  return h(
-    "div",
-    {},
-    h(
-      "div",
-      { class: "page-title" },
-      h("h1", {}, "Reportes y KPIs"),
-      h(
-        "button",
-        {
-          class: "btn primary",
-          onclick: () =>
-            descargar(`/api/reportes/casos.xlsx?${qs()}`, "casos.xlsx")
-              .then(() => toast("Reporte descargado"))
-              .catch((e) => toast(e.message)),
-        },
-        "Descargar Excel",
-      ),
-    ),
-    h("div", { class: "card row" }, h("label", { class: "row" }, "Desde", desde), h("label", { class: "row" }, "Hasta", hasta), prio, tec),
-    cont,
   );
 }
 
