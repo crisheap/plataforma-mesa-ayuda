@@ -46,16 +46,17 @@ export async function kpis(f: RangoFiltro) {
   const where = whereCasos(f);
   const ahora = new Date();
   const vencidos: Prisma.CasoWhereInput = { ...where, slaVenceEn: { lte: ahora }, estado: { in: [...ABIERTOS] } };
-  const [porEstado, porPrioridad, porTecnicoEstado, satisf, vencidosAbiertos, vencidosTecnico, porCentroEstado, vencidosCentro] = await Promise.all([
-    prisma.caso.groupBy({ by: ["estado"], where, _count: { _all: true } }),
-    prisma.caso.groupBy({ by: ["prioridad"], where, _count: { _all: true } }),
-    prisma.caso.groupBy({ by: ["tecnicoId", "estado"], where, _count: { _all: true } }),
-    prisma.calificacion.aggregate({ where: { caso: where }, _avg: { puntuacion: true }, _count: { _all: true } }),
-    prisma.caso.count({ where: vencidos }),
-    prisma.caso.groupBy({ by: ["tecnicoId"], where: vencidos, _count: { _all: true } }),
-    prisma.caso.groupBy({ by: ["centroId", "estado"], where, _count: { _all: true } }),
-    prisma.caso.groupBy({ by: ["centroId"], where: vencidos, _count: { _all: true } }),
-  ]);
+  const [porEstado, porPrioridad, porTecnicoEstado, satisf, vencidosAbiertos, vencidosTecnico, porCentroEstado, vencidosCentro] =
+    await Promise.all([
+      prisma.caso.groupBy({ by: ["estado"], where, _count: { _all: true } }),
+      prisma.caso.groupBy({ by: ["prioridad"], where, _count: { _all: true } }),
+      prisma.caso.groupBy({ by: ["tecnicoId", "estado"], where, _count: { _all: true } }),
+      prisma.calificacion.aggregate({ where: { caso: where }, _avg: { puntuacion: true }, _count: { _all: true } }),
+      prisma.caso.count({ where: vencidos }),
+      prisma.caso.groupBy({ by: ["tecnicoId"], where: vencidos, _count: { _all: true } }),
+      prisma.caso.groupBy({ by: ["centroId", "estado"], where, _count: { _all: true } }),
+      prisma.caso.groupBy({ by: ["centroId"], where: vencidos, _count: { _all: true } }),
+    ]);
 
   // Tiempo medio de resolución y cumplimiento de SLA sobre los casos del filtro.
   const cond = Prisma.sql`1=1

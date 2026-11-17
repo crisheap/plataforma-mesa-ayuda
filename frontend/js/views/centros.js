@@ -16,10 +16,7 @@ export async function vistaCentros() {
     try {
       const cs = await api("/api/centros");
       if (!cs.length) {
-        montar(
-          lista,
-          vacio("Aún no hay centros. Crea el primero (por ejemplo CEET) y luego su administrador."),
-        );
+        montar(lista, vacio("Aún no hay centros. Crea el primero (por ejemplo CEET) y luego su administrador."));
         return;
       }
       montar(
@@ -49,13 +46,14 @@ export async function vistaCentros() {
                   h("td", {}, h("strong", {}, c.codigo)),
                   h("td", {}, c.nombre),
                   h("td", {}, h("span", { class: `badge ${c.activo ? "b-verde" : "b-gris"}` }, c.activo ? "Activo" : "Inactivo")),
+                  h("td", {}, c.administradores ? String(c.administradores) : h("span", { class: "badge b-ambar" }, "Sin administrador")),
+                  h("td", {}, String(c.usuarios)),
                   h(
                     "td",
                     {},
-                    c.administradores ? String(c.administradores) : h("span", { class: "badge b-ambar" }, "Sin administrador"),
+                    `${c.casos}`,
+                    c.casosSinTerminar ? h("div", { class: "small muted" }, `${c.casosSinTerminar} sin terminar`) : null,
                   ),
-                  h("td", {}, String(c.usuarios)),
-                  h("td", {}, `${c.casos}`, c.casosSinTerminar ? h("div", { class: "small muted" }, `${c.casosSinTerminar} sin terminar`) : null),
                   h(
                     "td",
                     {},
@@ -87,14 +85,22 @@ export async function vistaCentros() {
 
   async function crear() {
     const codigo = h("input", { maxlength: "10", autocomplete: "off", placeholder: "CEET", class: "mayus" });
-    const nombre = h("input", { maxlength: "150", autocomplete: "off", placeholder: "Centro de Electricidad, Electrónica y Telecomunicaciones" });
+    const nombre = h("input", {
+      maxlength: "150",
+      autocomplete: "off",
+      placeholder: "Centro de Electricidad, Electrónica y Telecomunicaciones",
+    });
     let creado = null;
     const c = await modal({
       titulo: "Nuevo centro",
       cuerpo: h(
         "div",
         {},
-        campo("Código", codigo, "De 2 a 10 letras o números, empezando por una letra. Es el prefijo de los casos (CEET-2026-000001) y no se puede cambiar."),
+        campo(
+          "Código",
+          codigo,
+          "De 2 a 10 letras o números, empezando por una letra. Es el prefijo de los casos (CEET-2026-000001) y no se puede cambiar.",
+        ),
         campo("Nombre del centro", nombre),
       ),
       acciones: [
@@ -126,7 +132,12 @@ export async function vistaCentros() {
     const nombre = h("input", { maxlength: "150", value: c.nombre });
     const ok = await modal({
       titulo: `Editar ${c.codigo}`,
-      cuerpo: h("div", {}, campo("Nombre del centro", nombre), h("p", { class: "small muted" }, "El código no se cambia porque identifica los casos ya registrados.")),
+      cuerpo: h(
+        "div",
+        {},
+        campo("Nombre del centro", nombre),
+        h("p", { class: "small muted" }, "El código no se cambia porque identifica los casos ya registrados."),
+      ),
       acciones: [
         { texto: "Cancelar", valor: null },
         {
@@ -182,7 +193,12 @@ export async function vistaCentros() {
   return h(
     "div",
     {},
-    h("div", { class: "page-title" }, h("h1", {}, "Centros de formación"), h("button", { class: "btn primary", type: "button", onclick: crear }, "Nuevo centro")),
+    h(
+      "div",
+      { class: "page-title" },
+      h("h1", {}, "Centros de formación"),
+      h("button", { class: "btn primary", type: "button", onclick: crear }, "Nuevo centro"),
+    ),
     h(
       "p",
       { class: "muted" },

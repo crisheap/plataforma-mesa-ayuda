@@ -67,7 +67,8 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   general(req);
   const d = validar(crearSchema, req.body);
-  if (await prisma.centro.findUnique({ where: { codigo: d.codigo } })) throw AppError.conflict(`Ya existe un centro con el código ${d.codigo}`);
+  if (await prisma.centro.findUnique({ where: { codigo: d.codigo } }))
+    throw AppError.conflict(`Ya existe un centro con el código ${d.codigo}`);
   const c = await prisma.centro.create({ data: d });
   await auditar(req, { accion: "CENTRO_CREADO", entidad: "centro", entidadId: c.id, descripcion: `${c.codigo} · ${c.nombre}` });
   res.status(201).json({ success: true, message: `Centro ${c.codigo} creado`, data: c });

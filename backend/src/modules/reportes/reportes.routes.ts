@@ -106,7 +106,8 @@ router.get("/casos.xlsx", async (req, res) => {
 
   if (general && !f.centroId) {
     cabecera(d.addRow(["Centro", "Total", "Por realizar", "En proceso", "Realizados", "Vencidos"]));
-    for (const c of resumen.porCentro) d.addRow([`${c.codigo} · ${c.nombre}`, c.casos, c.porRealizar, c.enProceso, c.realizados, c.vencidos]);
+    for (const c of resumen.porCentro)
+      d.addRow([`${c.codigo} · ${c.nombre}`, c.casos, c.porRealizar, c.enProceso, c.realizados, c.vencidos]);
     d.addRow([]);
   }
 

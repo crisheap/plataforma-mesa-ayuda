@@ -60,8 +60,7 @@ function correoPersonalValido(correo: string, tipo: TipoCorreo, personal: string
 /** Centro donde quedará la cuenta: el general elige; el administrador de centro solo crea en el suyo (RF-CEN-03). */
 async function centroDestino(actor: Alcance, pedido?: number): Promise<number> {
   const id = esGeneral(actor) ? pedido : actor.centroId;
-  if (!id)
-    throw AppError.badRequest("Elige el centro al que pertenece la cuenta", [{ field: "centroId", message: "Elige un centro" }]);
+  if (!id) throw AppError.badRequest("Elige el centro al que pertenece la cuenta", [{ field: "centroId", message: "Elige un centro" }]);
   const c = await prisma.centro.findUnique({ where: { id } });
   if (!c) throw AppError.badRequest("El centro no existe", [{ field: "centroId", message: "Centro no válido" }]);
   if (!c.activo) throw AppError.badRequest("El centro está inactivo", [{ field: "centroId", message: "Centro inactivo" }]);
@@ -141,14 +140,14 @@ export async function enviarAcceso(actor: Alcance, id: number) {
 export async function listar(
   actor: Alcance,
   f: {
-  centroId?: number;
-  q?: string;
-  rol?: RolNombre;
-  estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO";
-  tipoCorreo?: TipoCorreo;
-  page: number;
-  pageSize: number;
-},
+    centroId?: number;
+    q?: string;
+    rol?: RolNombre;
+    estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO";
+    tipoCorreo?: TipoCorreo;
+    page: number;
+    pageSize: number;
+  },
 ) {
   const where: Prisma.UsuarioWhereInput = {
     ...filtroCentro(actor, f.centroId),

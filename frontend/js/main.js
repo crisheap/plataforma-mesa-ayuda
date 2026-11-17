@@ -122,7 +122,12 @@ function construirShell(u) {
     "div",
     { class: "user-chip", id: "usuario-chip" },
     h("div", { class: "avatar", "aria-hidden": "true" }, iniciales(u.nombreCompleto)),
-    h("div", { class: "who" }, h("strong", { title: u.nombreCompleto }, u.nombreCompleto), h("small", {}, u.esGeneral ? "Administrador general" : `${ROLES[u.rol]} · ${u.centro?.codigo ?? ""}`)),
+    h(
+      "div",
+      { class: "who" },
+      h("strong", { title: u.nombreCompleto }, u.nombreCompleto),
+      h("small", {}, u.esGeneral ? "Administrador general" : `${ROLES[u.rol]} · ${u.centro?.codigo ?? ""}`),
+    ),
   );
 
   const banner = h(

@@ -7,7 +7,17 @@ function bienvenida(u, texto) {
   return h(
     "section",
     { class: "welcome", "aria-label": "Bienvenida" },
-    h("div", {}, h("h1", {}, `Bienvenido, ${u.nombreCompleto}`), h("p", {}, texto), h("p", { class: "small" }, u.esGeneral ? "Administrador general · todos los centros" : `Rol: ${ROLES[u.rol]} · Centro ${u.centro?.nombre ?? ""}`)),
+    h(
+      "div",
+      {},
+      h("h1", {}, `Bienvenido, ${u.nombreCompleto}`),
+      h("p", {}, texto),
+      h(
+        "p",
+        { class: "small" },
+        u.esGeneral ? "Administrador general · todos los centros" : `Rol: ${ROLES[u.rol]} · Centro ${u.centro?.nombre ?? ""}`,
+      ),
+    ),
     h("div", { class: "art" }, heroTecnico()),
   );
 }

@@ -52,7 +52,10 @@ export async function vistaDashboard({ usuario }) {
   const cargarTecnicos = () =>
     api(`/api/usuarios/tecnicos${centro?.value ? `?centroId=${centro.value}` : ""}`)
       .then((ts) => {
-        tec.replaceChildren(h("option", { value: "" }, "Todos los técnicos"), ...ts.map((t) => h("option", { value: t.id }, t.nombreCompleto)));
+        tec.replaceChildren(
+          h("option", { value: "" }, "Todos los técnicos"),
+          ...ts.map((t) => h("option", { value: t.id }, t.nombreCompleto)),
+        );
       })
       .catch(() => undefined);
   cargarTecnicos();
@@ -222,7 +225,9 @@ export async function vistaDashboard({ usuario }) {
                   total: c.casos,
                   partes: [c.porRealizar, c.enProceso, c.realizados],
                   extra: c.vencidos ? `${c.vencidos} vencidos` : "",
-                  extraNodo: c.vencidos ? h("span", { class: "badge b-rojo" }, `⚠ ${c.vencidos} vencido${c.vencidos === 1 ? "" : "s"}`) : null,
+                  extraNodo: c.vencidos
+                    ? h("span", { class: "badge b-rojo" }, `⚠ ${c.vencidos} vencido${c.vencidos === 1 ? "" : "s"}`)
+                    : null,
                 })),
                 GRUPOS,
               ),

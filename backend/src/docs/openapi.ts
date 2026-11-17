@@ -481,7 +481,14 @@ const OPERACIONES: Operacion[] = [
     resumen:
       "Datos del dashboard: total, por realizar, en proceso, realizados y vencidos; tendencia de creados y realizados; casos por estado, prioridad y técnico; tiempos, SLA y satisfacción",
     roles: "Supervisor, Administrador",
-    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), centroId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
+    query: {
+      desde: fecha,
+      hasta: fecha,
+      tecnicoId: ent(1),
+      centroId: ent(1),
+      prioridad: enumer(...PRIORIDADES),
+      estado: enumer(...ESTADOS),
+    },
   },
   {
     metodo: "get",
@@ -489,7 +496,14 @@ const OPERACIONES: Operacion[] = [
     tag: "Reportes",
     resumen: "Reporte de casos en Excel (hojas Dashboard, Casos y Resumen)",
     roles: "Supervisor, Administrador",
-    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), centroId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
+    query: {
+      desde: fecha,
+      hasta: fecha,
+      tecnicoId: ent(1),
+      centroId: ent(1),
+      prioridad: enumer(...PRIORIDADES),
+      estado: enumer(...ESTADOS),
+    },
     binaria: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   },
   {
@@ -790,9 +804,18 @@ export function construirOpenApi(version = "2.1.0") {
     },
     servers: [{ url: "/", description: "Mismo origen de la aplicación" }],
     security: [{ bearer: [] }],
-    tags: ["Sistema", "Autenticación", "Usuarios", "Centros", "Casos", "Evidencias", "Administración", "Reportes", "Notificaciones", "Asistente"].map(
-      (name) => ({ name }),
-    ),
+    tags: [
+      "Sistema",
+      "Autenticación",
+      "Usuarios",
+      "Centros",
+      "Casos",
+      "Evidencias",
+      "Administración",
+      "Reportes",
+      "Notificaciones",
+      "Asistente",
+    ].map((name) => ({ name })),
     paths,
     components: COMPONENTES,
   };
