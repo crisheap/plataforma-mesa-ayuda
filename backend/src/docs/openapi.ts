@@ -57,6 +57,7 @@ const filtrosCasos: Record<string, Esquema> = {
   estado: enumer(...ESTADOS),
   prioridad: enumer(...PRIORIDADES),
   tecnicoId: ent(1),
+  centroId: { ...ent(1), description: "Solo para el administrador general; los demás ven siempre su centro." },
   q: txt(0, 100),
   desde: fecha,
   hasta: fecha,
@@ -157,8 +158,9 @@ const OPERACIONES: Operacion[] = [
     metodo: "get",
     ruta: "/api/usuarios/tecnicos",
     tag: "Usuarios",
-    resumen: "Técnicos activos con su número de casos activos",
+    resumen: "Técnicos activos del centro con su número de casos activos",
     roles: "Supervisor, Administrador",
+    query: { centroId: { ...ent(1), description: "El administrador general indica el centro del caso." } },
   },
   {
     metodo: "get",
@@ -172,6 +174,7 @@ const OPERACIONES: Operacion[] = [
       rol: enumer(...ROLES),
       estado: enumer("ACTIVO", "BLOQUEADO", "INACTIVO"),
       tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
+      centroId: { ...ent(1), description: "Solo para el administrador general." },
     },
   },
   {
@@ -187,7 +190,8 @@ const OPERACIONES: Operacion[] = [
         nombre: txt(2, 80),
         apellido: txt(2, 80),
         correo: { type: "string", format: "email" },
-        rol: enumer(...ROLES),
+        rol: { ...enumer(...ROLES), description: "ADMINISTRADOR solo lo asigna el administrador general (administrador de centro)." },
+        centroId: { ...ent(1), description: "Obligatorio para el administrador general; el de centro siempre crea en el suyo." },
         password: txt(0, 72),
         tipoCorreo: {
           ...enumer("EMPRESARIAL", "PERSONAL"),
@@ -215,12 +219,13 @@ const OPERACIONES: Operacion[] = [
     metodo: "patch",
     ruta: "/api/usuarios/:id",
     tag: "Usuarios",
-    resumen: "Editar nombre, apellido o rol",
+    resumen: "Editar nombre, apellido, rol, centro (solo el general) y correos",
     roles: "Administrador",
     cuerpo: obj({
       nombre: txt(2, 80),
       apellido: txt(2, 80),
       rol: enumer(...ROLES),
+      centroId: ent(1),
       tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
       correoPersonal: { type: ["string", "null"], format: "email" },
     }),
@@ -250,8 +255,37 @@ const OPERACIONES: Operacion[] = [
     respuesta: ref("Acceso"),
   },
 
-  { metodo: "get", ruta: "/api/roles", tag: "Usuarios", resumen: "Catálogo de roles (solo lectura)", roles: "Administrador" },
-  { metodo: "get", ruta: "/api/roles/:id", tag: "Usuarios", resumen: "Detalle de un rol", roles: "Administrador" },
+  { metodo: "get", ruta: "/api/roles", tag: "Usuarios", resumen: "Catálogo de roles (solo lectura)", roles: "Administrador general" },
+  { metodo: "get", ruta: "/api/roles/:id", tag: "Usuarios", resumen: "Detalle de un rol", roles: "Administrador general" },
+
+  // Centros (RF-CEN-01)
+  {
+    metodo: "get",
+    ruta: "/api/centros",
+    tag: "Centros",
+    resumen: "Centros con su número de usuarios, administradores y casos (el personal de un centro solo ve el suyo)",
+    roles: "Supervisor, Administrador",
+  },
+  {
+    metodo: "post",
+    ruta: "/api/centros",
+    tag: "Centros",
+    resumen: "Crear un centro; el código es el prefijo de sus números de caso y no se cambia",
+    roles: "Administrador general",
+    codigo: 201,
+    cuerpo: obj({ codigo: { type: "string", pattern: "^[A-Z][A-Z0-9]{1,9}$", examples: ["CEET"] }, nombre: txt(3, 150) }, [
+      "codigo",
+      "nombre",
+    ]),
+  },
+  {
+    metodo: "patch",
+    ruta: "/api/centros/:id",
+    tag: "Centros",
+    resumen: "Cambiar el nombre o activar/inactivar un centro (inactivo: no recibe usuarios ni casos nuevos)",
+    roles: "Administrador general",
+    cuerpo: obj({ nombre: txt(3, 150), activo: { type: "boolean" } }),
+  },
 
   // Casos
   {
@@ -410,7 +444,7 @@ const OPERACIONES: Operacion[] = [
     ruta: "/api/configuracion/correo",
     tag: "Administración",
     resumen: "Guardar los dominios empresariales; con reclasificar, actualiza el tipo de correo de las cuentas",
-    roles: "Administrador",
+    roles: "Administrador general",
     cuerpo: obj(
       {
         dominiosEmpresariales: { type: "array", maxItems: 50, items: { type: "string", examples: ["sena.edu.co"] } },
@@ -447,7 +481,7 @@ const OPERACIONES: Operacion[] = [
     resumen:
       "Datos del dashboard: total, por realizar, en proceso, realizados y vencidos; tendencia de creados y realizados; casos por estado, prioridad y técnico; tiempos, SLA y satisfacción",
     roles: "Supervisor, Administrador",
-    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
+    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), centroId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
   },
   {
     metodo: "get",
@@ -455,7 +489,7 @@ const OPERACIONES: Operacion[] = [
     tag: "Reportes",
     resumen: "Reporte de casos en Excel (hojas Dashboard, Casos y Resumen)",
     roles: "Supervisor, Administrador",
-    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
+    query: { desde: fecha, hasta: fecha, tecnicoId: ent(1), centroId: ent(1), prioridad: enumer(...PRIORIDADES), estado: enumer(...ESTADOS) },
     binaria: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   },
   {
@@ -464,7 +498,7 @@ const OPERACIONES: Operacion[] = [
     tag: "Reportes",
     resumen: "Bitácora de auditoría (solo lectura)",
     roles: "Supervisor, Administrador",
-    query: { ...paginacion, accion: txt(0, 60), entidad: txt(0, 60), usuarioId: ent(1), desde: fecha, hasta: fecha },
+    query: { ...paginacion, accion: txt(0, 60), entidad: txt(0, 60), usuarioId: ent(1), centroId: ent(1), desde: fecha, hasta: fecha },
   },
 
   // Notificaciones
@@ -618,6 +652,11 @@ const COMPONENTES = {
         preferenciaTema: enumer("CLARO", "OSCURO", "SISTEMA"),
         tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
         correoPersonal: { type: ["string", "null"], format: "email" },
+        centro: {
+          type: ["object", "null"],
+          description: "null solo para el administrador general",
+          properties: { id: { type: "integer" }, codigo: { type: "string" }, nombre: { type: "string" } },
+        },
         debeCambiarPassword: { type: "boolean" },
       },
       [],
@@ -751,7 +790,7 @@ export function construirOpenApi(version = "2.1.0") {
     },
     servers: [{ url: "/", description: "Mismo origen de la aplicación" }],
     security: [{ bearer: [] }],
-    tags: ["Sistema", "Autenticación", "Usuarios", "Casos", "Evidencias", "Administración", "Reportes", "Notificaciones", "Asistente"].map(
+    tags: ["Sistema", "Autenticación", "Usuarios", "Centros", "Casos", "Evidencias", "Administración", "Reportes", "Notificaciones", "Asistente"].map(
       (name) => ({ name }),
     ),
     paths,

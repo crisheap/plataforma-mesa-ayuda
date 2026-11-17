@@ -12,7 +12,12 @@ import { RAIZ_UPLOADS, descartar, firmaValida, subida } from "./upload";
 const router = Router();
 router.use(authenticate);
 
-const actor = (req: Request): svc.Actor => ({ userId: req.user!.userId, rol: req.user!.rol, ip: req.ip });
+const actor = (req: Request): svc.Actor => ({
+  userId: req.user!.userId,
+  rol: req.user!.rol,
+  centroId: req.user!.centroId ?? null,
+  ip: req.ip,
+});
 
 const TIPOS = ["INCIDENTE", "REQUERIMIENTO", "MANTENIMIENTO", "SOLICITUD_ACCESO", "OTROS"] as const;
 const CATEGORIAS = ["HARDWARE", "SOFTWARE", "RED", "CORREO", "PLATAFORMAS_INSTITUCIONALES"] as const;
@@ -52,6 +57,7 @@ const filtrosSchema = paginacion.extend({
   estado: z.enum(ESTADOS).optional(),
   prioridad: z.enum(PRIORIDADES).optional(),
   tecnicoId: z.coerce.number().int().positive().optional(),
+  centroId: z.coerce.number().int().positive().optional(),
   q: z.string().trim().max(100).optional(),
   desde: fecha,
   hasta: fecha,
@@ -79,7 +85,7 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
-  res.json({ success: true, data: await svc.listarTodos(validar(filtrosSchema, req.query)) });
+  res.json({ success: true, data: await svc.listarTodos(actor(req), validar(filtrosSchema, req.query)) });
 });
 router.get("/mis-casos", async (req, res) => {
   res.json({ success: true, data: await svc.listarMisCasos(req.user!.userId, validar(filtrosSchema, req.query)) });

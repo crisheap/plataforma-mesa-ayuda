@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { type Request, Router } from "express";
 import { z } from "zod";
 import { authenticate } from "../../middlewares/auth.middleware";
 import { authorizeRoles } from "../../middlewares/role.middleware";
@@ -8,6 +8,9 @@ import * as svc from "./usuarios.service";
 
 const router = Router();
 router.use(authenticate);
+
+const alcance = (req: Request) => ({ userId: req.user!.userId, rol: req.user!.rol, centroId: req.user!.centroId ?? null });
+const centroId = z.coerce.number().int().positive();
 
 const ROLES = ["USUARIO", "TECNICO", "SUPERVISOR", "ADMINISTRADOR"] as const;
 const texto = (n: string) => z.string().trim().min(2, `${n} debe tener al menos 2 caracteres`).max(80);
@@ -22,6 +25,8 @@ const crearSchema = z.object({
   apellido: texto("El apellido"),
   correo: z.string().trim().toLowerCase().email("Correo inválido"),
   rol: z.enum(ROLES),
+  // Obligatorio para el administrador general; el administrador de centro siempre crea en el suyo (RF-CEN-03).
+  centroId: centroId.optional(),
   password: z.string().max(72).optional(),
   tipoCorreo: z.enum(TIPOS_CORREO).optional(),
   correoPersonal: correoPersonal.optional(),
@@ -33,6 +38,7 @@ const editarSchema = z
     nombre: texto("El nombre").optional(),
     apellido: texto("El apellido").optional(),
     rol: z.enum(ROLES).optional(),
+    centroId: centroId.optional(),
     tipoCorreo: z.enum(TIPOS_CORREO).optional(),
     correoPersonal: correoPersonal.optional(),
   })
@@ -44,19 +50,26 @@ const listaSchema = paginacion.extend({
   rol: z.enum(ROLES).optional(),
   estado: z.enum(["ACTIVO", "BLOQUEADO", "INACTIVO"]).optional(),
   tipoCorreo: z.enum(TIPOS_CORREO).optional(),
+  centroId: centroId.optional(),
 });
 
 // Técnicos disponibles para asignación: Supervisor y Administrador.
-router.get("/tecnicos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (_req, res) => {
-  res.json({ success: true, data: await svc.tecnicosDisponibles() });
+router.get("/tecnicos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
+  const { centroId: c } = validar(z.object({ centroId: centroId.optional() }), req.query);
+  res.json({ success: true, data: await svc.tecnicosDisponibles(alcance(req), c) });
 });
 
 router.use(authorizeRoles("ADMINISTRADOR"));
 
 router.post("/", async (req, res) => {
   const d = validar(crearSchema, req.body);
-  const r = await svc.crear({ ...d, correoPersonal: d.correoPersonal ?? undefined });
-  await auditar(req, { accion: "USUARIO_CREADO", entidad: "usuario", entidadId: r.usuario.id, descripcion: `Rol ${r.usuario.rol.nombre}` });
+  const r = await svc.crear(alcance(req), { ...d, correoPersonal: d.correoPersonal ?? undefined });
+  await auditar(req, {
+    accion: "USUARIO_CREADO",
+    entidad: "usuario",
+    entidadId: r.usuario.id,
+    descripcion: `Rol ${r.usuario.rol.nombre} · centro ${r.usuario.centro?.codigo ?? "—"}`,
+  });
   if (r.acceso)
     await auditar(req, {
       accion: "ACCESO_ENVIADO",
@@ -75,23 +88,23 @@ router.post("/", async (req, res) => {
 // Enviar o reenviar el enlace para crear o restablecer la contraseña (RF-USU-10).
 router.post("/:id/enviar-acceso", async (req, res) => {
   const id = idParam(req.params.id);
-  const r = await svc.enviarAcceso(id);
+  const r = await svc.enviarAcceso(alcance(req), id);
   await auditar(req, { accion: "ACCESO_ENVIADO", entidad: "usuario", entidadId: id, datos: { enviado: r.enviado } });
   res.json({ success: true, message: r.enviado ? `Enlace de acceso enviado a ${r.enviadoA}` : "No se pudo enviar el correo", data: r });
 });
 
 router.get("/", async (req, res) => {
-  res.json({ success: true, data: await svc.listar(validar(listaSchema, req.query)) });
+  res.json({ success: true, data: await svc.listar(alcance(req), validar(listaSchema, req.query)) });
 });
 
 router.get("/:id", async (req, res) => {
-  res.json({ success: true, data: await svc.obtener(idParam(req.params.id)) });
+  res.json({ success: true, data: await svc.obtener(alcance(req), idParam(req.params.id)) });
 });
 
 router.patch("/:id", async (req, res) => {
   const id = idParam(req.params.id);
   const d = validar(editarSchema, req.body);
-  const u = await svc.actualizar(id, d, req.user!.userId);
+  const u = await svc.actualizar(alcance(req), id, d);
   await auditar(req, { accion: "USUARIO_EDITADO", entidad: "usuario", entidadId: id, datos: d });
   res.json({ success: true, message: "Usuario actualizado", data: u });
 });
@@ -99,7 +112,7 @@ router.patch("/:id", async (req, res) => {
 router.patch("/:id/estado", async (req, res) => {
   const id = idParam(req.params.id);
   const { estado } = validar(estadoSchema, req.body);
-  const u = await svc.cambiarEstado(id, estado, req.user!.userId);
+  const u = await svc.cambiarEstado(alcance(req), id, estado);
   await auditar(req, { accion: `USUARIO_${estado}`, entidad: "usuario", entidadId: id });
   res.json({ success: true, message: `Estado actualizado a ${estado}`, data: u });
 });
@@ -107,7 +120,7 @@ router.patch("/:id/estado", async (req, res) => {
 router.patch("/:id/restablecer-password", async (req, res) => {
   const id = idParam(req.params.id);
   const { passwordNueva } = validar(resetSchema, req.body);
-  const r = await svc.restablecerPassword(id, passwordNueva);
+  const r = await svc.restablecerPassword(alcance(req), id, passwordNueva);
   await auditar(req, { accion: "PASSWORD_RESTABLECIDA", entidad: "usuario", entidadId: id });
   res.json({ success: true, message: "Contraseña restablecida. El usuario deberá cambiarla al ingresar", data: r });
 });

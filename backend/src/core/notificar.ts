@@ -32,9 +32,10 @@ export async function notificar(n: NuevaNotificacion, db: Db = prisma): Promise<
   }
 }
 
-export async function idsSupervisores(db: Db = prisma): Promise<number[]> {
+/** Supervisores y administradores activos del centro (no incluye al administrador general). */
+export async function idsSupervisores(centroId: number, db: Db = prisma): Promise<number[]> {
   const s = await db.usuario.findMany({
-    where: { estado: "ACTIVO", rol: { nombre: { in: ["SUPERVISOR", "ADMINISTRADOR"] } } },
+    where: { estado: "ACTIVO", centroId, rol: { nombre: { in: ["SUPERVISOR", "ADMINISTRADOR"] } } },
     select: { id: true },
   });
   return s.map((x) => x.id);

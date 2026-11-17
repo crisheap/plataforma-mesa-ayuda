@@ -6,6 +6,7 @@ import { nombreCompleto } from "../../utils/nombre";
 import { revocarSesiones } from "../auth/auth.service";
 import { clasificarCorreo, dominiosEmpresariales } from "../../core/correos";
 import { emitirAcceso, type ResultadoAcceso } from "../../core/acceso";
+import { type Alcance, esGeneral, filtroCentro, mismoCentro, puedeGestionar, rolesGestionables } from "../../core/centros";
 
 const publico = {
   id: true,
@@ -21,6 +22,8 @@ const publico = {
   tipoCorreo: true,
   correoPersonal: true,
   rol: { select: { id: true, nombre: true } },
+  centroId: true,
+  centro: { select: { id: true, codigo: true, nombre: true } },
 } satisfies Prisma.UsuarioSelect;
 
 type Fila = Prisma.UsuarioGetPayload<{ select: typeof publico }>;
@@ -54,16 +57,53 @@ function correoPersonalValido(correo: string, tipo: TipoCorreo, personal: string
   return personal;
 }
 
-export async function crear(d: {
-  nombre: string;
-  apellido: string;
-  correo: string;
-  rol: RolNombre;
-  password?: string;
-  tipoCorreo?: TipoCorreo;
-  correoPersonal?: string;
-  enviarAcceso?: boolean;
-}): Promise<{ usuario: ReturnType<typeof mapear>; passwordTemporal?: string; acceso?: ResultadoAcceso }> {
+/** Centro donde quedará la cuenta: el general elige; el administrador de centro solo crea en el suyo (RF-CEN-03). */
+async function centroDestino(actor: Alcance, pedido?: number): Promise<number> {
+  const id = esGeneral(actor) ? pedido : actor.centroId;
+  if (!id)
+    throw AppError.badRequest("Elige el centro al que pertenece la cuenta", [{ field: "centroId", message: "Elige un centro" }]);
+  const c = await prisma.centro.findUnique({ where: { id } });
+  if (!c) throw AppError.badRequest("El centro no existe", [{ field: "centroId", message: "Centro no válido" }]);
+  if (!c.activo) throw AppError.badRequest("El centro está inactivo", [{ field: "centroId", message: "Centro inactivo" }]);
+  return id;
+}
+
+function exigirRol(actor: Alcance, rol: RolNombre) {
+  if (!rolesGestionables(actor).includes(rol))
+    throw AppError.forbidden("Solo el administrador general puede crear o asignar el rol de administrador");
+}
+
+/** Carga la cuenta si el actor la puede ver (404 si es de otro centro) y exige que la pueda modificar. */
+async function exigirGestion(actor: Alcance, id: number) {
+  const u = await prisma.usuario.findUnique({ where: { id }, select: { id: true, centroId: true, rol: { select: { nombre: true } } } });
+  const objetivo = u ? { id: u.id, centroId: u.centroId, rol: u.rol.nombre } : null;
+  if (!objetivo || !(mismoCentro(actor, objetivo.centroId) || objetivo.id === actor.userId))
+    throw AppError.notFound("Usuario no encontrado");
+  if (objetivo.id !== actor.userId && !puedeGestionar(actor, objetivo))
+    throw AppError.forbidden(
+      objetivo.centroId === null
+        ? "La cuenta del administrador general solo la modifica su titular"
+        : "Solo el administrador general puede modificar a los administradores de centro",
+    );
+  return objetivo;
+}
+
+export async function crear(
+  actor: Alcance,
+  d: {
+    nombre: string;
+    apellido: string;
+    correo: string;
+    rol: RolNombre;
+    centroId?: number;
+    password?: string;
+    tipoCorreo?: TipoCorreo;
+    correoPersonal?: string;
+    enviarAcceso?: boolean;
+  },
+): Promise<{ usuario: ReturnType<typeof mapear>; passwordTemporal?: string; acceso?: ResultadoAcceso }> {
+  exigirRol(actor, d.rol);
+  const centroId = await centroDestino(actor, d.centroId);
   if (await prisma.usuario.findUnique({ where: { correo: d.correo } })) throw AppError.conflict("Ya existe un usuario con ese correo");
   const tipoCorreo = d.tipoCorreo ?? clasificarCorreo(d.correo, await dominiosEmpresariales());
   const correoPersonal = correoPersonalValido(d.correo, tipoCorreo, d.correoPersonal);
@@ -82,6 +122,7 @@ export async function crear(d: {
       correoPersonal,
       password: await hashPassword(password),
       rolId: await rolId(d.rol),
+      centroId,
       debeCambiarPassword: true, // toda cuenta nueva debe cambiar la contraseña inicial
     },
     select: publico,
@@ -91,20 +132,26 @@ export async function crear(d: {
 }
 
 /** Envía (o reenvía) el enlace de acceso: bienvenida si nunca ha ingresado; si no, restablecimiento. */
-export async function enviarAcceso(id: number) {
-  const u = await obtener(id);
+export async function enviarAcceso(actor: Alcance, id: number) {
+  await exigirGestion(actor, id);
+  const u = await obtener(actor, id);
   return emitirAcceso(id, u.ultimoAcceso ? "RESTABLECER" : "BIENVENIDA");
 }
 
-export async function listar(f: {
+export async function listar(
+  actor: Alcance,
+  f: {
+  centroId?: number;
   q?: string;
   rol?: RolNombre;
   estado?: "ACTIVO" | "BLOQUEADO" | "INACTIVO";
   tipoCorreo?: TipoCorreo;
   page: number;
   pageSize: number;
-}) {
+},
+) {
   const where: Prisma.UsuarioWhereInput = {
+    ...filtroCentro(actor, f.centroId),
     ...(f.rol ? { rol: { nombre: f.rol } } : {}),
     ...(f.estado ? { estado: f.estado } : {}),
     ...(f.tipoCorreo ? { tipoCorreo: f.tipoCorreo } : {}),
@@ -126,17 +173,17 @@ export async function listar(f: {
   return { items: items.map(mapear), total, page: f.page, pageSize: f.pageSize };
 }
 
-export async function obtener(id: number) {
+export async function obtener(actor: Alcance, id: number) {
   const u = await prisma.usuario.findUnique({ where: { id }, select: publico });
-  if (!u) throw AppError.notFound("Usuario no encontrado");
+  if (!u || !(mismoCentro(actor, u.centroId) || u.id === actor.userId)) throw AppError.notFound("Usuario no encontrado");
   return mapear(u);
 }
 
-/** Técnicos activos con su carga de trabajo, para asignar casos (RF-CAS-08). */
-export async function tecnicosDisponibles() {
+/** Técnicos activos del centro con su carga de trabajo, para asignar casos (RF-CAS-08, RF-CEN-02). */
+export async function tecnicosDisponibles(actor: Alcance, centroId?: number) {
   const tecnicos = await prisma.usuario.findMany({
-    where: { estado: "ACTIVO", rol: { nombre: "TECNICO" } },
-    select: { id: true, nombre: true, apellido: true, correo: true },
+    where: { estado: "ACTIVO", rol: { nombre: "TECNICO" }, ...filtroCentro(actor, centroId) },
+    select: { id: true, nombre: true, apellido: true, correo: true, centroId: true },
     orderBy: [{ nombre: "asc" }, { apellido: "asc" }],
   });
   const cargas = await prisma.caso.groupBy({
@@ -148,24 +195,25 @@ export async function tecnicosDisponibles() {
   return tecnicos.map((t) => ({ ...t, nombreCompleto: nombreCompleto(t), casosActivos: mapaCarga.get(t.id) ?? 0 }));
 }
 
-async function exigirNoUltimoAdmin(id: number) {
-  const u = await prisma.usuario.findUnique({ where: { id }, select: { estado: true, rol: { select: { nombre: true } } } });
-  if (u?.rol.nombre === "ADMINISTRADOR" && u.estado === "ACTIVO") {
-    const otros = await prisma.usuario.count({ where: { id: { not: id }, estado: "ACTIVO", rol: { nombre: "ADMINISTRADOR" } } });
-    if (otros === 0) throw AppError.conflict("No se puede dejar el sistema sin un administrador activo");
-  }
-}
-
 export async function actualizar(
+  actor: Alcance,
   id: number,
-  d: { nombre?: string; apellido?: string; rol?: RolNombre; tipoCorreo?: TipoCorreo; correoPersonal?: string | null },
-  actorId: number,
+  d: { nombre?: string; apellido?: string; rol?: RolNombre; centroId?: number; tipoCorreo?: TipoCorreo; correoPersonal?: string | null },
 ) {
-  const previo = await obtener(id);
-  if (d.rol) {
-    if (id === actorId) throw AppError.badRequest("No puedes cambiar tu propio rol");
-    const actual = await prisma.usuario.findUnique({ where: { id }, select: { rol: { select: { nombre: true } } } });
-    if (actual?.rol.nombre === "ADMINISTRADOR" && d.rol !== "ADMINISTRADOR") await exigirNoUltimoAdmin(id);
+  const objetivo = await exigirGestion(actor, id);
+  const previo = await obtener(actor, id);
+  if (d.rol && d.rol !== objetivo.rol) {
+    if (id === actor.userId) throw AppError.badRequest("No puedes cambiar tu propio rol");
+    exigirRol(actor, d.rol);
+  }
+  let centroId: number | undefined;
+  if (d.centroId !== undefined && d.centroId !== objetivo.centroId) {
+    if (!esGeneral(actor)) throw AppError.forbidden("Solo el administrador general puede cambiar a una persona de centro");
+    if (objetivo.centroId === null) throw AppError.badRequest("El administrador general no pertenece a ningún centro");
+    centroId = await centroDestino(actor, d.centroId);
+    const pendientes = await prisma.caso.count({ where: { tecnicoId: id, estado: { in: ["ASIGNADO", "EN_PROCESO"] } } });
+    if (pendientes)
+      throw AppError.conflict(`La persona tiene ${pendientes} caso(s) asignado(s) sin terminar; reasígnalos antes de cambiarla de centro`);
   }
   const u = await prisma.usuario.update({
     where: { id },
@@ -173,6 +221,7 @@ export async function actualizar(
       nombre: d.nombre,
       apellido: d.apellido,
       ...(d.rol ? { rolId: await rolId(d.rol) } : {}),
+      ...(centroId ? { centroId } : {}),
       ...(d.tipoCorreo !== undefined || d.correoPersonal !== undefined
         ? (() => {
             const tipo = d.tipoCorreo ?? previo.tipoCorreo;
@@ -187,10 +236,9 @@ export async function actualizar(
 }
 
 /** Bloquear / desbloquear / dar de baja (RF-USU-04, RF-USU-06). */
-export async function cambiarEstado(id: number, estado: "ACTIVO" | "BLOQUEADO" | "INACTIVO", actorId: number) {
-  await obtener(id);
-  if (id === actorId && estado !== "ACTIVO") throw AppError.badRequest("No puedes bloquear ni inactivar tu propia cuenta");
-  if (estado !== "ACTIVO") await exigirNoUltimoAdmin(id);
+export async function cambiarEstado(actor: Alcance, id: number, estado: "ACTIVO" | "BLOQUEADO" | "INACTIVO") {
+  await exigirGestion(actor, id);
+  if (id === actor.userId && estado !== "ACTIVO") throw AppError.badRequest("No puedes bloquear ni inactivar tu propia cuenta");
   const u = await prisma.usuario.update({
     where: { id },
     // Al activar se reinicia el contador y se limpia el bloqueo; el bloqueo manual no lleva fecha.
@@ -202,8 +250,8 @@ export async function cambiarEstado(id: number, estado: "ACTIVO" | "BLOQUEADO" |
 }
 
 /** Restablecimiento por el administrador sin conocer la contraseña actual (RF-USU-05, corrige H-03). */
-export async function restablecerPassword(id: number, passwordNueva?: string) {
-  await obtener(id);
+export async function restablecerPassword(actor: Alcance, id: number, passwordNueva?: string) {
+  await exigirGestion(actor, id);
   let temporal: string | undefined;
   let password = passwordNueva;
   if (password) exigirPolitica(password);

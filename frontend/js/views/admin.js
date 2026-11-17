@@ -1,4 +1,5 @@
 import { api } from "../api.js";
+import { etiquetaCentro, selectorCentro } from "../centros-ui.js";
 import {
   envolturaTabla,
   h,
@@ -102,7 +103,16 @@ const msgs = (e) => [e.message, ...(e.errors ?? []).map((x) => x.message)].join(
 
 // ───────────── Usuarios (RF-USU-04/05/06) ─────────────
 export async function vistaUsuarios({ usuario: yo }) {
-  const f = { page: 1, pageSize: 15, q: "", rol: "", estado: "", tipoCorreo: "" };
+  // Parámetros del enlace (desde Centros): ?centro=ID filtra; ?nuevo=ADMINISTRADOR abre la creación (RF-CEN-03).
+  const qs = new URLSearchParams(location.hash.split("?")[1] ?? "");
+  const general = yo.esGeneral;
+  const f = { page: 1, pageSize: 15, q: "", rol: "", estado: "", tipoCorreo: "", centroId: general ? (qs.get("centro") ?? "") : "" };
+  /** Roles que puedo asignar: el administrador de centro no crea administradores. */
+  const rolesPermitidos = general ? ROLES : Object.fromEntries(Object.entries(ROLES).filter(([k]) => k !== "ADMINISTRADOR"));
+  /** Misma regla del servidor (puedeGestionar): el general gestiona todo; el de centro, lo no administrador de su centro. */
+  const gestionable = (u) =>
+    u.id === yo.id || (general ? u.centro !== null : u.centro?.id === yo.centro?.id && u.rol.nombre !== "ADMINISTRADOR");
+  const sCentro = general ? selectorCentro({ valor: f.centroId }) : null;
   let cfg = { dominiosEmpresariales: [], smtpConfigurado: true, vigenciaEnlaceHoras: 48 };
   api("/api/configuracion/correo")
     .then((d) => {
@@ -122,7 +132,7 @@ export async function vistaUsuarios({ usuario: yo }) {
   const cargar = async () => {
     montar(lista, cargando());
     const p = new URLSearchParams({ page: f.page, pageSize: f.pageSize });
-    ["q", "rol", "estado", "tipoCorreo"].forEach((k) => {
+    ["q", "rol", "estado", "tipoCorreo", "centroId"].forEach((k) => {
       f[k] && p.set(k, f[k]);
     });
     try {
@@ -142,7 +152,9 @@ export async function vistaUsuarios({ usuario: yo }) {
                   h(
                     "tr",
                     {},
-                    ["Nombre completo", "Correo", "Rol", "Estado", "Último acceso", "Acciones"].map((t) => h("th", { scope: "col" }, t)),
+                    ["Nombre completo", "Correo", "Rol", ...(general ? ["Centro"] : []), "Estado", "Último acceso", "Acciones"].map((t) =>
+                      h("th", { scope: "col" }, t),
+                    ),
                   ),
                 ),
                 h(
@@ -166,10 +178,17 @@ export async function vistaUsuarios({ usuario: yo }) {
                         h("span", { class: `badge ${u.tipoCorreo === "PERSONAL" ? "b-gris" : "b-azul"}` }, TIPOS_CORREO[u.tipoCorreo]),
                         u.correoPersonal ? h("div", { class: "small muted" }, `Personal: ${u.correoPersonal}`) : null,
                       ),
-                      h("td", {}, ROLES[u.rol.nombre]),
+                      h("td", {}, u.rol.nombre === "ADMINISTRADOR" && !u.centro ? "Administrador general" : ROLES[u.rol.nombre]),
+                      general ? h("td", {}, etiquetaCentro(u.centro)) : null,
                       h("td", {}, h("span", { class: `badge ${ESTADOS_USR[u.estado][1]}` }, ESTADOS_USR[u.estado][0])),
                       h("td", {}, fecha(u.ultimoAcceso)),
-                      h("td", {}, h("div", { class: "row" }, ...acciones(u))),
+                      h(
+                        "td",
+                        {},
+                        gestionable(u)
+                          ? h("div", { class: "row" }, ...acciones(u))
+                          : h("span", { class: "small muted" }, "Lo gestiona el administrador general"),
+                      ),
                     ),
                   ),
                 ),
@@ -297,8 +316,9 @@ export async function vistaUsuarios({ usuario: yo }) {
   async function editar(u) {
     const n = h("input", { value: u.nombre, maxlength: "80" }),
       a = h("input", { value: u.apellido, maxlength: "80" });
-    const r = h("select", {}, opciones(ROLES, u.rol.nombre));
+    const r = h("select", {}, opciones(u.id === yo.id ? ROLES : rolesPermitidos, u.rol.nombre));
     if (u.id === yo.id) r.disabled = true;
+    const cen = general && u.centro ? selectorCentro({ todos: null, etiqueta: "Centro", valor: u.centro.id, soloActivos: true }) : null;
     const correos = camposCorreo({
       tipoInicial: u.tipoCorreo,
       personalInicial: u.correoPersonal,
@@ -312,6 +332,7 @@ export async function vistaUsuarios({ usuario: yo }) {
         campo("Nombre", n),
         campo("Apellido", a),
         campo("Rol", r, u.id === yo.id ? "No puedes cambiar tu propio rol." : undefined),
+        cen ? campo("Centro", cen, "Para cambiar a alguien de centro no debe tener casos asignados sin terminar.") : null,
         h("p", { class: "small" }, "Correo de acceso: ", h("strong", {}, u.correo)),
         correos.nodos,
       ),
@@ -325,16 +346,23 @@ export async function vistaUsuarios({ usuario: yo }) {
       () =>
         api(`/api/usuarios/${u.id}`, {
           method: "PATCH",
-          body: { nombre: n.value.trim(), apellido: a.value.trim(), ...(u.id === yo.id ? {} : { rol: r.value }), ...correos.valores() },
+          body: {
+            nombre: n.value.trim(),
+            apellido: a.value.trim(),
+            ...(u.id === yo.id ? {} : { rol: r.value }),
+            ...(cen?.value ? { centroId: Number(cen.value) } : {}),
+            ...correos.valores(),
+          },
         }),
       "Usuario actualizado",
     )();
   }
-  async function crear() {
+  async function crear({ rol = "USUARIO", centro = f.centroId } = {}) {
     const n = h("input", { maxlength: "80" }),
       a = h("input", { maxlength: "80" }),
       c = h("input", { type: "email", autocomplete: "off", maxlength: "150" }),
-      r = h("select", {}, opciones(ROLES, "USUARIO"));
+      r = h("select", {}, opciones(rolesPermitidos, rolesPermitidos[rol] ? rol : "USUARIO"));
+    const cen = general ? selectorCentro({ todos: null, etiqueta: "Centro", valor: centro, soloActivos: true }) : null;
     const correos = camposCorreo({ correoAcceso: c, tipoInicial: "EMPRESARIAL", dominios: () => cfg.dominiosEmpresariales });
     const enviar = h("input", { type: "checkbox", id: "enviar-acceso", checked: true });
     const ok = await modal({
@@ -346,7 +374,10 @@ export async function vistaUsuarios({ usuario: yo }) {
         campo("Apellido", a),
         campo("Correo de acceso", c, "Con este correo iniciará sesión y recibirá las notificaciones de sus casos."),
         correos.nodos,
-        campo("Rol", r),
+        campo("Rol", r, general ? "Elige «Administrador» para crear el administrador de un centro." : undefined),
+        cen
+          ? campo("Centro", cen, "La persona solo verá y gestionará la información de este centro.")
+          : h("p", { class: "small muted" }, `La cuenta se creará en tu centro (${yo.centro?.codigo ?? ""}).`),
         h("label", { class: "row", for: "enviar-acceso" }, enviar, "Enviar correo de bienvenida con un enlace para crear la contraseña"),
         h(
           "p",
@@ -358,7 +389,18 @@ export async function vistaUsuarios({ usuario: yo }) {
       ),
       acciones: [
         { texto: "Cancelar", valor: false },
-        { texto: "Crear usuario", primario: true, valor: true },
+        {
+          texto: "Crear usuario",
+          primario: true,
+          valor: true,
+          validar: () => {
+            if (cen && !cen.value) {
+              toast("Elige el centro de la cuenta");
+              return false;
+            }
+            return true;
+          },
+        },
       ],
     });
     if (!ok) return;
@@ -370,6 +412,7 @@ export async function vistaUsuarios({ usuario: yo }) {
           apellido: a.value.trim(),
           correo: c.value.trim(),
           rol: r.value,
+          ...(cen ? { centroId: Number(cen.value) } : {}),
           ...correos.valores(),
           enviarAcceso: enviar.checked,
         },
@@ -419,17 +462,27 @@ export async function vistaUsuarios({ usuario: yo }) {
     f.page = 1;
     cargar();
   });
+  sCentro?.addEventListener("change", () => {
+    f.centroId = sCentro.value;
+    f.page = 1;
+    cargar();
+  });
   cargar();
+  if (qs.get("nuevo")) {
+    // Se limpia el parámetro para que recargar la página no vuelva a abrir el formulario.
+    history.replaceState(null, "", f.centroId ? `#/usuarios?centro=${f.centroId}` : "#/usuarios");
+    setTimeout(() => crear({ rol: qs.get("nuevo"), centro: qs.get("centro") ?? "" }), 0);
+  }
   return h(
     "div",
     {},
     h(
       "div",
       { class: "page-title" },
-      h("h1", {}, "Usuarios y técnicos"),
+      h("h1", {}, general ? "Usuarios de todos los centros" : `Usuarios del centro ${yo.centro?.codigo ?? ""}`),
       h("button", { class: "btn primary", onclick: crear }, "Nuevo usuario"),
     ),
-    h("div", { class: "card row" }, h("div", { class: "grow" }, q), sRol, sEst, sTipo),
+    h("div", { class: "card row" }, h("div", { class: "grow" }, q), sCentro, sRol, sEst, sTipo),
     lista,
   );
 }
@@ -594,20 +647,27 @@ export async function vistaSla() {
 }
 
 // ───────────── Auditoría (RF-ADM-04) ─────────────
-export async function vistaAuditoria() {
-  const f = { page: 1, pageSize: 25, accion: "", entidad: "" };
+export async function vistaAuditoria({ usuario: yo }) {
+  const f = { page: 1, pageSize: 25, accion: "", entidad: "", centroId: "" };
+  // El general puede ver un centro o todos; los demás ven siempre las acciones de su centro (RF-CEN-02).
+  const sCentro = yo.esGeneral ? selectorCentro() : null;
   const lista = h("div", { "aria-live": "polite" });
   const accion = h("input", { type: "search", placeholder: "Acción (ej. LOGIN, CASO_CREADO)", "aria-label": "Filtrar por acción" });
   const entidad = h(
     "select",
     { "aria-label": "Filtrar por entidad" },
-    opciones({ caso: "Caso", usuario: "Usuario", sla: "SLA", reporte: "Reporte", articulo: "Artículo" }, "", "Todas las entidades"),
+    opciones(
+      { caso: "Caso", usuario: "Usuario", centro: "Centro", sla: "SLA", reporte: "Reporte", articulo: "Artículo" },
+      "",
+      "Todas las entidades",
+    ),
   );
   const cargar = async () => {
     montar(lista, cargando());
     const p = new URLSearchParams({ page: f.page, pageSize: f.pageSize });
     if (f.accion) p.set("accion", f.accion);
     if (f.entidad) p.set("entidad", f.entidad);
+    if (f.centroId) p.set("centroId", f.centroId);
     try {
       const d = await api(`/api/auditoria?${p}`);
       montar(
@@ -665,6 +725,11 @@ export async function vistaAuditoria() {
       cargar();
     }, 400);
   });
+  sCentro?.addEventListener("change", () => {
+    f.centroId = sCentro.value;
+    f.page = 1;
+    cargar();
+  });
   entidad.addEventListener("change", () => {
     f.entidad = entidad.value;
     f.page = 1;
@@ -676,7 +741,7 @@ export async function vistaAuditoria() {
     {},
     h("div", { class: "page-title" }, h("h1", {}, "Bitácora de auditoría")),
     h("p", { class: "muted" }, "Registro de solo lectura: las entradas no pueden modificarse ni eliminarse."),
-    h("div", { class: "card row" }, h("div", { class: "grow" }, accion), entidad),
+    h("div", { class: "card row" }, h("div", { class: "grow" }, accion), sCentro, entidad),
     lista,
   );
 }

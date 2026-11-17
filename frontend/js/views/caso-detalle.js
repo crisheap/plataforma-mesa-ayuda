@@ -136,6 +136,7 @@ export async function vistaCasoDetalle({ params, usuario: u }) {
             h(
               "dl",
               { class: "small" },
+              ...dato("Centro", c.centro ? `${c.centro.codigo} · ${c.centro.nombre}` : null),
               ...dato("Tipo", TIPOS[c.tipo]),
               ...dato("Categoría", CATEGORIAS[c.categoria]),
               ...dato("Solicitante", c.usuario?.nombreCompleto),
@@ -202,7 +203,8 @@ const dato = (k, v) => [h("dt", { class: "muted" }, k), h("dd", { style: null },
 function panelAsignar(c, accion) {
   const tecnico = h("select", { id: "tec" }, h("option", { value: "" }, "Cargando técnicos…"));
   const prio = h("select", { id: "prio-a" }, opciones({ ALTA: "Alta", MEDIA: "Media", BAJA: "Baja" }, c.prioridad));
-  api("/api/usuarios/tecnicos")
+  // Solo técnicos del centro del caso (RF-CEN-02).
+  api(`/api/usuarios/tecnicos?centroId=${c.centroId}`)
     .then((ts) => {
       tecnico.replaceChildren(
         h("option", { value: "" }, "Selecciona un técnico…"),

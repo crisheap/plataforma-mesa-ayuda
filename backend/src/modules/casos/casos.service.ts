@@ -5,25 +5,31 @@ import { nombreCompleto } from "../../utils/nombre";
 import { auditar } from "../../core/audit";
 import { idsSupervisores, notificar } from "../../core/notificar";
 import { ESTADOS_ABIERTOS, esPersonalInterno, evaluarCambioEstado, formatearNumeroCaso, puedeVerCaso } from "../../core/reglas";
+import { filtroCentro } from "../../core/centros";
 import { calcularVencimiento, minutosRestantes, semaforoSla } from "../../core/sla";
 
 export interface Actor {
   userId: number;
   rol: "USUARIO" | "TECNICO" | "SUPERVISOR" | "ADMINISTRADOR";
+  /** Centro del actor; null solo para el administrador general (RF-CEN-02). */
+  centroId: number | null;
   ip?: string;
 }
 
 const personaSel = { select: { id: true, nombre: true, apellido: true, correo: true } } as const;
+const centroSel = { select: { id: true, codigo: true, nombre: true } } as const;
+const listaInclude = { usuario: personaSel, tecnico: personaSel, centro: centroSel } as const;
 
 const detalleInclude = {
   usuario: personaSel,
   tecnico: personaSel,
+  centro: centroSel,
   evidencias: { orderBy: { id: "asc" } },
   historial: { orderBy: { fecha: "asc" }, include: { usuario: { select: { id: true, nombre: true, apellido: true } } } },
   calificacion: true,
 } satisfies Prisma.CasoInclude;
 
-type CasoLista = Prisma.CasoGetPayload<{ include: { usuario: typeof personaSel; tecnico: typeof personaSel } }>;
+type CasoLista = Prisma.CasoGetPayload<{ include: typeof listaInclude }>;
 
 const conPersona = <T extends { nombre: string; apellido: string } | null>(p: T) =>
   p ? { ...p, nombreCompleto: nombreCompleto(p) } : null;
@@ -42,14 +48,14 @@ export function presentar<T extends CasoLista>(c: T) {
   };
 }
 
-// ───────────── Número de caso (atómico; corrige H-12) ─────────────
-async function siguienteNumero(tx: Tx, fecha = new Date()): Promise<string> {
+// ───────────── Número de caso (atómico; corrige H-12) — consecutivo por centro y año ─────────────
+async function siguienteNumero(tx: Tx, centro: { id: number; codigo: string }, fecha = new Date()): Promise<string> {
   const anio = fecha.getFullYear();
   const r = await tx.$queryRaw<{ ultimo: number }[]>`
-    INSERT INTO "contadores_caso" ("anio", "ultimo") VALUES (${anio}, 1)
-    ON CONFLICT ("anio") DO UPDATE SET "ultimo" = "contadores_caso"."ultimo" + 1
+    INSERT INTO "contadores_caso" ("centroId", "anio", "ultimo") VALUES (${centro.id}, ${anio}, 1)
+    ON CONFLICT ("centroId", "anio") DO UPDATE SET "ultimo" = "contadores_caso"."ultimo" + 1
     RETURNING "ultimo"`;
-  return formatearNumeroCaso(anio, Number(r[0].ultimo));
+  return formatearNumeroCaso(centro.codigo, anio, Number(r[0].ultimo));
 }
 
 async function minutosSla(prioridad: Prioridad, db: Tx | typeof prisma = prisma): Promise<number | null> {
@@ -58,7 +64,7 @@ async function minutosSla(prioridad: Prioridad, db: Tx | typeof prisma = prisma)
 }
 
 async function cargar(id: number) {
-  const c = await prisma.caso.findUnique({ where: { id }, include: { usuario: personaSel, tecnico: personaSel } });
+  const c = await prisma.caso.findUnique({ where: { id }, include: listaInclude });
   if (!c) throw AppError.notFound("Caso no encontrado");
   return c;
 }
@@ -75,13 +81,18 @@ export async function crear(
   actor: Actor,
   d: { titulo: string; descripcion: string; tipo: TipoCaso; categoria: CategoriaCaso; telefonoContacto?: string },
 ) {
+  if (actor.centroId === null)
+    throw AppError.badRequest("El administrador general no pertenece a un centro y no registra casos; hazlo con una cuenta del centro");
+  const centro = await prisma.centro.findUnique({ where: { id: actor.centroId } });
+  if (!centro?.activo) throw AppError.badRequest("Tu centro está inactivo; comunícate con el administrador");
   const caso = await prisma.$transaction(async (tx) => {
     const prioridad: Prioridad = "MEDIA"; // la prioridad la define el Supervisor/Administrador (H-07)
     const min = await minutosSla(prioridad, tx);
     const ahora = new Date();
     const c = await tx.caso.create({
       data: {
-        numeroCaso: await siguienteNumero(tx, ahora),
+        numeroCaso: await siguienteNumero(tx, centro, ahora),
+        centroId: centro.id,
         titulo: d.titulo,
         descripcion: d.descripcion,
         tipo: d.tipo,
@@ -92,7 +103,7 @@ export async function crear(
         fechaCreacion: ahora,
         slaVenceEn: min ? calcularVencimiento(ahora, min) : null,
       },
-      include: { usuario: personaSel, tecnico: personaSel },
+      include: listaInclude,
     });
     await tx.historialCaso.create({
       data: { casoId: c.id, estadoAnterior: null, estadoNuevo: "ABIERTO", descripcion: "Caso registrado", usuarioId: actor.userId },
@@ -107,7 +118,7 @@ export async function crear(
     casoId: caso.id,
   });
   await notificar({
-    usuarioIds: (await idsSupervisores()).filter((i) => i !== actor.userId),
+    usuarioIds: (await idsSupervisores(centro.id)).filter((i) => i !== actor.userId),
     titulo: `Nuevo caso ${caso.numeroCaso}`,
     mensaje: `«${caso.titulo}» espera asignación.`,
     tipo: "CASO_NUEVO",
@@ -128,6 +139,7 @@ export interface FiltrosCaso {
   estado?: EstadoCaso;
   prioridad?: Prioridad;
   tecnicoId?: number;
+  centroId?: number;
   q?: string;
   desde?: Date;
   hasta?: Date;
@@ -158,7 +170,7 @@ async function consultar(base: Prisma.CasoWhereInput, f: FiltrosCaso) {
     prisma.caso.count({ where }),
     prisma.caso.findMany({
       where,
-      include: { usuario: personaSel, tecnico: personaSel },
+      include: listaInclude,
       orderBy: [{ fechaCreacion: "desc" }],
       skip: (f.page - 1) * f.pageSize,
       take: f.pageSize,
@@ -167,7 +179,8 @@ async function consultar(base: Prisma.CasoWhereInput, f: FiltrosCaso) {
   return { items: items.map(presentar), total, page: f.page, pageSize: f.pageSize };
 }
 
-export const listarTodos = (f: FiltrosCaso) => consultar({}, f);
+/** Todos los casos del centro del actor; el administrador general ve todos o el centro que elija (RF-CEN-02). */
+export const listarTodos = (actor: Actor, f: FiltrosCaso) => consultar(filtroCentro(actor, f.centroId), f);
 export const listarMisCasos = (userId: number, f: FiltrosCaso) => consultar({ usuarioId: userId }, f);
 
 /** Panel del técnico: ordenado por vencimiento de SLA y prioridad (RF-CAS-10). */
@@ -214,11 +227,12 @@ export async function historial(id: number, actor: Actor) {
 
 // ───────────── Asignación y prioridad ─────────────
 export async function asignar(id: number, actor: Actor, d: { tecnicoId: number; prioridad?: Prioridad }) {
-  const caso = await cargar(id);
+  const caso = await cargarAutorizado(id, actor);
   if (caso.estado === "RESUELTO" || caso.estado === "CERRADO") throw AppError.conflict(`No se puede asignar un caso ${caso.estado}`);
   const tec = await prisma.usuario.findUnique({ where: { id: d.tecnicoId }, include: { rol: true } });
   if (!tec || tec.rol.nombre !== "TECNICO") throw AppError.badRequest("El usuario indicado no es un técnico");
   if (tec.estado !== "ACTIVO") throw AppError.badRequest("El técnico no está activo");
+  if (tec.centroId !== caso.centroId) throw AppError.badRequest("El técnico debe pertenecer al mismo centro del caso");
 
   const nuevaPrioridad = d.prioridad ?? caso.prioridad;
   // Al reasignar un caso EN_PROCESO se conserva el estado (corrige H-10); solo ABIERTO pasa a ASIGNADO.
@@ -236,7 +250,7 @@ export async function asignar(id: number, actor: Actor, d: { tecnicoId: number; 
         fechaAsignacion: caso.fechaAsignacion ?? new Date(),
         ...(min !== undefined ? { slaVenceEn: min ? calcularVencimiento(caso.fechaCreacion, min) : null, slaAlertado: false } : {}),
       },
-      include: { usuario: personaSel, tecnico: personaSel },
+      include: listaInclude,
     });
     await tx.historialCaso.create({
       data: {
@@ -283,7 +297,7 @@ export async function asignar(id: number, actor: Actor, d: { tecnicoId: number; 
 }
 
 export async function cambiarPrioridad(id: number, actor: Actor, prioridad: Prioridad) {
-  const caso = await cargar(id);
+  const caso = await cargarAutorizado(id, actor);
   if (caso.estado === "CERRADO") throw AppError.conflict("El caso está cerrado");
   if (caso.prioridad === prioridad) return presentar(caso);
   const act = await prisma.$transaction(async (tx) => {
@@ -291,7 +305,7 @@ export async function cambiarPrioridad(id: number, actor: Actor, prioridad: Prio
     const c = await tx.caso.update({
       where: { id },
       data: { prioridad, slaVenceEn: min ? calcularVencimiento(caso.fechaCreacion, min) : null, slaAlertado: false },
-      include: { usuario: personaSel, tecnico: personaSel },
+      include: listaInclude,
     });
     await tx.historialCaso.create({
       data: {
@@ -340,7 +354,7 @@ export async function cambiarEstado(id: number, actor: Actor, d: { estado: Estad
         ...(r.accion === "RECHAZAR" ? { fechaResolucion: null } : {}),
         ...(r.accion === "CERRAR" ? { fechaCierre: ahora } : {}),
       },
-      include: { usuario: personaSel, tecnico: personaSel },
+      include: listaInclude,
     });
     const desc = {
       INICIAR: "Atención iniciada",

@@ -22,6 +22,7 @@ const seleccionUsuario = {
   preferenciaTema: true,
   debeCambiarPassword: true,
   rol: { select: { nombre: true } },
+  centro: { select: { id: true, codigo: true, nombre: true } },
 } as const;
 
 type UsuarioDb = {
@@ -32,6 +33,7 @@ type UsuarioDb = {
   preferenciaTema: TemaPreferido;
   debeCambiarPassword: boolean;
   rol: { nombre: RolNombre };
+  centro: { id: number; codigo: string; nombre: string } | null;
 };
 
 /** Usuario tal como lo ve el cliente (RF-UI-04: incluye nombre completo). */
@@ -42,12 +44,15 @@ export const usuarioPublico = (u: UsuarioDb) => ({
   nombreCompleto: nombreCompleto(u),
   correo: u.correo,
   rol: u.rol.nombre,
+  // Centro de la persona (RF-CEN-01); null y esGeneral=true solo para el administrador general.
+  centro: u.centro,
+  esGeneral: u.rol.nombre === "ADMINISTRADOR" && u.centro === null,
   preferenciaTema: u.preferenciaTema,
   debeCambiarPassword: u.debeCambiarPassword,
 });
 
 async function emitirSesion(u: UsuarioDb) {
-  const token = firmarAccessToken({ userId: u.id, correo: u.correo, rol: u.rol.nombre });
+  const token = firmarAccessToken({ userId: u.id, correo: u.correo, rol: u.rol.nombre, centroId: u.centro?.id ?? null });
   const refreshToken = generarRefreshToken();
   await prisma.refreshToken.create({
     data: {

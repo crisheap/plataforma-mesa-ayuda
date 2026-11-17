@@ -6,6 +6,7 @@ import { authenticate } from "../../middlewares/auth.middleware";
 import { authorizeRoles } from "../../middlewares/role.middleware";
 import { nombreCompleto } from "../../utils/nombre";
 import { paginacion, validar } from "../../utils/validate";
+import { esGeneral } from "../../core/centros";
 
 const router = Router();
 router.use(authenticate, authorizeRoles("SUPERVISOR", "ADMINISTRADOR"));
@@ -14,6 +15,7 @@ const filtros = paginacion.extend({
   accion: z.string().trim().max(60).optional(),
   entidad: z.string().trim().max(60).optional(),
   usuarioId: z.coerce.number().int().positive().optional(),
+  centroId: z.coerce.number().int().positive().optional(),
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
 });
@@ -21,7 +23,11 @@ const filtros = paginacion.extend({
 /** Solo lectura: la bitácora no expone operaciones de escritura ni borrado (RF-ADM-04). */
 router.get("/", async (req, res) => {
   const f = validar(filtros, req.query);
+  // Cada centro ve las acciones de su personal; el administrador general ve todo o el centro que elija (RF-CEN-02).
+  const general = esGeneral({ rol: req.user!.rol, centroId: req.user!.centroId ?? null });
+  const centro = general ? f.centroId : (req.user!.centroId ?? -1);
   const where: Prisma.AuditoriaWhereInput = {
+    ...(centro ? { usuario: { centroId: centro } } : {}),
     ...(f.accion ? { accion: f.accion } : {}),
     ...(f.entidad ? { entidad: f.entidad } : {}),
     ...(f.usuarioId ? { usuarioId: f.usuarioId } : {}),

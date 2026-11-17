@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
-import { authorizeRoles } from "../../middlewares/role.middleware";
+import { authorizeRoles, soloGeneral } from "../../middlewares/role.middleware";
 import { rateLimit } from "../../middlewares/rateLimit.middleware";
 import { AppError } from "../../utils/errors";
 import { idParam, validar } from "../../utils/validate";
@@ -58,7 +58,7 @@ export function crearAsistenteRouter(auth: RequestHandler): Router {
   });
 
   // ───────────── Administración de la base de conocimiento ─────────────
-  const adm = authorizeRoles("ADMINISTRADOR");
+  const adm = [authorizeRoles("ADMINISTRADOR"), soloGeneral];
   const articuloSchema = z.object({
     titulo: z.string().trim().min(5).max(150),
     contenido: z.string().trim().min(20).max(6000),

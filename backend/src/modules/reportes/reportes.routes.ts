@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { type Request, Router } from "express";
 import ExcelJS from "exceljs";
 import { z } from "zod";
 import { authenticate } from "../../middlewares/auth.middleware";
@@ -6,6 +6,7 @@ import { authorizeRoles } from "../../middlewares/role.middleware";
 import { auditar } from "../../core/audit";
 import { validar } from "../../utils/validate";
 import { casosParaExcel, kpis, MAX_FILAS_EXCEL, ZONA_HORARIA } from "./reportes.service";
+import { esGeneral, filtroCentro } from "../../core/centros";
 
 const VERDE = "FF2E7D00";
 const cabecera = (fila: ExcelJS.Row) => {
@@ -23,16 +24,24 @@ const filtros = z.object({
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
   tecnicoId: z.coerce.number().int().positive().optional(),
+  centroId: z.coerce.number().int().positive().optional(),
   prioridad: z.enum(["ALTA", "MEDIA", "BAJA"]).optional(),
   estado: z.enum(["ABIERTO", "ASIGNADO", "EN_PROCESO", "RESUELTO", "CERRADO"]).optional(),
 });
 
+/** Filtros con el centro ya resuelto: el de la persona, o el que elija el administrador general (RF-CEN-02). */
+const filtrosDe = (req: Request) => {
+  const f = validar(filtros, req.query);
+  return { ...f, centroId: filtroCentro({ rol: req.user!.rol, centroId: req.user!.centroId ?? null }, f.centroId).centroId };
+};
+
 router.get("/kpis", async (req, res) => {
-  res.json({ success: true, data: await kpis(validar(filtros, req.query)) });
+  res.json({ success: true, data: await kpis(filtrosDe(req)) });
 });
 
 router.get("/casos.xlsx", async (req, res) => {
-  const f = validar(filtros, req.query);
+  const f = filtrosDe(req);
+  const general = esGeneral({ rol: req.user!.rol, centroId: req.user!.centroId ?? null });
   const filas = await casosParaExcel(f);
   const resumen = await kpis(f);
 
@@ -44,7 +53,9 @@ router.get("/casos.xlsx", async (req, res) => {
   const d = wb.addWorksheet("Dashboard", { properties: { tabColor: { argb: VERDE } } });
   d.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }];
   d.addRow(["Dashboard de casos – Plataforma Mesa de Ayuda SENA"]).font = { bold: true, size: 14 };
+  const centroTxt = f.centroId ? resumen.porCentro.find((c) => c.centroId === f.centroId) : null;
   const filtrosTxt = [
+    centroTxt ? `centro ${centroTxt.codigo} · ${centroTxt.nombre}` : general ? "todos los centros" : null,
     f.desde || f.hasta
       ? `Creados ${f.desde ? `desde ${fechaCorta(f.desde)}` : ""} ${f.hasta ? `hasta ${fechaCorta(f.hasta)}` : ""}`.trim()
       : "Todas las fechas",
@@ -93,6 +104,12 @@ router.get("/casos.xlsx", async (req, res) => {
   for (const [k, n] of Object.entries(resumen.porPrioridad)) d.addRow([`Prioridad ${k}`, n]);
   d.addRow([]);
 
+  if (general && !f.centroId) {
+    cabecera(d.addRow(["Centro", "Total", "Por realizar", "En proceso", "Realizados", "Vencidos"]));
+    for (const c of resumen.porCentro) d.addRow([`${c.codigo} · ${c.nombre}`, c.casos, c.porRealizar, c.enProceso, c.realizados, c.vencidos]);
+    d.addRow([]);
+  }
+
   cabecera(d.addRow(["Técnico", "Total", "Por realizar", "En proceso", "Realizados", "Vencidos"]));
   for (const t of resumen.porTecnico) d.addRow([t.tecnico, t.casos, t.porRealizar, t.enProceso, t.realizados, t.vencidos]);
   d.addRow([]);
@@ -104,6 +121,7 @@ router.get("/casos.xlsx", async (req, res) => {
   const hoja = wb.addWorksheet("Casos", { views: [{ state: "frozen", ySplit: 1 }] });
   hoja.columns = [
     { header: "Número", key: "numero", width: 18 },
+    { header: "Centro", key: "centro", width: 10 },
     { header: "Título", key: "titulo", width: 40 },
     { header: "Tipo", key: "tipo", width: 18 },
     { header: "Categoría", key: "categoria", width: 26 },

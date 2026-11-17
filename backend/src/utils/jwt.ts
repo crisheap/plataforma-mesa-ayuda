@@ -7,6 +7,8 @@ export interface JwtPayload {
   userId: number;
   correo: string;
   rol: RolNombre;
+  /** Centro del usuario; null solo para el administrador general (RF-CEN-02). */
+  centroId?: number | null;
 }
 
 export function firmarAccessToken(payload: JwtPayload): string {
@@ -18,7 +20,13 @@ export function firmarAccessToken(payload: JwtPayload): string {
 
 export function verificarAccessToken(token: string): JwtPayload {
   const d = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] }) as jwt.JwtPayload;
-  return { userId: Number(d.userId), correo: String(d.correo), rol: d.rol as RolNombre };
+  return {
+    userId: Number(d.userId),
+    correo: String(d.correo),
+    rol: d.rol as RolNombre,
+    // Tokens anteriores a los centros no traen el campo: queda undefined y no cuenta como general.
+    centroId: d.centroId === null ? null : typeof d.centroId === "number" ? d.centroId : undefined,
+  };
 }
 
 export const generarRefreshToken = () => randomBytes(48).toString("hex");

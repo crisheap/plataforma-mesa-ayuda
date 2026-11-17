@@ -12,15 +12,21 @@ import { vistaCasoDetalle } from "./views/caso-detalle.js";
 import { vistaCasoNuevo } from "./views/caso-nuevo.js";
 import { vistaUsuarios, vistaSla, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
 import { vistaDashboard } from "./views/dashboard.js";
+import { vistaCentros } from "./views/centros.js";
 import { vistaPerfil, vistaNotificaciones } from "./views/cuenta.js";
 
 const TODOS = ["USUARIO", "TECNICO", "SUPERVISOR", "ADMINISTRADOR"];
 const STAFF = ["SUPERVISOR", "ADMINISTRADOR"];
+/** Permisos por centro (RF-CEN-02): GENERAL = administrador sin centro; CON_CENTRO = cualquier cuenta de un centro. */
+const GENERAL = ["GENERAL"];
+const CON_CENTRO = ["CON_CENTRO"];
+const permisos = (u) => [u.rol, u.esGeneral ? "GENERAL" : "CON_CENTRO"];
+const puede = (u, roles) => permisos(u).some((p) => roles.includes(p));
 /** Tabla de rutas: [patrón, vista, roles permitidos, título]. */
 const RUTAS = [
   ["inicio", vistaInicio, TODOS, "Inicio"],
-  ["casos/nuevo", vistaCasoNuevo, TODOS, "Nuevo caso"],
-  ["mis-casos", vistaMisCasos, TODOS, "Mis casos"],
+  ["casos/nuevo", vistaCasoNuevo, CON_CENTRO, "Nuevo caso"],
+  ["mis-casos", vistaMisCasos, CON_CENTRO, "Mis casos"],
   ["asignados", vistaAsignados, ["TECNICO"], "Casos asignados"],
   ["casos", vistaTodos, STAFF, "Todos los casos"],
   ["casos/:id", vistaCasoDetalle, TODOS, "Detalle del caso"],
@@ -30,14 +36,15 @@ const RUTAS = [
   ["reportes", vistaDashboard, STAFF, "Dashboard"],
   ["auditoria", vistaAuditoria, STAFF, "Bitácora de auditoría"],
   ["usuarios", vistaUsuarios, ["ADMINISTRADOR"], "Usuarios"],
-  ["sla", vistaSla, ["ADMINISTRADOR"], "Configuración de SLA"],
-  ["conocimiento", vistaConocimiento, ["ADMINISTRADOR"], "Base de conocimiento"],
-  ["configuracion", vistaConfiguracion, ["ADMINISTRADOR"], "Configuración"],
+  ["centros", vistaCentros, GENERAL, "Centros de formación"],
+  ["sla", vistaSla, GENERAL, "Configuración de SLA"],
+  ["conocimiento", vistaConocimiento, GENERAL, "Base de conocimiento"],
+  ["configuracion", vistaConfiguracion, GENERAL, "Configuración"],
 ];
 const NAV = [
   ["inicio", "🏠", "Inicio", TODOS],
-  ["casos/nuevo", "➕", "Nuevo caso", TODOS],
-  ["mis-casos", "📄", "Mis casos", TODOS],
+  ["casos/nuevo", "➕", "Nuevo caso", CON_CENTRO],
+  ["mis-casos", "📄", "Mis casos", CON_CENTRO],
   ["asignados", "🛠️", "Casos asignados", ["TECNICO"]],
   ["notificaciones", "🔔", "Notificaciones", TODOS],
   ["__sep", "", "Supervisión", STAFF],
@@ -45,10 +52,11 @@ const NAV = [
   ["dashboard", "📊", "Dashboard", STAFF],
   ["auditoria", "🧾", "Auditoría", STAFF],
   ["__sep", "", "Administración", ["ADMINISTRADOR"]],
+  ["centros", "🏫", "Centros", GENERAL],
   ["usuarios", "👥", "Usuarios", ["ADMINISTRADOR"]],
-  ["sla", "⏱️", "SLA", ["ADMINISTRADOR"]],
-  ["conocimiento", "📚", "Base del asistente", ["ADMINISTRADOR"]],
-  ["configuracion", "⚙️", "Configuración", ["ADMINISTRADOR"]],
+  ["sla", "⏱️", "SLA", GENERAL],
+  ["conocimiento", "📚", "Base del asistente", GENERAL],
+  ["configuracion", "⚙️", "Configuración", GENERAL],
   ["__sep", "", "Cuenta", TODOS],
   ["perfil", "👤", "Mi perfil", TODOS],
 ];
@@ -114,7 +122,7 @@ function construirShell(u) {
     "div",
     { class: "user-chip", id: "usuario-chip" },
     h("div", { class: "avatar", "aria-hidden": "true" }, iniciales(u.nombreCompleto)),
-    h("div", { class: "who" }, h("strong", { title: u.nombreCompleto }, u.nombreCompleto), h("small", {}, ROLES[u.rol])),
+    h("div", { class: "who" }, h("strong", { title: u.nombreCompleto }, u.nombreCompleto), h("small", {}, u.esGeneral ? "Administrador general" : `${ROLES[u.rol]} · ${u.centro?.codigo ?? ""}`)),
   );
 
   const banner = h(
@@ -157,7 +165,7 @@ function construirShell(u) {
   const pintarNav = (actual) =>
     montar(
       nav,
-      NAV.filter(([, , , roles]) => roles.includes(u.rol)).map(([ruta, ic, texto]) =>
+      NAV.filter(([, , , roles]) => puede(u, roles)).map(([ruta, ic, texto]) =>
         ruta === "__sep"
           ? h("div", { class: "sep" }, texto)
           : h("a", { href: `#/${ruta}`, "aria-current": actual === ruta ? "page" : null }, h("span", { "aria-hidden": "true" }, ic), texto),
@@ -245,7 +253,7 @@ async function enrutar() {
     );
     return;
   }
-  if (!r.roles.includes(u.rol)) {
+  if (!puede(u, r.roles)) {
     montar(shell.main, h("div", { class: "alert", role: "alert" }, "No tienes permisos para ver esta sección."));
     return;
   }

@@ -1,4 +1,5 @@
 import type { EstadoCaso, RolNombre } from "../generated/prisma/client";
+import { mismoCentro } from "./centros";
 
 export interface ContextoTransicion {
   estadoActual: EstadoCaso;
@@ -44,11 +45,15 @@ export function evaluarCambioEstado(c: ContextoTransicion): ResultadoTransicion 
 export interface CasoAcceso {
   usuarioId: number;
   tecnicoId: number | null;
+  centroId: number;
 }
 
-/** Control de propiedad (H-05): quién puede ver/trabajar un caso. */
-export function puedeVerCaso(u: { userId: number; rol: RolNombre }, caso: CasoAcceso): boolean {
-  if (u.rol === "ADMINISTRADOR" || u.rol === "SUPERVISOR") return true;
+/**
+ * Control de propiedad (H-05) y de centro (RF-CEN-02): quién puede ver/trabajar un caso.
+ * Supervisores y administradores, solo los de su centro; el administrador general, todos.
+ */
+export function puedeVerCaso(u: { userId: number; rol: RolNombre; centroId: number | null }, caso: CasoAcceso): boolean {
+  if (u.rol === "ADMINISTRADOR" || u.rol === "SUPERVISOR") return mismoCentro(u, caso.centroId);
   if (u.rol === "TECNICO") return caso.tecnicoId === u.userId;
   return caso.usuarioId === u.userId;
 }
@@ -57,4 +62,4 @@ export const esPersonalInterno = (rol: RolNombre) => rol !== "USUARIO";
 
 export const ESTADOS_ABIERTOS: EstadoCaso[] = ["ABIERTO", "ASIGNADO", "EN_PROCESO"];
 
-export const formatearNumeroCaso = (anio: number, n: number) => `CASO-${anio}-${String(n).padStart(6, "0")}`;
+export { formatearNumeroCaso } from "./centros";

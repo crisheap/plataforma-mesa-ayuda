@@ -5,13 +5,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authenticate } from "../../middlewares/auth.middleware";
-import { authorizeRoles } from "../../middlewares/role.middleware";
+import { authorizeRoles, soloGeneral } from "../../middlewares/role.middleware";
 import { auditar } from "../../core/audit";
 import { validar } from "../../utils/validate";
 import { env } from "../../config/env";
 import { DOMINIO_VALIDO, PROVEEDORES_PERSONALES, dominiosEmpresariales, guardarDominiosEmpresariales } from "../../core/correos";
 
 const router = Router();
+// Los administradores de centro consultan los dominios (para clasificar correos); solo el general los cambia.
 router.use(authenticate, authorizeRoles("ADMINISTRADOR"));
 
 const correoSchema = z.object({
@@ -42,7 +43,7 @@ router.get("/correo", async (_req, res) => {
   });
 });
 
-router.put("/correo", async (req, res) => {
+router.put("/correo", soloGeneral, async (req, res) => {
   const d = validar(correoSchema, req.body);
   const r = await guardarDominiosEmpresariales(d.dominiosEmpresariales, d.reclasificar ?? false);
   await auditar(req, {

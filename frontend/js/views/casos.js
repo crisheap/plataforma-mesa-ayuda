@@ -1,4 +1,5 @@
 import { api } from "../api.js";
+import { etiquetaCentro, selectorCentro } from "../centros-ui.js";
 import {
   envolturaTabla,
   h,
@@ -20,11 +21,12 @@ const irACaso = (id) => {
   location.hash = `#/casos/${id}`;
 };
 
-export function tablaCasos(items, { mostrarSla = false, mostrarSolicitante = false, mostrarTecnico = false } = {}) {
+export function tablaCasos(items, { mostrarSla = false, mostrarSolicitante = false, mostrarTecnico = false, mostrarCentro = false } = {}) {
   if (!items.length) return vacio("No hay casos para mostrar.");
   const cab = [
     "Número",
     "Título",
+    ...(mostrarCentro ? ["Centro"] : []),
     "Tipo",
     "Prioridad",
     "Estado",
@@ -65,6 +67,7 @@ export function tablaCasos(items, { mostrarSla = false, mostrarSolicitante = fal
             },
             h("td", {}, h("strong", {}, c.numeroCaso)),
             h("td", {}, c.titulo),
+            mostrarCentro ? h("td", {}, etiquetaCentro(c.centro)) : null,
             h("td", {}, TIPOS[c.tipo]),
             h("td", {}, badgePrioridad(c.prioridad)),
             h("td", {}, badgeEstado(c.estado)),
@@ -95,8 +98,8 @@ export function tablaCasos(items, { mostrarSla = false, mostrarSolicitante = fal
 }
 
 /** Lista con filtros y paginación; `ruta` es el endpoint base. */
-function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = false }) {
-  const estado = { page: 1, pageSize: 15, q: "", estado: "", prioridad: "", tecnicoId: "", slaVencido: false };
+function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = false, filtroCentro = false }) {
+  const estado = { page: 1, pageSize: 15, q: "", estado: "", prioridad: "", tecnicoId: "", centroId: "", slaVencido: false };
   const resultado = h("div", { "aria-live": "polite" });
   const q = h("input", { type: "search", placeholder: "Buscar por número, título o descripción", "aria-label": "Buscar casos" });
   const sEstado = h(
@@ -114,6 +117,7 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
     opciones({ ALTA: "Alta", MEDIA: "Media", BAJA: "Baja" }, "", "Todas las prioridades"),
   );
   const venc = h("input", { type: "checkbox", id: "venc" });
+  const selCentro = filtroCentro ? selectorCentro() : null;
   const selTec = filtroTecnico
     ? h("select", { "aria-label": "Filtrar por técnico" }, h("option", { value: "" }, "Todos los técnicos"))
     : null;
@@ -121,7 +125,7 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
   const cargar = async () => {
     montar(resultado, cargando());
     const p = new URLSearchParams({ page: estado.page, pageSize: estado.pageSize });
-    for (const k of ["q", "estado", "prioridad", "tecnicoId"]) if (estado[k]) p.set(k, estado[k]);
+    for (const k of ["q", "estado", "prioridad", "tecnicoId", "centroId"]) if (estado[k]) p.set(k, estado[k]);
     if (estado.slaVencido) p.set("slaVencido", "true");
     try {
       const d = await api(`${ruta}?${p}`);
@@ -144,6 +148,7 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
     estado.estado = sEstado.value;
     estado.prioridad = sPrio.value;
     estado.tecnicoId = selTec?.value ?? "";
+    estado.centroId = selCentro?.value ?? "";
     estado.slaVencido = venc.checked;
     estado.page = 1;
     cargar();
@@ -153,7 +158,7 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
     clearTimeout(t);
     t = setTimeout(filtrar, 350);
   });
-  for (const el of [sEstado, sPrio, venc, selTec].filter(Boolean)) el.addEventListener("change", filtrar);
+  for (const el of [sEstado, sPrio, venc, selTec, selCentro].filter(Boolean)) el.addEventListener("change", filtrar);
   if (selTec)
     api("/api/usuarios/tecnicos")
       .then((ts) => {
@@ -172,6 +177,7 @@ function listaConFiltros({ ruta, titulo, accion, opcionesTabla, filtroTecnico = 
       h("div", { class: "grow" }, q),
       sEstado,
       sPrio,
+      selCentro,
       selTec,
       h("label", { class: "row", for: "venc", style: null }, venc, "Solo SLA vencido"),
     ),
@@ -192,10 +198,11 @@ export const vistaAsignados = () =>
     titulo: "Casos asignados a mí",
     opcionesTabla: { mostrarSla: true, mostrarSolicitante: true },
   });
-export const vistaTodos = () =>
+export const vistaTodos = ({ usuario }) =>
   listaConFiltros({
     ruta: "/api/casos",
-    titulo: "Todos los casos",
+    titulo: usuario.esGeneral ? "Casos de todos los centros" : `Casos del centro ${usuario.centro?.codigo ?? ""}`,
     filtroTecnico: true,
-    opcionesTabla: { mostrarSla: true, mostrarSolicitante: true, mostrarTecnico: true },
+    filtroCentro: usuario.esGeneral,
+    opcionesTabla: { mostrarSla: true, mostrarSolicitante: true, mostrarTecnico: true, mostrarCentro: usuario.esGeneral },
   });

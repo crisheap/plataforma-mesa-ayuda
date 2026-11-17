@@ -84,6 +84,36 @@ test("el administrador inicial debe cambiar la contraseña antes de usar la API"
   assert.equal((await llamar("GET", "/api/usuarios", s.token)).status, 403);
   tokens.admin = await activar(ADMIN, ADMIN_PASS);
   assert.equal((await llamar("GET", "/api/usuarios", tokens.admin)).status, 200);
+  const me = await llamar("GET", "/api/auth/me", tokens.admin);
+  assert.equal(me.json.data.esGeneral, true, "la cuenta inicial es el administrador general");
+  assert.equal(me.json.data.centro, null);
+  ids.admin = me.json.data.id;
+});
+
+test("el administrador general crea los centros (RF-CEN-01)", async () => {
+  const a = await llamar("POST", "/api/centros", tokens.admin, { codigo: "integ", nombre: "Centro de Integración" });
+  assert.equal(a.status, 201, JSON.stringify(a.json));
+  assert.equal(a.json.data.codigo, "INTEG", "el código se guarda en mayúsculas");
+  ids.centro = a.json.data.id;
+  const b = await llamar("POST", "/api/centros", tokens.admin, { codigo: "OTRO", nombre: "Otro Centro de Formación" });
+  assert.equal(b.status, 201);
+  ids.otroCentro = b.json.data.id;
+  assert.equal((await llamar("POST", "/api/centros", tokens.admin, { codigo: "INTEG", nombre: "Repetido" })).status, 409);
+  assert.equal((await llamar("POST", "/api/centros", tokens.admin, { codigo: "1-X", nombre: "Código inválido" })).status, 400);
+  const sinCentro = await llamar("POST", "/api/usuarios", tokens.admin, {
+    nombre: "Sin",
+    apellido: "Centro",
+    correo: "sincentro@integracion.test",
+    rol: "USUARIO",
+  });
+  assert.equal(sinCentro.status, 400, "el general debe elegir el centro");
+  const caso = await llamar("POST", "/api/casos", tokens.admin, {
+    titulo: "Caso del general",
+    descripcion: "El administrador general no pertenece a un centro.",
+    tipo: "INCIDENTE",
+    categoria: "SOFTWARE",
+  });
+  assert.equal(caso.status, 400, "el general no registra casos");
 });
 
 test("el administrador crea usuarios de cada rol con contraseña temporal", async () => {
@@ -95,7 +125,7 @@ test("el administrador crea usuarios de cada rol con contraseña temporal", asyn
   ] as const;
   for (const [clave, rol, nombre, apellido] of personas) {
     const correo = `${clave}@integracion.test`;
-    const r = await llamar("POST", "/api/usuarios", tokens.admin, { nombre, apellido, correo, rol });
+    const r = await llamar("POST", "/api/usuarios", tokens.admin, { nombre, apellido, correo, rol, centroId: ids.centro });
     assert.equal(r.status, 201, JSON.stringify(r.json));
     assert.ok(r.json.data.passwordTemporal, "debe devolver la contraseña temporal");
     ids[clave] = r.json.data.usuario.id;
@@ -115,7 +145,7 @@ test("el usuario registra un caso con número único y evidencia válida", async
   assert.equal(r.json.data.telefonoContacto, "+57 300 123-4567", "se guarda normalizado");
   casoId = r.json.data.id;
   numeroCaso = r.json.data.numeroCaso;
-  assert.match(numeroCaso, /^CASO-\d{4}-\d{6}$/);
+  assert.match(numeroCaso, /^INTEG-\d{4}-000001$/, "número con el prefijo del centro");
   assert.equal(r.json.data.estado, "ABIERTO");
   assert.equal(r.json.data.prioridad, "MEDIA");
 
@@ -329,6 +359,7 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
     apellido: "Gómez",
     correo: "sofia@integracion.test",
     rol: "USUARIO",
+    centroId: ids.centro,
     correoPersonal: "Sofia.Gomez@Gmail.com",
     enviarAcceso: true,
   });
@@ -348,6 +379,7 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
     apellido: "Ruiz",
     correo: "pedro.ruiz@hotmail.com",
     rol: "USUARIO",
+    centroId: ids.centro,
     correoPersonal: "otro@gmail.com",
     enviarAcceso: true,
   });
@@ -359,6 +391,7 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
     apellido: "Mora",
     correo: "ana@integracion.test",
     rol: "USUARIO",
+    centroId: ids.centro,
     correoPersonal: "ana@integracion.test",
   });
   assert.equal(repetido.status, 400, "el correo personal no puede repetir el de acceso");
@@ -400,4 +433,154 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
   const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
   const acciones = a.json.data.items.map((i: { accion: string }) => i.accion);
   for (const acc of ["CONFIG_CORREO", "ACCESO_ENVIADO", "CUENTA_ACTIVADA"]) assert.ok(acciones.includes(acc), `falta ${acc}`);
+});
+
+test("centros: cada centro es independiente y el general ve todo (RF-CEN-02/03/04)", async () => {
+  // El general crea al administrador del otro centro
+  const adm = await llamar("POST", "/api/usuarios", tokens.admin, {
+    nombre: "Marta",
+    apellido: "Suárez",
+    correo: "admin.otro@integracion.test",
+    rol: "ADMINISTRADOR",
+    centroId: ids.otroCentro,
+  });
+  assert.equal(adm.status, 201, JSON.stringify(adm.json));
+  assert.equal(adm.json.data.usuario.centro.codigo, "OTRO");
+  ids.adminOtro = adm.json.data.usuario.id;
+  tokens.adminOtro = await activar("admin.otro@integracion.test", adm.json.data.passwordTemporal);
+  const me = await llamar("GET", "/api/auth/me", tokens.adminOtro);
+  assert.equal(me.json.data.esGeneral, false);
+
+  // El administrador de centro crea en su centro, aunque pida otro, y no crea administradores
+  const u = await llamar("POST", "/api/usuarios", tokens.adminOtro, {
+    nombre: "Julián",
+    apellido: "Castro",
+    correo: "usuario.otro@integracion.test",
+    rol: "USUARIO",
+    centroId: ids.centro,
+  });
+  assert.equal(u.status, 201, JSON.stringify(u.json));
+  assert.equal(u.json.data.usuario.centro.id, ids.otroCentro, "queda en el centro de quien lo crea");
+  ids.usuarioOtro = u.json.data.usuario.id;
+  tokens.usuarioOtro = await activar("usuario.otro@integracion.test", u.json.data.passwordTemporal);
+  const t = await llamar("POST", "/api/usuarios", tokens.adminOtro, {
+    nombre: "Felipe",
+    apellido: "Mejía",
+    correo: "tecnico.otro@integracion.test",
+    rol: "TECNICO",
+  });
+  assert.equal(t.status, 201);
+  ids.tecnicoOtro = t.json.data.usuario.id;
+  const otroAdmin = await llamar("POST", "/api/usuarios", tokens.adminOtro, {
+    nombre: "No",
+    apellido: "Permitido",
+    correo: "no.admin@integracion.test",
+    rol: "ADMINISTRADOR",
+  });
+  assert.equal(otroAdmin.status, 403, "solo el general crea administradores");
+
+  // Usuarios: cada centro ve solo los suyos
+  const lista = await llamar("GET", "/api/usuarios?pageSize=100", tokens.adminOtro);
+  assert.ok(lista.json.data.items.length >= 3);
+  for (const x of lista.json.data.items) assert.equal(x.centro?.id, ids.otroCentro, `${x.correo} no es de su centro`);
+  assert.equal((await llamar("GET", `/api/usuarios/${ids.usuario}`, tokens.adminOtro)).status, 404);
+  assert.equal((await llamar("PATCH", `/api/usuarios/${ids.usuario}/estado`, tokens.adminOtro, { estado: "BLOQUEADO" })).status, 404);
+  assert.equal((await llamar("GET", `/api/usuarios/${ids.admin}`, tokens.adminOtro)).status, 404, "no ve al general");
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${ids.usuarioOtro}`, tokens.adminOtro, { centroId: ids.centro })).status,
+    403,
+    "solo el general cambia a alguien de centro",
+  );
+  const todos = await llamar("GET", "/api/usuarios?pageSize=100", tokens.admin);
+  const centrosVistos = new Set(todos.json.data.items.map((x: { centro: { id: number } | null }) => x.centro?.id ?? null));
+  assert.ok(centrosVistos.has(ids.centro) && centrosVistos.has(ids.otroCentro) && centrosVistos.has(null), "el general ve todos");
+  const filtrada = await llamar("GET", `/api/usuarios?centroId=${ids.otroCentro}&pageSize=100`, tokens.admin);
+  for (const x of filtrada.json.data.items) assert.equal(x.centro.id, ids.otroCentro);
+
+  // Casos: numeración propia y sin cruces
+  const c = await llamar("POST", "/api/casos", tokens.usuarioOtro, {
+    titulo: "Impresora sin conexión",
+    descripcion: "La impresora del ambiente 204 no aparece en la red.",
+    tipo: "INCIDENTE",
+    categoria: "HARDWARE",
+  });
+  assert.equal(c.status, 201, JSON.stringify(c.json));
+  assert.match(c.json.data.numeroCaso, /^OTRO-\d{4}-000001$/, "cada centro lleva su propio consecutivo");
+  const casoOtro = c.json.data.id;
+  const vistos = await llamar("GET", "/api/casos?pageSize=100", tokens.adminOtro);
+  assert.deepEqual(
+    vistos.json.data.items.map((x: { id: number }) => x.id),
+    [casoOtro],
+  );
+  assert.equal((await llamar("GET", `/api/casos/${casoId}`, tokens.adminOtro)).status, 404);
+  assert.equal((await llamar("GET", `/api/casos/${casoOtro}`, tokens.supervisor)).status, 404, "supervisor de otro centro");
+  assert.equal(
+    (await llamar("PATCH", `/api/casos/${casoOtro}/asignar`, tokens.supervisor, { tecnicoId: ids.tecnico })).status,
+    404,
+    "no asigna casos de otro centro",
+  );
+  assert.equal(
+    (await llamar("PATCH", `/api/casos/${casoOtro}/asignar`, tokens.adminOtro, { tecnicoId: ids.tecnico })).status,
+    400,
+    "solo técnicos del mismo centro",
+  );
+  const asignado = await llamar("PATCH", `/api/casos/${casoOtro}/asignar`, tokens.adminOtro, { tecnicoId: ids.tecnicoOtro });
+  assert.equal(asignado.status, 200, JSON.stringify(asignado.json));
+  const tecs = await llamar("GET", "/api/usuarios/tecnicos", tokens.adminOtro);
+  assert.deepEqual(
+    tecs.json.data.map((x: { id: number }) => x.id),
+    [ids.tecnicoOtro],
+  );
+  const generalVe = await llamar("GET", `/api/casos/${casoOtro}`, tokens.admin);
+  assert.equal(generalVe.status, 200, "el general ve los casos de todos los centros");
+  assert.equal(generalVe.json.data.centro.codigo, "OTRO");
+
+  // Dashboard por centro y consolidado
+  const kOtro = await llamar("GET", "/api/reportes/kpis", tokens.adminOtro);
+  assert.equal(kOtro.json.data.resumen.total, 1);
+  const kPedido = await llamar("GET", `/api/reportes/kpis?centroId=${ids.centro}`, tokens.adminOtro);
+  assert.equal(kPedido.json.data.resumen.total, 1, "un centro no puede pedir los datos de otro");
+  const kGeneral = await llamar("GET", "/api/reportes/kpis", tokens.admin);
+  const codigos = kGeneral.json.data.porCentro.map((x: { codigo: string }) => x.codigo).sort();
+  assert.deepEqual(codigos, ["INTEG", "OTRO"]);
+  assert.equal(
+    kGeneral.json.data.porCentro.reduce((a: number, x: { casos: number }) => a + x.casos, 0),
+    kGeneral.json.data.resumen.total,
+  );
+  const kSoloOtro = await llamar("GET", `/api/reportes/kpis?centroId=${ids.otroCentro}`, tokens.admin);
+  assert.equal(kSoloOtro.json.data.resumen.total, 1);
+
+  // Lo común a la entidad lo cambia solo el general
+  assert.equal((await llamar("PUT", "/api/sla", tokens.adminOtro, { configuraciones: [] })).status, 403);
+  assert.equal((await llamar("GET", "/api/configuracion/correo", tokens.adminOtro)).status, 200, "consulta los dominios");
+  assert.equal(
+    (await llamar("PUT", "/api/configuracion/correo", tokens.adminOtro, { dominiosEmpresariales: ["otro.test"] })).status,
+    403,
+    "solo el general los cambia",
+  );
+  assert.equal((await llamar("POST", "/api/centros", tokens.adminOtro, { codigo: "NUEVO", nombre: "No permitido" })).status, 403);
+  const centros = await llamar("GET", "/api/centros", tokens.adminOtro);
+  assert.deepEqual(
+    centros.json.data.map((x: { codigo: string }) => x.codigo),
+    ["OTRO"],
+  );
+  const centrosGeneral = await llamar("GET", "/api/centros", tokens.admin);
+  const integ = centrosGeneral.json.data.find((x: { codigo: string }) => x.codigo === "INTEG");
+  assert.ok(integ.usuarios >= 4 && integ.casos >= 1);
+
+  // Auditoría: el centro solo ve las acciones de su personal
+  const aud = await llamar("GET", "/api/auditoria?pageSize=100", tokens.adminOtro);
+  const autores = new Set(aud.json.data.items.map((x: { usuarioId: number | null }) => x.usuarioId));
+  for (const id of [ids.usuario, ids.supervisor, ids.admin]) assert.ok(!autores.has(id), `ve acciones de ${id}`);
+
+  // Un centro inactivo no recibe usuarios ni casos nuevos
+  assert.equal((await llamar("PATCH", `/api/centros/${ids.otroCentro}`, tokens.admin, { activo: false })).status, 200);
+  const inactivo = await llamar("POST", "/api/casos", tokens.usuarioOtro, {
+    titulo: "Otro caso",
+    descripcion: "El centro está inactivo y no debe recibirlo.",
+    tipo: "INCIDENTE",
+    categoria: "HARDWARE",
+  });
+  assert.equal(inactivo.status, 400);
+  await llamar("PATCH", `/api/centros/${ids.otroCentro}`, tokens.admin, { activo: true });
 });

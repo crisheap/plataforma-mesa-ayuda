@@ -92,6 +92,23 @@ model Rol {
   @@map("roles")
 }
 
+/// Centro de formación (RF-CEN-01). Cada centro tiene sus propios usuarios, técnicos, supervisores y casos.
+model Centro {
+  id        Int      @id @default(autoincrement())
+  /// Código corto e inmutable; es el prefijo del número de caso (CEET-2026-000001).
+  codigo    String   @unique @db.VarChar(10)
+  nombre    String   @db.VarChar(150)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios  Usuario[]
+  casos     Caso[]
+  contadores ContadorCaso[]
+
+  @@map("centros")
+}
+
 model Usuario {
   id                  Int           @id @default(autoincrement())
   nombre              String
@@ -113,6 +130,10 @@ model Usuario {
   rolId Int
   rol   Rol @relation(fields: [rolId], references: [id])
 
+  /// Centro al que pertenece. Solo el administrador general (rol ADMINISTRADOR) no tiene centro.
+  centroId Int?
+  centro   Centro? @relation(fields: [centroId], references: [id], onDelete: Restrict)
+
   casosCreados      Caso[]                  @relation("CasosCreados")
   casosAsignados    Caso[]                  @relation("CasosAsignados")
   historialCasos    HistorialCaso[]
@@ -127,6 +148,7 @@ model Usuario {
   conversaciones    ConversacionAsistente[]
   tokensAcceso      TokenAcceso[]
 
+  @@index([centroId])
   @@map("usuarios")
 }
 
@@ -170,6 +192,10 @@ model Caso {
   tecnicoId Int?
   tecnico   Usuario? @relation("CasosAsignados", fields: [tecnicoId], references: [id])
 
+  /// Centro del solicitante al crear el caso; define quién puede verlo y atenderlo.
+  centroId Int
+  centro   Centro @relation(fields: [centroId], references: [id])
+
   historial      HistorialCaso[]
   evidencias     Evidencia[]
   observaciones  Observacion[]
@@ -182,13 +208,18 @@ model Caso {
   @@index([estado])
   @@index([usuarioId])
   @@index([tecnicoId])
+  @@index([centroId])
   @@map("casos")
 }
 
+/// Consecutivo de casos por centro y año (CEET-2026-000001).
 model ContadorCaso {
-  anio   Int @id
-  ultimo Int @default(0)
+  centroId Int
+  anio     Int
+  ultimo   Int    @default(0)
+  centro   Centro @relation(fields: [centroId], references: [id], onDelete: Cascade)
 
+  @@id([centroId, anio])
   @@map("contadores_caso")
 }
 

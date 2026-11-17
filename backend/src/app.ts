@@ -15,6 +15,7 @@ import casoRoutes from "./modules/casos/casos.routes";
 import slaRoutes from "./modules/sla/sla.routes";
 import auditoriaRoutes from "./modules/auditoria/auditoria.routes";
 import configuracionRoutes from "./modules/configuracion/configuracion.routes";
+import centrosRoutes from "./modules/centros/centros.routes";
 import reportesRoutes from "./modules/reportes/reportes.routes";
 import { notificacionesRouter, pushRouter } from "./modules/notificaciones/notificaciones.routes";
 import { crearAsistenteRouter } from "./modules/asistente/asistente.routes";
@@ -101,6 +102,7 @@ export function crearApp(): Application {
   app.use("/api/sla", slaRoutes);
   app.use("/api/auditoria", auditoriaRoutes);
   app.use("/api/configuracion", configuracionRoutes);
+  app.use("/api/centros", centrosRoutes);
   app.use("/api/reportes", reportesRoutes);
   if (env.embedAsistente) app.use("/api/asistente", crearAsistenteRouter(authenticate));
 

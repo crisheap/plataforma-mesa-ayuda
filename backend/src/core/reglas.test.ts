@@ -49,17 +49,21 @@ test("un caso cerrado no admite cambios y no se salta estados", () => {
   );
 });
 
-test("control de propiedad (H-05)", () => {
-  const caso = { usuarioId: 10, tecnicoId: 20 };
-  assert.equal(puedeVerCaso({ userId: 10, rol: "USUARIO" }, caso), true);
-  assert.equal(puedeVerCaso({ userId: 11, rol: "USUARIO" }, caso), false);
-  assert.equal(puedeVerCaso({ userId: 20, rol: "TECNICO" }, caso), true);
-  assert.equal(puedeVerCaso({ userId: 21, rol: "TECNICO" }, caso), false);
-  assert.equal(puedeVerCaso({ userId: 1, rol: "SUPERVISOR" }, caso), true);
-  assert.equal(puedeVerCaso({ userId: 2, rol: "ADMINISTRADOR" }, caso), true);
+test("control de propiedad (H-05) y de centro (RF-CEN-02)", () => {
+  const caso = { usuarioId: 10, tecnicoId: 20, centroId: 1 };
+  assert.equal(puedeVerCaso({ userId: 10, rol: "USUARIO", centroId: 1 }, caso), true);
+  assert.equal(puedeVerCaso({ userId: 11, rol: "USUARIO", centroId: 1 }, caso), false);
+  assert.equal(puedeVerCaso({ userId: 20, rol: "TECNICO", centroId: 1 }, caso), true);
+  assert.equal(puedeVerCaso({ userId: 21, rol: "TECNICO", centroId: 1 }, caso), false);
+  assert.equal(puedeVerCaso({ userId: 1, rol: "SUPERVISOR", centroId: 1 }, caso), true);
+  assert.equal(puedeVerCaso({ userId: 2, rol: "ADMINISTRADOR", centroId: 1 }, caso), true);
+  assert.equal(puedeVerCaso({ userId: 3, rol: "SUPERVISOR", centroId: 2 }, caso), false, "supervisor de otro centro");
+  assert.equal(puedeVerCaso({ userId: 4, rol: "ADMINISTRADOR", centroId: 2 }, caso), false, "administrador de otro centro");
+  assert.equal(puedeVerCaso({ userId: 5, rol: "ADMINISTRADOR", centroId: null }, caso), true, "administrador general");
+  assert.equal(puedeVerCaso({ userId: 6, rol: "SUPERVISOR", centroId: null }, caso), false, "sin centro y no general: falla cerrada");
 });
 
-test("formato del número de caso", () => {
-  assert.equal(formatearNumeroCaso(2026, 7), "CASO-2026-000007");
-  assert.equal(formatearNumeroCaso(2027, 123456), "CASO-2027-123456");
+test("formato del número de caso con el código del centro", () => {
+  assert.equal(formatearNumeroCaso("CEET", 2026, 7), "CEET-2026-000007");
+  assert.equal(formatearNumeroCaso("CMTC", 2027, 123456), "CMTC-2027-123456");
 });

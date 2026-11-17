@@ -7,6 +7,8 @@ export interface RangoFiltro {
   desde?: Date;
   hasta?: Date;
   tecnicoId?: number;
+  /** Ya resuelto por la ruta según el alcance del usuario (RF-CEN-02). */
+  centroId?: number;
   prioridad?: "ALTA" | "MEDIA" | "BAJA";
   estado?: "ABIERTO" | "ASIGNADO" | "EN_PROCESO" | "RESUELTO" | "CERRADO";
 }
@@ -32,6 +34,7 @@ export function ventanaTendencia(f: { desde?: Date; hasta?: Date }, ahora = new 
 }
 
 export const whereCasos = (f: RangoFiltro): Prisma.CasoWhereInput => ({
+  ...(f.centroId ? { centroId: f.centroId } : {}),
   ...(f.tecnicoId ? { tecnicoId: f.tecnicoId } : {}),
   ...(f.prioridad ? { prioridad: f.prioridad } : {}),
   ...(f.estado ? { estado: f.estado } : {}),
@@ -43,17 +46,20 @@ export async function kpis(f: RangoFiltro) {
   const where = whereCasos(f);
   const ahora = new Date();
   const vencidos: Prisma.CasoWhereInput = { ...where, slaVenceEn: { lte: ahora }, estado: { in: [...ABIERTOS] } };
-  const [porEstado, porPrioridad, porTecnicoEstado, satisf, vencidosAbiertos, vencidosTecnico] = await Promise.all([
+  const [porEstado, porPrioridad, porTecnicoEstado, satisf, vencidosAbiertos, vencidosTecnico, porCentroEstado, vencidosCentro] = await Promise.all([
     prisma.caso.groupBy({ by: ["estado"], where, _count: { _all: true } }),
     prisma.caso.groupBy({ by: ["prioridad"], where, _count: { _all: true } }),
     prisma.caso.groupBy({ by: ["tecnicoId", "estado"], where, _count: { _all: true } }),
     prisma.calificacion.aggregate({ where: { caso: where }, _avg: { puntuacion: true }, _count: { _all: true } }),
     prisma.caso.count({ where: vencidos }),
     prisma.caso.groupBy({ by: ["tecnicoId"], where: vencidos, _count: { _all: true } }),
+    prisma.caso.groupBy({ by: ["centroId", "estado"], where, _count: { _all: true } }),
+    prisma.caso.groupBy({ by: ["centroId"], where: vencidos, _count: { _all: true } }),
   ]);
 
   // Tiempo medio de resolución y cumplimiento de SLA sobre los casos del filtro.
   const cond = Prisma.sql`1=1
+    ${f.centroId ? Prisma.sql`AND "centroId" = ${f.centroId}` : Prisma.empty}
     ${f.desde ? Prisma.sql`AND "fechaCreacion" >= ${f.desde}` : Prisma.empty}
     ${f.hasta ? Prisma.sql`AND "fechaCreacion" <= ${f.hasta}` : Prisma.empty}
     ${f.tecnicoId ? Prisma.sql`AND "tecnicoId" = ${f.tecnicoId}` : Prisma.empty}
@@ -69,7 +75,8 @@ export async function kpis(f: RangoFiltro) {
 
   // Tendencia: casos creados y realizados (resueltos) por día, semana o mes, en hora de Colombia.
   const v = ventanaTendencia(f, ahora);
-  const condT = Prisma.sql`${f.tecnicoId ? Prisma.sql`AND "tecnicoId" = ${f.tecnicoId}` : Prisma.empty}
+  const condT = Prisma.sql`${f.centroId ? Prisma.sql`AND "centroId" = ${f.centroId}` : Prisma.empty}
+    ${f.tecnicoId ? Prisma.sql`AND "tecnicoId" = ${f.tecnicoId}` : Prisma.empty}
     ${f.prioridad ? Prisma.sql`AND "prioridad" = ${f.prioridad}::"Prioridad"` : Prisma.empty}`;
   const local = (col: Prisma.Sql) => Prisma.sql`date_trunc(${v.unidad}, (${col} AT TIME ZONE 'UTC') AT TIME ZONE ${ZONA_HORARIA})`;
   const puntos = await prisma.$queryRaw<{ fecha: string; creados: number; realizados: number }[]>`
@@ -125,6 +132,28 @@ export async function kpis(f: RangoFiltro) {
     const fila = filasTecnico.get(t.tecnicoId);
     if (fila) fila.vencidos = t._count._all;
   }
+  // Por centro (para el administrador general): mismos grupos del dashboard.
+  const centros = await prisma.centro.findMany({
+    where: { id: { in: [...new Set(porCentroEstado.map((c) => c.centroId))] } },
+    select: { id: true, codigo: true, nombre: true },
+  });
+  const porCentro = centros
+    .map((c) => {
+      const filas = porCentroEstado.filter((x) => x.centroId === c.id);
+      const suma = (g: Grupo) => filas.filter((x) => grupoDeEstado(x.estado) === g).reduce((a, x) => a + x._count._all, 0);
+      return {
+        centroId: c.id,
+        codigo: c.codigo,
+        nombre: c.nombre,
+        casos: filas.reduce((a, x) => a + x._count._all, 0),
+        porRealizar: suma("POR_REALIZAR"),
+        enProceso: suma("EN_PROCESO"),
+        realizados: suma("REALIZADO"),
+        vencidos: vencidosCentro.find((v) => v.centroId === c.id)?._count._all ?? 0,
+      };
+    })
+    .sort((a, b) => b.casos - a.casos);
+
   const cumplidos = Number(agg?.cumplidos ?? 0),
     incumplidos = Number(agg?.incumplidos ?? 0);
   const total = porEstado.reduce((s, e) => s + e._count._all, 0);
@@ -141,6 +170,7 @@ export async function kpis(f: RangoFiltro) {
       resueltosFueraDeTiempo: Number(agg?.fueraDeTiempo ?? 0),
     },
     tendencia: { unidad: v.unidad, desde: v.desde, hasta: v.hasta, puntos },
+    porCentro,
     porEstado: Object.fromEntries(porEstado.map((e) => [e.estado, e._count._all])),
     porPrioridad: Object.fromEntries(porPrioridad.map((p) => [p.prioridad, p._count._all])),
     // Técnicos de mayor a menor carga; «Sin asignar» siempre al final.
@@ -170,10 +200,12 @@ export async function casosParaExcel(f: RangoFiltro) {
       usuario: { select: { nombre: true, apellido: true } },
       tecnico: { select: { nombre: true, apellido: true } },
       calificacion: { select: { puntuacion: true } },
+      centro: { select: { codigo: true } },
     },
   });
   return casos.map((c) => ({
     numero: c.numeroCaso,
+    centro: c.centro.codigo,
     titulo: c.titulo,
     tipo: c.tipo,
     categoria: c.categoria,

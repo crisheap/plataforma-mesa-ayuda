@@ -34,12 +34,17 @@ async function sesion(correo, claves) {
 }
 
 const admin = await sesion(ADMIN, [INICIAL, CLAVE]);
+// Centro de pruebas (RF-CEN-01): el administrador general crea las cuentas dentro de un centro.
+await api("POST", "/api/centros", admin, { codigo: "PRUEBA", nombre: "Centro de Pruebas Automáticas" });
+const centro = (await api("GET", "/api/centros", admin)).json.data.find((c) => c.codigo === "PRUEBA");
+if (!centro) throw new Error("No se pudo crear el centro de pruebas");
 let temporal = null;
 const creado = await api("POST", "/api/usuarios", admin, {
   nombre: "Laura",
   apellido: "Pruebas Automáticas",
   correo: USUARIO,
   rol: "USUARIO",
+  centroId: centro.id,
 });
 if (creado.status === 201) temporal = creado.json.data.passwordTemporal;
 const usuario = await sesion(USUARIO, [temporal, CLAVE]);

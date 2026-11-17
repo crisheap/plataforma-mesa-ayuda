@@ -21,13 +21,13 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   }
   const u = await prisma.usuario.findUnique({
     where: { id: payload.userId },
-    select: { estado: true, debeCambiarPassword: true, rol: { select: { nombre: true } } },
+    select: { estado: true, debeCambiarPassword: true, centroId: true, rol: { select: { nombre: true } } },
   });
   if (!u || u.estado !== "ACTIVO") throw AppError.unauthorized("La cuenta no está activa");
   if (u.debeCambiarPassword && !RUTAS_CON_PASSWORD_TEMPORAL.test(req.originalUrl)) {
     throw AppError.forbidden("Debes cambiar tu contraseña temporal antes de continuar");
   }
-  req.user = { userId: payload.userId, correo: payload.correo, rol: u.rol.nombre };
+  req.user = { userId: payload.userId, correo: payload.correo, rol: u.rol.nombre, centroId: u.centroId };
   next();
 }
 

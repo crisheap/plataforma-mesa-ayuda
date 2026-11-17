@@ -6,6 +6,7 @@
 import { api, descargar } from "../api.js";
 import { h, montar, opciones, toast, vacio, cargando, errorBox, minutos } from "../ui.js";
 import { apiladas, leyenda, lineas, muestra, num, segmentada, tablaDatos } from "../graficas.js";
+import { selectorCentro } from "../centros-ui.js";
 
 const GRUPOS = [
   { clave: "porRealizar", etiqueta: "Por realizar", detalle: "Abiertos y asignados", clase: "serie-1" },
@@ -38,24 +39,30 @@ function tarjeta(etiqueta, valor, { clase, detalle, alerta } = {}) {
   );
 }
 
-export async function vistaDashboard() {
+export async function vistaDashboard({ usuario }) {
+  const general = usuario.esGeneral;
+  // El general ve todos los centros o uno; los demás, siempre el suyo (RF-CEN-02).
+  const centro = general ? selectorCentro() : null;
   const cont = h("div", { class: "dashboard-cuerpo" });
   const aviso = h("p", { class: "sr-only", "aria-live": "polite" });
   const desde = h("input", { type: "date", id: "dash-desde" }),
     hasta = h("input", { type: "date", id: "dash-hasta" });
   const prio = h("select", { "aria-label": "Prioridad" }, opciones(PRIORIDADES, "", "Todas las prioridades"));
   const tec = h("select", { "aria-label": "Técnico" }, h("option", { value: "" }, "Todos los técnicos"));
-  api("/api/usuarios/tecnicos")
-    .then((ts) => {
-      for (const t of ts) tec.append(h("option", { value: t.id }, t.nombreCompleto));
-    })
-    .catch(() => undefined);
+  const cargarTecnicos = () =>
+    api(`/api/usuarios/tecnicos${centro?.value ? `?centroId=${centro.value}` : ""}`)
+      .then((ts) => {
+        tec.replaceChildren(h("option", { value: "" }, "Todos los técnicos"), ...ts.map((t) => h("option", { value: t.id }, t.nombreCompleto)));
+      })
+      .catch(() => undefined);
+  cargarTecnicos();
   const qs = () => {
     const p = new URLSearchParams();
     if (desde.value) p.set("desde", `${desde.value}T00:00:00`);
     if (hasta.value) p.set("hasta", `${hasta.value}T23:59:59`);
     if (prio.value) p.set("prioridad", prio.value);
     if (tec.value) p.set("tecnicoId", tec.value);
+    if (centro?.value) p.set("centroId", centro.value);
     return p.toString();
   };
 
@@ -201,20 +208,51 @@ export async function vistaDashboard() {
         ),
       );
 
-      montar(cont, tarjetas, reparto, h("div", { class: "grid cols-2 dash-fila" }, tendencia, calidad), tecnicos);
+      // 6) Por centro: solo el administrador general, con todos los centros a la vista
+      const porCentro =
+        general && !centro.value && k.porCentro.length
+          ? h(
+              "section",
+              { class: "card" },
+              h("h2", {}, "Casos por centro"),
+              leyenda(GRUPOS.map((g) => ({ etiqueta: g.etiqueta, clase: g.clase }))),
+              apiladas(
+                k.porCentro.map((c) => ({
+                  etiqueta: `${c.codigo} · ${c.nombre}`,
+                  total: c.casos,
+                  partes: [c.porRealizar, c.enProceso, c.realizados],
+                  extra: c.vencidos ? `${c.vencidos} vencidos` : "",
+                  extraNodo: c.vencidos ? h("span", { class: "badge b-rojo" }, `⚠ ${c.vencidos} vencido${c.vencidos === 1 ? "" : "s"}`) : null,
+                })),
+                GRUPOS,
+              ),
+              tablaDatos(
+                "Casos por centro",
+                ["Centro", "Total", "Por realizar", "En proceso", "Realizados", "Vencidos"],
+                k.porCentro.map((c) => [`${c.codigo} · ${c.nombre}`, c.casos, c.porRealizar, c.enProceso, c.realizados, c.vencidos]),
+              ),
+            )
+          : null;
+
+      montar(cont, tarjetas, reparto, porCentro, h("div", { class: "grid cols-2 dash-fila" }, tendencia, calidad), tecnicos);
     } catch (e) {
       montar(cont, errorBox(e));
     }
   };
 
   for (const el of [desde, hasta, prio, tec]) el.addEventListener("change", cargar);
+  centro?.addEventListener("change", () => {
+    tec.value = "";
+    cargarTecnicos();
+    cargar();
+  });
   const limpiar = h(
     "button",
     {
       class: "btn sm",
       type: "button",
       onclick: () => {
-        for (const el of [desde, hasta, prio, tec]) el.value = "";
+        for (const el of [desde, hasta, prio, tec, centro].filter(Boolean)) el.value = "";
         cargar();
       },
     },
@@ -227,7 +265,7 @@ export async function vistaDashboard() {
     h(
       "div",
       { class: "page-title" },
-      h("h1", {}, "Dashboard"),
+      h("h1", {}, general ? "Dashboard" : `Dashboard · ${usuario.centro?.codigo ?? ""}`),
       h(
         "button",
         {
@@ -246,6 +284,7 @@ export async function vistaDashboard() {
       { class: "card row filtros" },
       h("label", { class: "row", for: "dash-desde" }, "Creados desde", desde),
       h("label", { class: "row", for: "dash-hasta" }, "hasta", hasta),
+      centro,
       prio,
       tec,
       limpiar,

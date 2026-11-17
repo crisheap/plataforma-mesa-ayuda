@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { authenticate } from "../../middlewares/auth.middleware";
-import { authorizeRoles } from "../../middlewares/role.middleware";
+import { authorizeRoles, soloGeneral } from "../../middlewares/role.middleware";
 import { auditar } from "../../core/audit";
 import { SLA_POR_DEFECTO } from "../../core/sla";
 import { validar } from "../../utils/validate";
@@ -38,7 +38,7 @@ const putSchema = z.object({
     .max(3),
 });
 
-router.put("/", authorizeRoles("ADMINISTRADOR"), async (req, res) => {
+router.put("/", authorizeRoles("ADMINISTRADOR"), soloGeneral, async (req, res) => {
   const { configuraciones } = validar(putSchema, req.body);
   await prisma.$transaction(async (tx) => {
     for (const c of configuraciones) {

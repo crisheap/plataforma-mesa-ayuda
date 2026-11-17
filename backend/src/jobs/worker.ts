@@ -39,14 +39,15 @@ export async function procesarCorreosPendientes(lote = 25): Promise<number> {
 export async function procesarAlertasSla(): Promise<number> {
   const vencidos = await prisma.caso.findMany({
     where: { slaVenceEn: { lte: new Date() }, slaAlertado: false, estado: { in: ["ABIERTO", "ASIGNADO", "EN_PROCESO"] } },
-    select: { id: true, numeroCaso: true, tecnicoId: true, titulo: true },
+    select: { id: true, numeroCaso: true, tecnicoId: true, titulo: true, centroId: true },
     take: 100,
   });
   if (!vencidos.length) return 0;
-  const supervisores = await idsSupervisores();
+  const porCentro = new Map<number, number[]>();
   for (const c of vencidos) {
+    if (!porCentro.has(c.centroId)) porCentro.set(c.centroId, await idsSupervisores(c.centroId));
     await notificar({
-      usuarioIds: [...supervisores, ...(c.tecnicoId ? [c.tecnicoId] : [])],
+      usuarioIds: [...(porCentro.get(c.centroId) ?? []), ...(c.tecnicoId ? [c.tecnicoId] : [])],
       titulo: `SLA vencido: ${c.numeroCaso}`,
       mensaje: `El caso ${c.numeroCaso} («${c.titulo}») superó su tiempo máximo de atención.`,
       tipo: "SLA_VENCIDO",

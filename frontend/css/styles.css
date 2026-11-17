@@ -944,6 +944,9 @@ main {
   color: var(--b-verde-fg);
   font-weight: 600;
 }
+.mayus {
+  text-transform: uppercase;
+}
 .romper {
   word-break: break-all;
 }
