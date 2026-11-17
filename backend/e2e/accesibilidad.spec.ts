@@ -36,7 +36,16 @@ async function ingresar(page: Page, correo: string, password: string) {
   await page.locator('input[name="correo"]').fill(correo);
   await page.locator('input[name="password"]').fill(password);
   await page.getByRole("button", { name: "Ingresar" }).click();
+  // Primer ingreso: autorización de datos personales (RF-DAT-01), que también se revisa con axe.
+  await expect(page.locator("#nav a, #autorizar-datos").first()).toBeVisible();
+  if (await page.locator("#autorizar-datos").isVisible()) {
+    await expect(page.getByText(/1581 de 2012/).first()).toBeVisible();
+    await revisar(page, "autorización de datos");
+    await page.getByLabel(/Autorizo de manera previa/).check();
+    await page.getByRole("button", { name: "Aceptar y continuar" }).click();
+  }
   await expect(page.locator("#nav a").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Manual de usuario (PDF)" })).toBeVisible();
 }
 
 for (const esquema of ["light", "dark"] as const) {
@@ -72,6 +81,15 @@ for (const esquema of ["light", "dark"] as const) {
     });
   });
 }
+
+test("política de tratamiento de datos personales", async ({ page }) => {
+  await page.goto("/#/privacidad");
+  await expect(page.getByRole("heading", { name: /Tus derechos como titular/ })).toBeVisible();
+  await revisar(page, "privacidad");
+  const pdf = await page.request.get("/docs/manual-de-usuario.pdf");
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toContain("pdf");
+});
 
 test("página de activación de cuenta", async ({ page }) => {
   await page.goto("/#/activar?token=enlace-que-no-existe-0000000000");

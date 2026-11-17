@@ -1,5 +1,5 @@
 import { api, login } from "../api.js";
-import { h, campo, toast, credito } from "../ui.js";
+import { h, campo, toast, pieLegal } from "../ui.js";
 import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
 
@@ -96,7 +96,14 @@ export function vistaLogin({ alIngresar }) {
         h("p", { class: "muted" }, "Usa el correo con el que te registró la Mesa de Ayuda."),
         form,
       ),
-      credito(),
+      h(
+        "p",
+        { class: "small muted aviso-ingreso" },
+        "Al ingresar se te pedirá autorizar el tratamiento de tus datos personales según la ",
+        h("a", { href: "#/privacidad" }, "política de tratamiento de datos"),
+        " (Ley 1581 de 2012).",
+      ),
+      pieLegal(),
     ),
   );
 }
@@ -146,5 +153,6 @@ export function vistaCambioPasswordObligatorio({ alTerminar }) {
       h("p", { class: "muted" }, "Por seguridad, define una contraseña personal antes de continuar."),
       form,
     ),
+    pieLegal(),
   );
 }

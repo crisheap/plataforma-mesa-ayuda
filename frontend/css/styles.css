@@ -958,6 +958,101 @@ main {
 .mayus {
   text-transform: uppercase;
 }
+/* ── Pie legal y datos personales (RF-DAT-01) ── */
+.contenido {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.pie-legal {
+  margin-top: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pie-legal nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+}
+.pie-legal a {
+  color: var(--link);
+}
+.pie-legal p {
+  margin: 0;
+}
+.login-form .pie-legal {
+  border-top: none;
+  text-align: center;
+  align-items: center;
+  padding: 1rem 0 0;
+}
+.login-form .pie-legal nav {
+  justify-content: center;
+}
+.aviso-ingreso {
+  max-width: 440px;
+  text-align: center;
+  margin: 0.75rem auto 0;
+}
+.pagina-legal {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg);
+  padding: 2rem 1rem 0;
+}
+.pagina-legal .pie-legal {
+  width: min(860px, 100%);
+}
+.politica {
+  width: min(860px, 100%);
+  max-width: none;
+  padding: 2rem;
+}
+.politica h1 {
+  font-size: 1.6rem;
+  margin: 1rem 0;
+}
+.politica-seccion h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.politica ul {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.politica li + li {
+  margin-top: 0.35rem;
+}
+.aviso-datos {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+.aviso-datos p + p {
+  margin-top: 0.6rem;
+}
+.casilla {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 1rem 0;
+  font-weight: 600;
+}
+.casilla input {
+  margin-top: 0.3rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+}
 .romper {
   word-break: break-all;
 }

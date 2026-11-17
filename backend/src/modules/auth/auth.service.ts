@@ -5,6 +5,7 @@ import { compararPassword, hashPassword, HASH_FICTICIO, validarPolitica } from "
 import { firmarAccessToken, generarRefreshToken, hashToken } from "../../utils/jwt";
 import { nombreCompleto } from "../../utils/nombre";
 import { auditar } from "../../core/audit";
+import { POLITICA_DATOS_VERSION, autorizacionVigente } from "../../core/datos";
 import type { RolNombre, TemaPreferido } from "../../generated/prisma/client";
 
 export const MAX_INTENTOS = 3;
@@ -23,6 +24,8 @@ const seleccionUsuario = {
   debeCambiarPassword: true,
   rol: { select: { nombre: true } },
   centro: { select: { id: true, codigo: true, nombre: true } },
+  datosAutorizadosEn: true,
+  datosVersion: true,
 } as const;
 
 type UsuarioDb = {
@@ -34,6 +37,8 @@ type UsuarioDb = {
   debeCambiarPassword: boolean;
   rol: { nombre: RolNombre };
   centro: { id: number; codigo: string; nombre: string } | null;
+  datosAutorizadosEn: Date | null;
+  datosVersion: string | null;
 };
 
 /** Usuario tal como lo ve el cliente (RF-UI-04: incluye nombre completo). */
@@ -47,6 +52,13 @@ export const usuarioPublico = (u: UsuarioDb) => ({
   // Centro de la persona (RF-CEN-01); null y esGeneral=true solo para el administrador general.
   centro: u.centro,
   esGeneral: u.rol.nombre === "ADMINISTRADOR" && u.centro === null,
+  // Autorización de tratamiento de datos (RF-DAT-01): vigente = aceptó la versión actual de la política.
+  autorizacionDatos: {
+    fecha: u.datosAutorizadosEn ?? null,
+    version: u.datosVersion ?? null,
+    vigente: autorizacionVigente({ datosAutorizadosEn: u.datosAutorizadosEn ?? null, datosVersion: u.datosVersion ?? null }),
+    versionActual: POLITICA_DATOS_VERSION,
+  },
   preferenciaTema: u.preferenciaTema,
   debeCambiarPassword: u.debeCambiarPassword,
 });
@@ -176,4 +188,27 @@ export async function cambiarPasswordPropia(userId: number, actual: string, nuev
 export async function actualizarTema(userId: number, tema: TemaPreferido) {
   await prisma.usuario.update({ where: { id: userId }, data: { preferenciaTema: tema } });
   return { preferenciaTema: tema };
+}
+
+/**
+ * Autorización previa, expresa e informada para el tratamiento de datos personales (RF-DAT-01;
+ * Ley 1581 de 2012, art. 9). Se conserva como prueba: fecha y versión en la cuenta, e IP en la auditoría.
+ */
+export async function autorizarDatos(userId: number, version: string, ip?: string) {
+  if (version !== POLITICA_DATOS_VERSION)
+    throw AppError.conflict("La política de datos cambió. Recarga la página y revisa la versión vigente");
+  const fecha = new Date();
+  await prisma.usuario.update({ where: { id: userId }, data: { datosAutorizadosEn: fecha, datosVersion: version } });
+  await auditar(
+    { ip },
+    {
+      accion: "DATOS_AUTORIZADOS",
+      entidad: "usuario",
+      entidadId: userId,
+      usuarioId: userId,
+      descripcion: `Autorizó el tratamiento de datos personales (política ${version})`,
+      datos: { version, fecha: fecha.toISOString() },
+    },
+  );
+  return perfil(userId);
 }

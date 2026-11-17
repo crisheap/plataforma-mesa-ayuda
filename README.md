@@ -11,7 +11,7 @@
 
 Plataforma web para que funcionarios y aprendices **reporten incidentes y solicitudes técnicas**, que la mesa de ayuda los **asigne y resuelva dentro de tiempos acordados (SLA)** y que la entidad **mida la calidad del servicio**. Incluye un asistente virtual, **Botito**, que orienta al usuario paso a paso y, si no logra resolver el problema, le ayuda a crear el caso correctamente.
 
-> Proyecto de grado · Autor: **Cristian Camilo Herrera Aponte** · Noviembre de 2026
+> Proyecto de grado · Autor: **Cristian Camilo Herrera Aponte** · Universidad Antonio Nariño · Noviembre de 2026 · [Licencia MIT](LICENSE)
 
 <p align="center">
   <img src="docs/img/inicio-usuario.png" alt="Pantalla de inicio del usuario con bienvenida, resumen de casos y el botón del asistente" width="800">
@@ -48,6 +48,8 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 Además, para todos los roles:
 
 - **Correo de bienvenida y activación de la cuenta:** al crear un usuario se envía un mensaje de bienvenida al nuevo sistema con un enlace de un solo uso (vence en 48 h) para que la persona cree su propia contraseña. La contraseña nunca viaja por correo. Si la cuenta tiene correo personal, la bienvenida llega allí; las notificaciones de los casos siguen llegando al correo de acceso.
+- **Datos personales (Ley 1581 de 2012):** al primer ingreso cada persona autoriza el tratamiento de sus datos de forma previa, expresa e informada; se guardan la fecha, la versión de la política y la IP como prueba. La política completa está en `#/privacidad`.
+- **Pie en todas las pantallas** con el manual de usuario (PDF), la política de datos, la licencia y la autoría.
 - **Centros de formación independientes:** cada centro solo ve y gestiona sus usuarios, casos, dashboard, Excel y auditoría; los casos solo se asignan a técnicos del mismo centro, y el administrador general ve todo.
 - **Número único de caso** con el código del centro y un consecutivo anual por centro (`CEET-2026-000001`), generado de forma atómica.
 - **SLA con semáforo** (en tiempo, en riesgo, vencido) y alertas automáticas al vencer.
@@ -341,6 +343,8 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-USU-01…08 · Acceso, perfil, usuarios, contraseñas | `modules/auth/`, `modules/usuarios/` |
 | RF-ADM-01 · SLA | `modules/sla/`, `core/sla.ts`, `jobs/worker.ts` |
 | RF-ADM-02/03 · Reportes Excel y KPIs | `modules/reportes/` |
+| RF-DAT-01/02 · Autorización y política de datos | `core/datos.ts`, `POST /api/auth/autorizacion-datos`, `GET /api/auth/politica-datos`, migración `20261118000000_autorizacion_datos`; `views/legal.js` |
+| RF-UI-06 · Pie con manual, política y licencia | `pieLegal` en `ui.js`; `frontend/docs/manual-de-usuario.pdf`; `LICENSE` |
 | RF-CEN-01…04 · Centros de formación | Tabla `centros`, `usuarios.centroId`, `casos.centroId` (migración `20261117000000_centros`); `core/centros.ts`; `modules/centros/`; `views/centros.js`, `centros-ui.js` |
 | RF-ADM-06 · Dashboard con gráficas | `GET /api/reportes/kpis` (`resumen`, `tendencia`, `porTecnico`); hoja Dashboard del Excel; `views/dashboard.js`, `graficas.js` |
 | RF-ADM-04 · Auditoría inmutable | migración `20261105000000_v2_mejoras`, `modules/auditoria/` |
@@ -389,3 +393,6 @@ Desarrollado por **Cristian Camilo Herrera Aponte** como proyecto de grado en la
 
 © 2026 Cristian Camilo Herrera Aponte. **Todos los derechos reservados.** Se permite consultar y ejecutar el proyecto para su evaluación académica; cualquier otro uso requiere autorización del autor. Consulta el archivo [LICENSE](LICENSE).
 
+## Licencia
+
+© 2026 Cristian Camilo Herrera Aponte. Distribuido bajo la [licencia MIT](LICENSE): cualquiera puede usar, copiar o modificar el código siempre que conserve el aviso de autoría y de licencia.

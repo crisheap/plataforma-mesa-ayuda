@@ -81,6 +81,9 @@ export const env = {
   appUrl: (process.env.APP_URL ?? `http://localhost:${numero("PORT", 4000)}`).replace(/\/+$/, ""),
   // Horas de vigencia de los enlaces para crear o restablecer la contraseña.
   accesoVigenciaHoras: Math.max(1, numero("ACCESO_VIGENCIA_HORAS", 48)),
+  // Responsable del tratamiento y canal de contacto que muestra la política de datos personales (RF-DAT-01).
+  datosResponsable: process.env.DATOS_RESPONSABLE?.trim() || "Servicio Nacional de Aprendizaje – SENA",
+  datosContacto: process.env.DATOS_CONTACTO?.trim() || "",
   // Dominios empresariales iniciales (el administrador puede cambiarlos desde Configuración).
   dominiosEmpresariales: (process.env.DOMINIOS_EMPRESARIALES ?? "sena.edu.co,misena.edu.co")
     .split(",")

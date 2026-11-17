@@ -7,7 +7,7 @@ import { prisma } from "../config/prisma";
  * Rutas que una cuenta con contraseña temporal puede usar: perfil, cambio de contraseña, tema y cierre de sesión.
  * Todo lo demás exige cambiar primero la contraseña (el bloqueo no depende solo del frontend).
  */
-const RUTAS_CON_PASSWORD_TEMPORAL = /^\/api\/auth\/(me|password|tema|logout)(\/|\?|$)/;
+const RUTAS_CON_PASSWORD_TEMPORAL = /^\/api\/auth\/(me|password|tema|logout|autorizacion-datos)(\/|\?|$)/;
 
 /** Valida el JWT y confirma que la cuenta siga ACTIVA (un bloqueo surte efecto de inmediato). */
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {

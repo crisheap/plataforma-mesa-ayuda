@@ -130,6 +130,22 @@ const OPERACIONES: Operacion[] = [
 
   {
     metodo: "get",
+    ruta: "/api/auth/politica-datos",
+    tag: "Autenticación",
+    resumen: "Versión, responsable y normas de la política de tratamiento de datos personales (Ley 1581 de 2012)",
+    publica: true,
+  },
+  {
+    metodo: "post",
+    ruta: "/api/auth/autorizacion-datos",
+    tag: "Autenticación",
+    resumen: "Autorizar el tratamiento de datos personales; guarda fecha, versión e IP como prueba",
+    roles: "Cualquier rol",
+    cuerpo: obj({ acepto: { type: "boolean", const: true }, version: txt(1, 20) }, ["acepto", "version"]),
+    respuesta: ref("Usuario"),
+  },
+  {
+    metodo: "get",
     ruta: "/api/auth/me",
     tag: "Autenticación",
     resumen: "Perfil del usuario autenticado",

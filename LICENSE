@@ -1,29 +1,24 @@
+MIT License
+
+Copyright (c) 2026 Cristian Camilo Herrera Aponte
+
 Plataforma Mesa de Ayuda – SENA
-Copyright (c) 2026 Cristian Camilo Herrera Aponte. Todos los derechos reservados.
+Proyecto de grado · Universidad Antonio Nariño
 
-Este software, su código fuente, su diseño, su documentación (ERS, manuales y
-presentaciones) y sus recursos gráficos son obra de Cristian Camilo Herrera
-Aponte, desarrollada como proyecto de grado en la Universidad Antonio Nariño.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-Se permite, sin costo:
-  1. Consultar y ejecutar el software con fines de evaluación académica por
-     parte de la Universidad Antonio Nariño, sus docentes y jurados.
-  2. Citar o reproducir fragmentos breves con fines académicos, siempre que se
-     reconozca al autor.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Cualquier otro uso —copiar, modificar, distribuir, sublicenciar, vender o
-utilizar el software en producción, total o parcialmente— requiere autorización
-previa y por escrito del autor.
-
-EL SOFTWARE SE ENTREGA «TAL CUAL», SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O
-IMPLÍCITA. EN NINGÚN CASO EL AUTOR SERÁ RESPONSABLE POR RECLAMACIONES, DAÑOS U
-OTRAS OBLIGACIONES DERIVADAS DEL USO DEL SOFTWARE.
-
-Este proyecto se desarrolló con apoyo de herramientas de inteligencia
-artificial (Claude, de Anthropic), declarado en el historial de cambios del
-repositorio. La autoría, las decisiones de diseño y la responsabilidad sobre la
-obra corresponden al autor.
-
-Las bibliotecas de terceros que usa el proyecto conservan sus propias licencias.
-
-Contacto: https://github.com/crisheap
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

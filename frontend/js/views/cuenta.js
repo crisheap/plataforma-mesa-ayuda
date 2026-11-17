@@ -1,5 +1,5 @@
 import { api } from "../api.js";
-import { h, montar, campo, toast, fecha, vacio, paginador, cargando, errorBox, ROLES, AUTORIA } from "../ui.js";
+import { h, montar, campo, toast, fecha, vacio, paginador, cargando, errorBox, ROLES, AUTORIA, ENLACES_LEGALES } from "../ui.js";
 import * as tema from "../theme.js";
 import { puedeInstalar, instalar, estaInstalada, alCambiarInstalable, estadoPush, activarPush, desactivarPush } from "../pwa.js";
 
@@ -155,7 +155,33 @@ export async function vistaPerfil() {
         h("h2", {}, "Acerca de la plataforma"),
         h("p", {}, `Plataforma Mesa de Ayuda – SENA, versión ${AUTORIA.version}.`),
         h("p", {}, "Desarrollada por ", h("strong", {}, AUTORIA.autor), ` como ${AUTORIA.detalle.toLowerCase()}, ${AUTORIA.anio}.`),
-        h("p", { class: "muted small" }, `© ${AUTORIA.anio} ${AUTORIA.autor}. Todos los derechos reservados.`),
+        h(
+          "p",
+          { class: "muted small" },
+          `© ${AUTORIA.anio} ${AUTORIA.autor}. Distribuida bajo la `,
+          h("a", { href: ENLACES_LEGALES.licencia, target: "_blank", rel: "noopener" }, "licencia MIT"),
+          ".",
+        ),
+        h("p", {}, h("a", { href: ENLACES_LEGALES.manual, target: "_blank", rel: "noopener" }, "Abrir el manual de usuario (PDF)")),
+      ),
+      h(
+        "section",
+        { class: "card stack" },
+        h("h2", {}, "Tus datos personales"),
+        p.autorizacionDatos?.fecha
+          ? h(
+              "p",
+              {},
+              `Autorizaste el tratamiento de tus datos el ${fecha(p.autorizacionDatos.fecha)} (política versión ${p.autorizacionDatos.version}).`,
+            )
+          : h("p", {}, "Aún no has autorizado el tratamiento de tus datos."),
+        h(
+          "p",
+          {},
+          "Para consultar, actualizar o suprimir tus datos, o revocar la autorización, sigue los pasos de la ",
+          h("a", { href: ENLACES_LEGALES.privacidad }, "política de tratamiento de datos personales"),
+          ".",
+        ),
       ),
     ),
   );

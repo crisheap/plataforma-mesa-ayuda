@@ -589,3 +589,28 @@ test("centros: cada centro es independiente y el general ve todo (RF-CEN-02/03/0
   assert.equal(inactivo.status, 400);
   await llamar("PATCH", `/api/centros/${ids.otroCentro}`, tokens.admin, { activo: true });
 });
+
+test("datos personales: la autorización queda registrada con fecha, versión e IP (RF-DAT-01)", async () => {
+  const pol = await llamar("GET", "/api/auth/politica-datos");
+  assert.equal(pol.status, 200);
+  assert.ok(pol.json.data.normas.some((n: string) => n.includes("1581")));
+  const antes = await llamar("GET", "/api/auth/me", tokens.usuario);
+  assert.equal(antes.json.data.autorizacionDatos.vigente, false, "nadie queda autorizado sin aceptar");
+  assert.equal(
+    (await llamar("POST", "/api/auth/autorizacion-datos", tokens.usuario, { acepto: false, version: pol.json.data.version })).status,
+    400,
+  );
+  assert.equal(
+    (await llamar("POST", "/api/auth/autorizacion-datos", tokens.usuario, { acepto: true, version: "1999-01-01" })).status,
+    409,
+    "una versión vieja de la política no sirve",
+  );
+  const ok = await llamar("POST", "/api/auth/autorizacion-datos", tokens.usuario, { acepto: true, version: pol.json.data.version });
+  assert.equal(ok.status, 200, JSON.stringify(ok.json));
+  assert.equal(ok.json.data.autorizacionDatos.vigente, true);
+  assert.equal(ok.json.data.autorizacionDatos.version, pol.json.data.version);
+  const aud = await llamar("GET", "/api/auditoria?accion=DATOS_AUTORIZADOS", tokens.admin);
+  const reg = aud.json.data.items.find((i: { usuarioId: number }) => i.usuarioId === ids.usuario);
+  assert.ok(reg, "la auditoría conserva la prueba");
+  assert.ok(reg.ip, "con la dirección IP");
+});

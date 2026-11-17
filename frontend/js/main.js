@@ -1,11 +1,12 @@
-import { api, alCambiarSesion, asegurarSesion, getUsuario, logout, restaurarSesion, vaciarCola, colaTotal } from "./api.js";
-import { h, montar, toast, iniciales, ROLES, errorBox, cargando, credito } from "./ui.js";
+import { api, actualizarUsuarioLocal, alCambiarSesion, asegurarSesion, getUsuario, logout, restaurarSesion, vaciarCola, colaTotal } from "./api.js";
+import { h, montar, toast, iniciales, ROLES, errorBox, cargando, pieLegal } from "./ui.js";
 import { icono, iconoBot } from "./illustrations.js";
 import * as tema from "./theme.js";
 import { registrarServiceWorker } from "./pwa.js";
 import { montarBot, desmontarBot } from "./bot.js";
 import { vistaLogin, vistaCambioPasswordObligatorio } from "./views/login.js";
 import { vistaActivar } from "./views/activar.js";
+import { vistaPrivacidad, vistaAutorizacionDatos } from "./views/legal.js";
 import { vistaInicio } from "./views/inicio.js";
 import { vistaMisCasos, vistaAsignados, vistaTodos } from "./views/casos.js";
 import { vistaCasoDetalle } from "./views/caso-detalle.js";
@@ -159,7 +160,8 @@ function construirShell(u) {
     ),
   );
 
-  montar(root, h("div", { class: "app" }, top, nav, h("div", {}, banner, main)));
+  // El pie con el manual, la política de datos y la licencia se ve en todas las pantallas, para todos los roles.
+  montar(root, h("div", { class: "app" }, top, nav, h("div", { class: "contenido" }, banner, main, pieLegal())));
   nav.addEventListener("click", (e) => {
     if (e.target.closest("a")) {
       nav.classList.remove("open");
@@ -175,7 +177,6 @@ function construirShell(u) {
           ? h("div", { class: "sep" }, texto)
           : h("a", { href: `#/${ruta}`, "aria-current": actual === ruta ? "page" : null }, h("span", { "aria-hidden": "true" }, ic), texto),
       ),
-      credito("credito nav-credito"),
     );
 
   shell = { main, banner, contador, campana, pintarNav, chip };
@@ -225,6 +226,12 @@ async function enrutar() {
   if (hash.startsWith("#/activar")) {
     return montar(root, vistaActivar({ token: new URLSearchParams(hash.split("?")[1] ?? "").get("token") }));
   }
+  // Política de datos personales: pública, con o sin sesión (RF-DAT-01).
+  if (hash.startsWith("#/privacidad")) {
+    shell = null;
+    document.title = "Política de datos personales · Mesa de Ayuda SENA";
+    return montar(root, vistaPrivacidad());
+  }
   if (!u) {
     if (hash !== "#/login") history.replaceState(null, "", "#/login");
     return montar(root, vistaLogin({ alIngresar: despuesDeLogin }));
@@ -238,6 +245,20 @@ async function enrutar() {
         },
       }),
     );
+  // Autorización previa, expresa e informada antes de usar la plataforma (Ley 1581 de 2012, art. 9).
+  if (!u.autorizacionDatos?.vigente) {
+    shell = null;
+    return montar(
+      root,
+      vistaAutorizacionDatos({
+        usuario: u,
+        alAceptar: (perfil) => {
+          actualizarUsuarioLocal(perfil);
+          enrutar();
+        },
+      }),
+    );
+  }
   if (!shell || !root.contains(shell.main)) construirShell(u);
   if (hash === "#/login" || hash === "#/" || hash === "") {
     location.replace("#/inicio");
@@ -284,10 +305,10 @@ async function despuesDeLogin(u) {
 }
 
 alCambiarSesion((u) => {
-  if (u?.debeCambiarPassword) {
+  if (u?.debeCambiarPassword || (u && !u.autorizacionDatos?.vigente)) {
     desmontarBot();
     return;
-  } // primero debe cambiar la contraseña temporal
+  } // primero debe cambiar la contraseña temporal y autorizar el tratamiento de datos
   if (u) {
     montarBot();
     refrescarNotificaciones();
@@ -313,7 +334,7 @@ setInterval(refrescarNotificaciones, 60_000);
   });
   const u = await restaurarSesion().catch(() => null);
   if (u) tema.aplicarDePerfil(u.preferenciaTema);
-  const activo = u && !u.debeCambiarPassword;
+  const activo = u && !u.debeCambiarPassword && u.autorizacionDatos?.vigente;
   if (activo) {
     montarBot();
     refrescarNotificaciones();

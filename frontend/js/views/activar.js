@@ -3,7 +3,7 @@
  * La persona crea su propia contraseña; el enlace sirve una sola vez y vence en 48 horas.
  */
 import { api } from "../api.js";
-import { h, campo, montar, cargando } from "../ui.js";
+import { h, campo, montar, cargando, pieLegal } from "../ui.js";
 import { iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
 
@@ -126,5 +126,6 @@ export function vistaActivar({ token }) {
     { class: "login-form activar" },
     h("div", { class: "theme-float" }, toggle),
     h("div", { class: "card" }, h("div", { class: "row" }, iconoBot(40), h("strong", {}, "Mesa de Ayuda · SENA")), contenido),
+    pieLegal(),
   );
 }

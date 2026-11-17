@@ -27,7 +27,7 @@
     "db:reiniciar": "prisma migrate reset --force && prisma db seed"
   },
   "author": "Cristian Camilo Herrera Aponte (https://github.com/crisheap)",
-  "license": "SEE LICENSE IN ../LICENSE",
+  "license": "MIT",
   "private": true,
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

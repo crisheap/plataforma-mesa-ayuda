@@ -5,6 +5,7 @@ import { rateLimit } from "../../middlewares/rateLimit.middleware";
 import { validar } from "../../utils/validate";
 import * as svc from "./auth.service";
 import { activarAcceso, verificarAcceso } from "../../core/acceso";
+import { politicaDatos } from "../../core/datos";
 
 const router = Router();
 
@@ -51,6 +52,21 @@ router.post("/acceso/activar", limiteLogin, async (req, res) => {
 router.post("/logout", async (req, res) => {
   await svc.cerrarSesion(typeof req.body?.refreshToken === "string" ? req.body.refreshToken : undefined);
   res.json({ success: true, message: "Sesión cerrada" });
+});
+
+// Política de tratamiento de datos personales (RF-DAT-01): pública, para leerla antes de ingresar.
+router.get("/politica-datos", (_req, res) => {
+  res.json({ success: true, data: politicaDatos() });
+});
+
+const autorizarSchema = z.object({
+  acepto: z.literal(true, { error: "Debes marcar la casilla de autorización" }),
+  version: z.string().trim().min(1).max(20),
+});
+router.post("/autorizacion-datos", authenticate, async (req, res) => {
+  const { version } = validar(autorizarSchema, req.body);
+  const data = await svc.autorizarDatos(req.user!.userId, version, req.ip);
+  res.json({ success: true, message: "Autorización registrada", data });
 });
 
 router.get("/me", authenticate, async (req, res) => {
