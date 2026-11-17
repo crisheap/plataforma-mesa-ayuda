@@ -27,6 +27,8 @@ type U = {
   ultimoAcceso: Date | null;
   createdAt: Date;
   rol: { nombre: string };
+  centroId: number | null;
+  centro: { id: number; codigo: string; nombre: string } | null;
 };
 const usuarios = new Map<number, U>();
 const mk = (id: number, rol: string, correo: string, hash: string, extra: Partial<U> = {}): U => ({
@@ -43,6 +45,9 @@ const mk = (id: number, rol: string, correo: string, hash: string, extra: Partia
   ultimoAcceso: null,
   createdAt: new Date(),
   rol: { nombre: rol },
+  // Sin centro: el administrador simulado es el administrador general (RF-CEN-02).
+  centroId: null,
+  centro: null,
   ...extra,
 });
 const pick = (u: U, select?: Record<string, unknown>) =>
