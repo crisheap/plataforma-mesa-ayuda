@@ -41,13 +41,15 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 |---|---|
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
-| **Supervisor** | Ver todos los casos · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría |
-| **Administrador** | Gestionar usuarios (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · definir los dominios empresariales · configurar tiempos de SLA · administrar la base de conocimiento del asistente |
+| **Supervisor** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría |
+| **Administrador de centro** | Gestionar los usuarios, técnicos y supervisores de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro |
+| **Administrador general** | Cuenta única sin centro (la del seed, `admin@mesaayuda.local`) · crear los **centros de formación** (CEET, CMTC…) y el administrador de cada uno · ver todos los centros, por separado o consolidados · lo común a la entidad: tiempos de SLA, base de conocimiento del asistente y dominios empresariales |
 
 Además, para todos los roles:
 
 - **Correo de bienvenida y activación de la cuenta:** al crear un usuario se envía un mensaje de bienvenida al nuevo sistema con un enlace de un solo uso (vence en 48 h) para que la persona cree su propia contraseña. La contraseña nunca viaja por correo. Si la cuenta tiene correo personal, la bienvenida llega allí; las notificaciones de los casos siguen llegando al correo de acceso.
-- **Número único de caso** con formato `CASO-AAAA-NNNNNN`, generado de forma atómica.
+- **Centros de formación independientes:** cada centro solo ve y gestiona sus usuarios, casos, dashboard, Excel y auditoría; los casos solo se asignan a técnicos del mismo centro, y el administrador general ve todo.
+- **Número único de caso** con el código del centro y un consecutivo anual por centro (`CEET-2026-000001`), generado de forma atómica.
 - **SLA con semáforo** (en tiempo, en riesgo, vencido) y alertas automáticas al vencer.
 - **Notificaciones** en la aplicación (campana con contador), por correo y push web.
 - **Aplicación web progresiva (PWA):** instalable en celular y computador, funciona sin conexión y envía los casos redactados offline al volver la red.
@@ -223,6 +225,7 @@ Se ejecutan dentro de `backend/`.
 | `npm run prisma:generate` | Generar el cliente de Prisma |
 | `npm run prisma:migrate` | Aplicar migraciones (`prisma migrate deploy`) |
 | `npm run db:seed` | Cargar datos iniciales |
+| `npm run db:reiniciar` | Borrar todos los datos, recrear las tablas y volver a cargar los datos iniciales (solo en desarrollo) |
 | `npm run prisma:studio` | Explorador visual de la base de datos |
 | `npm run typecheck` · `npm test` | Verificar tipos y ejecutar las pruebas unitarias |
 | `npm run test:integracion` | Flujo completo contra PostgreSQL (usa una base de datos vacía de prueba) |
@@ -273,7 +276,8 @@ La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato 
 |---|---|
 | Autenticación | `POST /api/auth/login` · `POST /refresh` · `POST /logout` · `GET /me` · `PATCH /password` · `PATCH /tema` · `POST /acceso/verificar` · `POST /acceso/activar` |
 | Usuarios | `GET/POST /api/usuarios` · `GET/PATCH /:id` · `PATCH /:id/estado` · `PATCH /:id/restablecer-password` · `POST /:id/enviar-acceso` · `GET /tecnicos` |
-| Configuración | `GET/PUT /api/configuracion/correo` (dominios empresariales; solo administrador) |
+| Configuración | `GET/PUT /api/configuracion/correo` (dominios empresariales; los cambia solo el administrador general) |
+| Centros | `GET /api/centros` · `POST /api/centros` · `PATCH /api/centros/:id` (crear y editar: solo el administrador general) |
 | Casos | `POST /api/casos` · `GET /` · `GET /mis-casos` · `GET /asignados` · `GET /por-numero/:numero` · `GET /:id` · `GET /:id/historial` |
 | Atención | `PATCH /api/casos/:id/asignar` · `PATCH /:id/prioridad` · `PATCH /:id/estado` · `GET/POST /:id/observaciones` · `POST /:id/calificacion` |
 | Evidencias | `GET/POST /api/casos/:id/evidencias` · `GET /:id/evidencias/:evidenciaId/descargar` |
@@ -337,6 +341,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-USU-01…08 · Acceso, perfil, usuarios, contraseñas | `modules/auth/`, `modules/usuarios/` |
 | RF-ADM-01 · SLA | `modules/sla/`, `core/sla.ts`, `jobs/worker.ts` |
 | RF-ADM-02/03 · Reportes Excel y KPIs | `modules/reportes/` |
+| RF-CEN-01…04 · Centros de formación | Tabla `centros`, `usuarios.centroId`, `casos.centroId` (migración `20261117000000_centros`); `core/centros.ts`; `modules/centros/`; `views/centros.js`, `centros-ui.js` |
 | RF-ADM-06 · Dashboard con gráficas | `GET /api/reportes/kpis` (`resumen`, `tendencia`, `porTecnico`); hoja Dashboard del Excel; `views/dashboard.js`, `graficas.js` |
 | RF-ADM-04 · Auditoría inmutable | migración `20261105000000_v2_mejoras`, `modules/auditoria/` |
 | RF-PWA-01…06 · PWA | `frontend/manifest.webmanifest`, `sw.js`, `js/pwa.js`, `js/api.js` |

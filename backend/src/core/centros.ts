@@ -39,3 +39,7 @@ export function puedeGestionar(a: Alcance, objetivo: { id: number; rol: RolNombr
 export const CODIGO_CENTRO = /^[A-Z][A-Z0-9]{1,9}$/;
 
 export const formatearNumeroCaso = (codigo: string, anio: number, n: number) => `${codigo}-${anio}-${String(n).padStart(6, "0")}`;
+
+/** Número de caso con el código del centro (CEET-2026-000001); también acepta los antiguos CASO-AAAA-NNNNNN. */
+export const NUMERO_CASO_TEXTO = "[A-Za-z][A-Za-z0-9]{1,9}-\\d{4}-\\d{6}";
+export const esNumeroCaso = (t: string) => new RegExp(`^${NUMERO_CASO_TEXTO}$`).test(t);

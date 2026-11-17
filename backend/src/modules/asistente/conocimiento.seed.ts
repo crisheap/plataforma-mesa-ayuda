@@ -69,14 +69,14 @@ export const ARTICULOS_INICIALES: { titulo: string; contenido: string; palabrasC
     categoria: "PLATAFORMAS_INSTITUCIONALES",
     palabrasClave: ["crear caso", "reportar", "nuevo caso", "abrir caso", "registrar falla", "como reporto"],
     contenido:
-      "1. Entra a «Nuevo caso».\n2. Escribe un título claro y describe qué pasó, cuándo y qué intentaste.\n3. Elige el tipo y la categoría.\n4. Adjunta capturas o archivos si ayudan.\n5. Al enviarlo recibirás un número de caso (CASO-AAAA-NNNNNN) para seguimiento.",
+      "1. Entra a «Nuevo caso».\n2. Escribe un título claro y describe qué pasó, cuándo y qué intentaste.\n3. Elige el tipo y la categoría.\n4. Adjunta capturas o archivos si ayudan.\n5. Al enviarlo recibirás un número de caso que empieza con el código de tu centro (por ejemplo CEET-2026-000001) para seguimiento.",
   },
   {
     titulo: "Cómo consultar el estado de mi caso",
     categoria: "PLATAFORMAS_INSTITUCIONALES",
     palabrasClave: ["estado de mi caso", "seguimiento", "como va mi caso", "mis casos", "consultar caso"],
     contenido:
-      "Entra a «Mis casos» y abre el caso para ver su estado, el técnico asignado y el historial. También puedes preguntarme por tu número de caso, por ejemplo: «¿cómo va CASO-2026-000123?».",
+      "Entra a «Mis casos» y abre el caso para ver su estado, el técnico asignado y el historial. También puedes preguntarme por tu número de caso, por ejemplo: «¿cómo va CEET-2026-000123?».",
   },
   {
     titulo: "Cómo calificar la atención recibida",

@@ -341,7 +341,7 @@ const OPERACIONES: Operacion[] = [
     metodo: "get",
     ruta: "/api/casos/por-numero/:numero",
     tag: "Casos",
-    resumen: "Buscar un caso por su número (CASO-AAAA-NNNNNN)",
+    resumen: "Buscar un caso por su número (CENTRO-AAAA-NNNNNN, por ejemplo CEET-2026-000001)",
     roles: "Con acceso al caso",
     respuesta: ref("Caso"),
   },

@@ -14,5 +14,6 @@ La carpeta [`img/`](img/) contiene las capturas usadas en el README y en los man
   - número de contacto opcional del solicitante en los casos (RF-CAS-14);
   - tipo de correo de acceso (empresarial o personal), correo personal y correo de bienvenida con enlace de activación para crear la contraseña (RF-USU-09, RF-USU-10), y dominios empresariales en Configuración (RF-ADM-05);
   - dashboard con gráficas para el Supervisor y el Administrador y hoja Dashboard en el Excel (RF-ADM-06).
+  - centros de formación independientes con un administrador general y un administrador por centro, y números de caso con el código del centro (RF-CEN-01 a RF-CEN-04).
 - **v2.1 (noviembre de 2026):** el ERS se alineó con el código implementado. Los estados de los requerimientos reflejan lo construido y verificado por las pruebas automáticas; los hallazgos H-01 a H-17 se conservan como línea base del backend v1, cada uno con el ajuste aplicado. Se agregó el manual de usuario por rol.
 - **v2.0:** reestructuración del ERS, nuevos requerimientos (PWA, asistente, tema, identidad visual, nombre completo), arquitectura, UML, manual técnico y análisis de brechas.

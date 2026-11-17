@@ -1,4 +1,5 @@
 import type { CategoriaCaso, TipoCaso } from "../../generated/prisma/client";
+import { NUMERO_CASO_TEXTO } from "../../core/centros";
 
 /** Funciones puras del asistente: búsqueda, clasificación y enmascaramiento (RF-IA-03/05/07). */
 
@@ -82,16 +83,18 @@ export function buscarArticulos<T extends Articulo>(articulos: T[], consulta: st
 
 /** Oculta datos sensibles antes de guardar o enviar al modelo (RNF-12, RNF-13). */
 export function enmascarar(texto: string): string {
-  return (
-    texto
-      .replace(/\b(contrase[ñn]a|password|clave|pin|token)\b(\s*(?:es|:|=)?\s*)(\S+)/gi, "$1$2[oculto]")
-      .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[correo]")
-      // Números largos (cédulas, teléfonos), excepto los números de caso CASO-AAAA-NNNNNN.
-      .replace(/(?<!caso-)\b\d[\d\s.-]{6,}\d\b/gi, "[número]")
-  );
+  // Los números de caso (CEET-2026-000001) se apartan antes de ocultar números largos y se devuelven intactos.
+  const casos: string[] = [];
+  const sinCasos = texto.replace(new RegExp(`\\b${NUMERO_CASO_TEXTO}\\b`, "g"), (m) => `\u0000${casos.push(m) - 1}\u0000`);
+  return sinCasos
+    .replace(/\b(contrase[ñn]a|password|clave|pin|token)\b(\s*(?:es|:|=)?\s*)(\S+)/gi, "$1$2[oculto]")
+    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[correo]")
+    // Números largos (cédulas, teléfonos)
+    .replace(/\b\d[\d\s.-]{6,}\d\b/g, "[número]")
+    .replace(/\u0000(\d+)\u0000/g, (_m, i) => casos[Number(i)]);
 }
 
-export const NUMERO_CASO = /\bCASO-\d{4}-\d{6}\b/i;
+export const NUMERO_CASO = new RegExp(`\\b${NUMERO_CASO_TEXTO}\\b`, "i");
 export const extraerNumeroCaso = (t: string) => t.match(NUMERO_CASO)?.[0].toUpperCase() ?? null;
 
 export const esConsultaEstado = (t: string) => {

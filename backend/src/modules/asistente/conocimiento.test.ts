@@ -29,6 +29,11 @@ test("el enmascarado conserva el número de caso para poder consultarlo", () => 
 
 test("detecta consultas de estado y número de caso", () => {
   assert.equal(extraerNumeroCaso("¿cómo va caso-2026-000123?"), "CASO-2026-000123");
+  // Números con el código del centro (RF-CEN-04)
+  const c = enmascarar("¿Cómo va CEET-2026-000045? mi cédula es 1.020.304.050");
+  assert.equal(extraerNumeroCaso(c), "CEET-2026-000045");
+  assert.ok(c.includes("[número]") && !c.includes("1.020.304.050"));
+  assert.equal(extraerNumeroCaso("estado de cmtc-2027-000001"), "CMTC-2027-000001");
   assert.equal(esConsultaEstado("cómo va mi caso"), true);
   assert.equal(esConsultaEstado("no puedo imprimir"), false);
   assert.equal(quiereCrearCaso("quiero crear un caso"), true);

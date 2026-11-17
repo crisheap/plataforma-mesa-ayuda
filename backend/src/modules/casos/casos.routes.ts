@@ -1,4 +1,5 @@
 import { Router, type Request } from "express";
+import { esNumeroCaso } from "../../core/centros";
 import { z } from "zod";
 import path from "node:path";
 import { existsSync } from "node:fs";
@@ -95,7 +96,7 @@ router.get("/asignados", authorizeRoles("TECNICO"), async (req, res) => {
 });
 router.get("/por-numero/:numero", async (req, res) => {
   const numero = String(req.params.numero);
-  if (!/^CASO-\d{4}-\d{6}$/i.test(numero)) throw AppError.badRequest("Número de caso inválido");
+  if (!esNumeroCaso(numero)) throw AppError.badRequest("Número de caso inválido");
   res.json({ success: true, data: await svc.porNumero(numero, actor(req)) });
 });
 
