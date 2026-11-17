@@ -1,5 +1,5 @@
 import { api, alCambiarSesion, asegurarSesion, getUsuario, logout, restaurarSesion, vaciarCola, colaTotal } from "./api.js";
-import { h, montar, toast, iniciales, ROLES, errorBox, cargando } from "./ui.js";
+import { h, montar, toast, iniciales, ROLES, errorBox, cargando, credito } from "./ui.js";
 import { icono, iconoBot } from "./illustrations.js";
 import * as tema from "./theme.js";
 import { registrarServiceWorker } from "./pwa.js";
@@ -175,6 +175,7 @@ function construirShell(u) {
           ? h("div", { class: "sep" }, texto)
           : h("a", { href: `#/${ruta}`, "aria-current": actual === ruta ? "page" : null }, h("span", { "aria-hidden": "true" }, ic), texto),
       ),
+      credito("credito nav-credito"),
     );
 
   shell = { main, banner, contador, campana, pintarNav, chip };

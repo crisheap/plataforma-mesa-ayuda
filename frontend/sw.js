@@ -2,7 +2,7 @@
    - Cascarón de la app: precaché + stale-while-revalidate (RF-PWA-02/03)
    - Lecturas de casos: network-first con respaldo en caché; nunca autenticación ni datos sensibles
    - Push y Background Sync (RF-PWA-04/05) */
-const VERSION = "v2.0.5";
+const VERSION = "v2.0.6";
 const SHELL = `mesa-shell-${VERSION}`;
 const API = `mesa-api-${VERSION}`;
 const PRECACHE = [

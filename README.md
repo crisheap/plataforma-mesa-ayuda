@@ -382,3 +382,10 @@ Más detalle en [`docs/README.md`](docs/README.md).
 **Pendientes de operación en producción:** configurar el proxy con TLS, conectar `/api/metrics` a un servidor de monitoreo con alertas, medir la disponibilidad real (RNF-03) y el rendimiento con usuarios reales (RNF-04), y capacitar a los usuarios.
 
 **Pendientes que dependen de terceros:** validar la paleta y la ilustración con el manual de marca de Betowa (RF-UI-03), confirmar el plazo de retención de las conversaciones de Botito (180 días por defecto) y contratar un proveedor de SMS si se requiere (RF-NOT-01).
+
+## Autoría y licencia
+
+Desarrollado por **Cristian Camilo Herrera Aponte** como proyecto de grado en la Universidad Antonio Nariño (2026), con apoyo de herramientas de inteligencia artificial (Claude, de Anthropic), declarado en el historial de cambios.
+
+© 2026 Cristian Camilo Herrera Aponte. **Todos los derechos reservados.** Se permite consultar y ejecutar el proyecto para su evaluación académica; cualquier otro uso requiere autorización del autor. Consulta el archivo [LICENSE](LICENSE).
+

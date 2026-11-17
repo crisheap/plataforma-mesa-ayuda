@@ -1,5 +1,5 @@
 import { api, login } from "../api.js";
-import { h, campo, toast } from "../ui.js";
+import { h, campo, toast, credito } from "../ui.js";
 import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
 
@@ -96,6 +96,7 @@ export function vistaLogin({ alIngresar }) {
         h("p", { class: "muted" }, "Usa el correo con el que te registró la Mesa de Ayuda."),
         form,
       ),
+      credito(),
     ),
   );
 }

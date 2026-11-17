@@ -183,3 +183,13 @@ export function paginador(total, page, pageSize, onCambio) {
 export const vacio = (texto) => h("div", { class: "empty" }, texto);
 export const cargando = () => h("div", { class: "empty", role: "status" }, "Cargando…");
 export const errorBox = (e) => h("div", { class: "alert", role: "alert" }, e?.message ?? "Ocurrió un error inesperado");
+
+/** Autoría de la plataforma: se muestra en el ingreso, en «Mi perfil» y en el menú. Ver LICENSE. */
+export const AUTORIA = {
+  autor: "Cristian Camilo Herrera Aponte",
+  detalle: "Proyecto de grado · Universidad Antonio Nariño",
+  anio: 2026,
+  version: "2.2",
+};
+export const credito = (clase = "credito") =>
+  h("p", { class: clase }, `© ${AUTORIA.anio} ${AUTORIA.autor} · ${AUTORIA.detalle}`);

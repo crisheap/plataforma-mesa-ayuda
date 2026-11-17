@@ -1,5 +1,5 @@
 import { api } from "../api.js";
-import { h, montar, campo, toast, fecha, vacio, paginador, cargando, errorBox, ROLES } from "../ui.js";
+import { h, montar, campo, toast, fecha, vacio, paginador, cargando, errorBox, ROLES, AUTORIA } from "../ui.js";
 import * as tema from "../theme.js";
 import { puedeInstalar, instalar, estaInstalada, alCambiarInstalable, estadoPush, activarPush, desactivarPush } from "../pwa.js";
 
@@ -149,6 +149,14 @@ export async function vistaPerfil() {
       ),
       h("section", { class: "card stack" }, h("h2", {}, "Aplicación"), instalacion, h("h3", {}, "Notificaciones push"), push),
       h("section", { class: "card" }, h("h2", {}, "Cambiar contraseña"), form),
+      h(
+        "section",
+        { class: "card stack" },
+        h("h2", {}, "Acerca de la plataforma"),
+        h("p", {}, `Plataforma Mesa de Ayuda – SENA, versión ${AUTORIA.version}.`),
+        h("p", {}, "Desarrollada por ", h("strong", {}, AUTORIA.autor), ` como ${AUTORIA.detalle.toLowerCase()}, ${AUTORIA.anio}.`),
+        h("p", { class: "muted small" }, `© ${AUTORIA.anio} ${AUTORIA.autor}. Todos los derechos reservados.`),
+      ),
     ),
   );
 }
