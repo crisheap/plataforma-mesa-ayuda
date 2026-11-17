@@ -1,4 +1,14 @@
-import { api, actualizarUsuarioLocal, alCambiarSesion, asegurarSesion, getUsuario, logout, restaurarSesion, vaciarCola, colaTotal } from "./api.js";
+import {
+  api,
+  actualizarUsuarioLocal,
+  alCambiarSesion,
+  asegurarSesion,
+  getUsuario,
+  logout,
+  restaurarSesion,
+  vaciarCola,
+  colaTotal,
+} from "./api.js";
 import { h, montar, toast, iniciales, ROLES, errorBox, cargando, pieLegal } from "./ui.js";
 import { icono, iconoBot } from "./illustrations.js";
 import * as tema from "./theme.js";

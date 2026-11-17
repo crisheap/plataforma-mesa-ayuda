@@ -25,7 +25,12 @@ const canal = (p) =>
 /** Texto completo de la política, agrupado por secciones con encabezados. */
 function cuerpoPolitica(p) {
   const s = (titulo, ...hijos) => h("section", { class: "politica-seccion" }, h("h2", {}, titulo), ...hijos);
-  const lista = (items) => h("ul", {}, items.map((i) => h("li", {}, i)));
+  const lista = (items) =>
+    h(
+      "ul",
+      {},
+      items.map((i) => h("li", {}, i)),
+    );
   return [
     s(
       "1. Marco normativo",
@@ -34,7 +39,14 @@ function cuerpoPolitica(p) {
     ),
     s(
       "2. Responsable del tratamiento",
-      h("p", {}, h("strong", {}, p.responsable), ", a través de la Mesa de Ayuda de cada centro de formación. Consultas y reclamos: ", canal(p), "."),
+      h(
+        "p",
+        {},
+        h("strong", {}, p.responsable),
+        ", a través de la Mesa de Ayuda de cada centro de formación. Consultas y reclamos: ",
+        canal(p),
+        ".",
+      ),
     ),
     s(
       "3. Datos que se tratan",
@@ -116,7 +128,15 @@ export function vistaPrivacidad() {
       h("div", { class: "row" }, iconoBot(40), h("strong", {}, "Mesa de Ayuda · SENA")),
       h("h1", {}, "Política de tratamiento de datos personales"),
       cont,
-      h("p", {}, h("a", { class: "btn", href: getUsuario() ? "#/inicio" : "#/login" }, getUsuario() ? "Volver a la plataforma" : "Volver al inicio de sesión")),
+      h(
+        "p",
+        {},
+        h(
+          "a",
+          { class: "btn", href: getUsuario() ? "#/inicio" : "#/login" },
+          getUsuario() ? "Volver a la plataforma" : "Volver al inicio de sesión",
+        ),
+      ),
     ),
     pieLegal(),
   );
@@ -144,7 +164,12 @@ export function vistaAutorizacionDatos({ usuario, alAceptar }) {
           {},
           "Puedes conocer, actualizar, rectificar y suprimir tus datos, revocar esta autorización, pedir prueba de ella y presentar quejas ante la Superintendencia de Industria y Comercio. Norma aplicable: Ley Estatutaria 1581 de 2012 y Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015).",
         ),
-        h("p", {}, h("a", { href: ENLACES_LEGALES.privacidad, target: "_blank", rel: "noopener" }, "Lee la política completa"), ` · versión ${p.version}`),
+        h(
+          "p",
+          {},
+          h("a", { href: ENLACES_LEGALES.privacidad, target: "_blank", rel: "noopener" }, "Lee la política completa"),
+          ` · versión ${p.version}`,
+        ),
       );
     })
     .catch((e) => resumen.replaceChildren(h("div", { class: "alert", role: "alert" }, e.message)));
@@ -177,7 +202,11 @@ export function vistaAutorizacionDatos({ usuario, alAceptar }) {
       h("div", { class: "row" }, iconoBot(40), h("strong", {}, "Mesa de Ayuda · SENA")),
       h("h1", {}, "Autorización para el tratamiento de datos personales"),
       nueva
-        ? h("p", { class: "alert info" }, `La política cambió desde tu última autorización (${fecha(nueva)}). Revísala y autoriza de nuevo para continuar.`)
+        ? h(
+            "p",
+            { class: "alert info" },
+            `La política cambió desde tu última autorización (${fecha(nueva)}). Revísala y autoriza de nuevo para continuar.`,
+          )
         : h("p", {}, `Hola, ${usuario.nombre}. Antes de usar la plataforma necesitamos tu autorización.`),
       resumen,
       h(

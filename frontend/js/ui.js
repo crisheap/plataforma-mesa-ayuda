@@ -191,8 +191,7 @@ export const AUTORIA = {
   anio: 2026,
   version: "2.2",
 };
-export const credito = (clase = "credito") =>
-  h("p", { class: clase }, `© ${AUTORIA.anio} ${AUTORIA.autor} · ${AUTORIA.detalle}`);
+export const credito = (clase = "credito") => h("p", { class: clase }, `© ${AUTORIA.anio} ${AUTORIA.autor} · ${AUTORIA.detalle}`);
 
 /** Enlaces fijos del pie: manual, política de datos y licencia (RF-DAT-01, RF-UI-06). */
 export const ENLACES_LEGALES = {
