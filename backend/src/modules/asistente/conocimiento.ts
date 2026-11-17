@@ -85,14 +85,14 @@ export function buscarArticulos<T extends Articulo>(articulos: T[], consulta: st
 export function enmascarar(texto: string): string {
   // Los números de caso (CEET-2026-000001) se apartan antes de ocultar números largos y se devuelven intactos.
   const casos: string[] = [];
-  const sinCasos = texto.replace(new RegExp(`\\b${NUMERO_CASO_TEXTO}\\b`, "g"), (m) => `\u0000${casos.push(m) - 1}\u0000`);
+  const sinCasos = texto.replace(new RegExp(`\\b${NUMERO_CASO_TEXTO}\\b`, "g"), (m) => `\uE000${casos.push(m) - 1}\uE000`);
   return (
     sinCasos
       .replace(/\b(contrase[ñn]a|password|clave|pin|token)\b(\s*(?:es|:|=)?\s*)(\S+)/gi, "$1$2[oculto]")
       .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[correo]")
       // Números largos (cédulas, teléfonos)
       .replace(/\b\d[\d\s.-]{6,}\d\b/g, "[número]")
-      .replace(/\u0000(\d+)\u0000/g, (_m, i) => casos[Number(i)])
+      .replace(/\uE000(\d+)\uE000/g, (_m, i) => casos[Number(i)])
   );
 }
 
