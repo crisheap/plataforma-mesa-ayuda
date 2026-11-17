@@ -1,4 +1,4 @@
-import { Router, type RequestHandler } from "express";
+import { type NextFunction, type Request, type RequestHandler, type Response, Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
@@ -58,7 +58,9 @@ export function crearAsistenteRouter(auth: RequestHandler): Router {
   });
 
   // ───────────── Administración de la base de conocimiento ─────────────
-  const adm = [authorizeRoles("ADMINISTRADOR"), soloGeneral];
+  // Base de conocimiento común a todos los centros: solo el administrador general (RF-CEN-04).
+  const esAdmin = authorizeRoles("ADMINISTRADOR");
+  const adm = (req: Request, res: Response, next: NextFunction) => esAdmin(req, res, () => soloGeneral(req, res, next));
   const articuloSchema = z.object({
     titulo: z.string().trim().min(5).max(150),
     contenido: z.string().trim().min(20).max(6000),

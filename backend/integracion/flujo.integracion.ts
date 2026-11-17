@@ -265,8 +265,13 @@ test("reportes: KPIs y Excel para supervisor; prohibidos para el usuario", async
 });
 
 test("auditoría: registra las acciones y es inmutable en la base de datos", async () => {
-  const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
+  // El general ve todas las acciones; el supervisor, solo las del personal de su centro (RF-CEN-02).
+  const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.admin);
   const acciones = a.json.data.items.map((i: { accion: string }) => i.accion);
+  const sup = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
+  const accionesSup = sup.json.data.items.map((i: { accion: string }) => i.accion);
+  assert.ok(accionesSup.includes("CASO_CREADO"), "el supervisor ve las acciones de su centro");
+  assert.ok(!accionesSup.includes("USUARIO_CREADO"), "no ve las del administrador general");
   for (const acc of ["LOGIN", "USUARIO_CREADO", "CASO_CREADO", "CASO_ASIGNADO", "CASO_CERRAR"])
     assert.ok(acciones.includes(acc), `falta ${acc}`);
   await assert.rejects(prisma.$executeRawUnsafe(`UPDATE "auditorias" SET "accion" = 'ALTERADA'`));
@@ -336,7 +341,7 @@ test("retención: borra solo las conversaciones de Botito sin actividad reciente
   assert.equal(await prisma.mensajeAsistente.count({ where: { conversacionId: vieja.id } }), 0);
   assert.ok(await prisma.conversacionAsistente.findUnique({ where: { id: reactivada.id } }));
   assert.equal(await purgarConversacionesAntiguas(0), 0, "con 0 días la retención está desactivada");
-  const a = await llamar("GET", "/api/auditoria?accion=RETENCION_ASISTENTE", tokens.supervisor);
+  const a = await llamar("GET", "/api/auditoria?accion=RETENCION_ASISTENTE", tokens.admin);
   assert.ok(a.json.data.items.length >= 1);
 });
 
@@ -430,7 +435,7 @@ test("correos de acceso: dominios empresariales, correo personal y enlace de act
   const ed2 = await llamar("PATCH", `/api/usuarios/${ids.tecnico}`, tokens.admin, { tipoCorreo: "PERSONAL" });
   assert.equal(ed2.json.data.correoPersonal, null, "al pasar a personal se quita el correo adicional");
 
-  const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.supervisor);
+  const a = await llamar("GET", "/api/auditoria?pageSize=100", tokens.admin);
   const acciones = a.json.data.items.map((i: { accion: string }) => i.accion);
   for (const acc of ["CONFIG_CORREO", "ACCESO_ENVIADO", "CUENTA_ACTIVADA"]) assert.ok(acciones.includes(acc), `falta ${acc}`);
 });
