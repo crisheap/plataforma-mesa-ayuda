@@ -42,8 +42,8 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
 | **Supervisor** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría |
-| **Administrador de centro** | Gestionar los usuarios, técnicos y supervisores de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro |
-| **Administrador general** | Cuenta única sin centro (la del seed, `admin@mesaayuda.local`) · crear los **centros de formación** (CEET, CMTC…) y el administrador de cada uno · ver todos los centros, por separado o consolidados · lo común a la entidad: tiempos de SLA, base de conocimiento del asistente y dominios empresariales |
+| **Administrador de centro** | Gestionar los usuarios, técnicos y supervisores de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro · panel de **Seguridad** de su centro y cerrar sus sesiones |
+| **Administrador general** | Cuenta única sin centro (la del seed, `admin@mesaayuda.local`) · crear los **centros de formación** (CEET, CMTC…) y el administrador de cada uno · ver todos los centros, por separado o consolidados · lo común a la entidad: tiempos de SLA, base de conocimiento del asistente y dominios empresariales · panel de **Seguridad** de toda la plataforma, cerrar sesiones y **bloqueo de emergencia** |
 
 Además, para todos los roles:
 
@@ -60,6 +60,7 @@ Además, para todos los roles:
 - **Dashboard** para el Supervisor y el Administrador: total de casos, por realizar, en proceso, realizados y vencidos; gráfica de casos creados frente a realizados; carga de cada técnico; cumplimiento de SLA y satisfacción. Cada gráfica tiene su tabla de datos y se puede recorrer con el teclado.
 - **Reportes en Excel** filtrables por fecha, técnico y prioridad, con una hoja **Dashboard** que resume lo mismo que la pantalla.
 - **Bitácora de auditoría inmutable**, protegida por un trigger de PostgreSQL.
+- **Protección contra fraudes y ataques:** captcha propio sin terceros al ingresar, detección de fuerza bruta con alertas a los administradores, panel **Seguridad**, cierre de todas las sesiones, bloqueo de emergencia y verificación de integridad del código (ver [Seguridad](#seguridad)).
 
 ## Capturas
 
@@ -112,7 +113,7 @@ stateDiagram-v2
 |---|---|
 | API | Node.js 22 LTS · Express 5 · TypeScript (strict) · Zod |
 | Datos | PostgreSQL 15+ · Prisma 7 (adaptador `pg`) |
-| Seguridad | JWT de acceso corto + token de refresco revocable · bcrypt (costo 12) · CSP estricta · límite de peticiones |
+| Seguridad | JWT de acceso corto + token de refresco revocable · bcrypt (costo 12) · CSP estricta · límite de peticiones · captcha propio (SHA-256) · CodeQL y Dependabot |
 | Archivos y reportes | Multer (validación de tipo, tamaño y firma) · ExcelJS |
 | Frontend | PWA en JavaScript nativo, sin dependencias ni compilación · Service Worker · IndexedDB |
 | Opcionales | Nodemailer (correo) · web-push (notificaciones) · API de un modelo de lenguaje para Botito |
@@ -212,7 +213,10 @@ Variables principales de `backend/.env` (la lista completa y comentada está en 
 | `EMBED_ASISTENTE` · `RUN_WORKER` | No | `true` por defecto: el asistente y el worker corren dentro de la API. |
 | `ASISTENTE_RETENCION_DIAS` | No | Días sin actividad tras los cuales se borran las conversaciones de Botito (180; `0` = no borrar). |
 | `LOG_PETICIONES` · `METRICS_TOKEN` | No | Registro por petición (`json`, `texto` o `no`) y token para leer `/api/metrics`. |
-| `RATE_LIMIT_API_MIN` | No | Peticiones por minuto y por IP a `/api` (600). |
+| `RATE_LIMIT_API_MIN` · `RATE_LIMIT_IP_MIN` | No | Peticiones por minuto de cada persona a `/api` (600) y total por IP (20 000; una sede entera puede salir por una sola IP). |
+| `CAPTCHA_BITS` | No | Dificultad del captcha propio (15 ≈ 1 s); sube sola con los intentos fallidos. |
+| `DB_POOL_MAX` | No | Conexiones a PostgreSQL por instancia de la API (20). |
+| `RETENCION_SEGURIDAD_DIAS` · `INTEGRIDAD_MINUTOS` | No | Días que se guardan los eventos de seguridad (180) y cada cuántos minutos se revisa la integridad del código (10). |
 | `RESPALDO_CADA_HORAS` · `RESPALDO_CONSERVAR_DIAS` | No | Frecuencia (24 h) y conservación (14 días) de los respaldos con Docker. |
 
 ## Scripts disponibles
@@ -251,20 +255,24 @@ npm run test:e2e          # accesibilidad y PWA con Playwright (aplicación ence
 
 - **Reglas de negocio:** transiciones de estado del caso, control de propiedad, número de caso.
 - **SLA:** cálculo de vencimiento y semáforo; fecha de corte de la retención de Botito.
-- **Seguridad:** política de contraseñas, límite de peticiones, firmas de archivos subidos.
+- **Seguridad:** política de contraseñas, límite de peticiones (incluido el que solo cuenta fallos), firmas de archivos subidos, captcha (firma, vigencia, un solo uso y dificultad), patrones de ataque, cierre de sesiones e integridad del código.
 - **Asistente:** búsqueda en la base de conocimiento, enmascarado de datos sensibles (conservando el número de caso), clasificación del problema.
 - **Capa HTTP** (con base de datos simulada): validación, autenticación, autorización por rol, bloqueo de cuenta, cambio obligatorio de contraseña, cabeceras de seguridad, CORS, documentación de la API y métricas.
 - **Contrato:** cada ruta declarada en el código está en el OpenAPI, y el OpenAPI no documenta rutas inexistentes.
 
-**Integración** (base de datos real, migrada y con el seed): recorre el flujo del manual con los cuatro roles. Cubre el cambio obligatorio de contraseña, la creación de usuarios, el registro con evidencias válidas e inválidas, el control de propiedad, la asignación con SLA, la atención con notas internas, el rechazo, el cierre y la calificación. También verifica el historial, las notificaciones, los reportes, la auditoría inmutable (trigger), el bloqueo manual, los permisos de SLA, el asistente y la retención de conversaciones. Usa una base de datos vacía: las pruebas crean usuarios y casos y necesitan el mismo `ADMIN_INITIAL_PASSWORD` del seed.
+**Integración** (base de datos real, migrada y con el seed): recorre el flujo del manual con los cuatro roles. Cubre el cambio obligatorio de contraseña, la creación de usuarios, el registro con evidencias válidas e inválidas, el control de propiedad, la asignación con SLA, la atención con notas internas, el rechazo, el cierre y la calificación. También verifica el historial, las notificaciones, los reportes, la auditoría inmutable (trigger), el bloqueo manual, los permisos de SLA, el asistente, la retención de conversaciones y la seguridad (captcha, fuerza bruta con alerta, panel por centro, cierre de sesiones y bloqueo de emergencia). Usa una base de datos vacía: las pruebas crean usuarios y casos y necesitan el mismo `ADMIN_INITIAL_PASSWORD` del seed.
 
 **Integración continua (GitHub Actions)**, en cada `push` y pull request:
 
 | Trabajo | Qué verifica |
 |---|---|
-| Tipos y pruebas unitarias | `npm ci`, `prisma generate`, `typecheck`, Biome y `npm test` |
+| Tipos y pruebas unitarias | `npm ci`, `prisma generate`, `typecheck`, Biome, `npm test` y `npm audit` (sin vulnerabilidades críticas) |
 | Integración con PostgreSQL | Servicio `postgres:16`, migraciones, seed y `npm run test:integracion` |
-| Docker, respaldos, carga, accesibilidad y Lighthouse | Levanta la aplicación con Docker Compose y comprueba salud, PWA, inicio de sesión y `/api/docs`; hace un respaldo y lo restaura en otra base; ejecuta una prueba de carga con k6 (25 usuarios virtuales, p95 ≤ 3 s y menos de 1 % de errores); revisa las métricas; recorre las pantallas de los cuatro roles con axe (WCAG 2.2 AA, temas claro y oscuro, escritorio y celular), verifica el service worker y el uso sin conexión, y audita con Lighthouse (accesibilidad y buenas prácticas ≥ 90) |
+| Docker, respaldos, carga, accesibilidad y Lighthouse | Levanta la aplicación con Docker Compose y comprueba salud, PWA, inicio de sesión y `/api/docs`; hace un respaldo y lo restaura en otra base; comprueba que la integridad del código detecta un archivo alterado; ejecuta una prueba de carga con k6 (25 usuarios virtuales, p95 ≤ 3 s y menos de 1 % de errores) y otra de capacidad con 250 personas simultáneas, cada una con su sesión y pausas de 5 a 15 s; revisa las métricas; recorre las pantallas de los cuatro roles con axe (WCAG 2.2 AA, temas claro y oscuro, escritorio y celular), verifica el service worker y el uso sin conexión, y audita con Lighthouse (accesibilidad y buenas prácticas ≥ 90) |
+
+**Capacidad medida** (última ejecución): 250 usuarios simultáneos durante 90 s, 9.778 peticiones, tiempo promedio de 4 ms, p95 de 8 ms y 0 % de errores. 250 personas activas a la vez equivalen a varios miles de cuentas registradas.
+
+El workflow **CodeQL** analiza el código en busca de fallos de seguridad cada semana y en cada cambio, y **Dependabot** propone las actualizaciones de seguridad de las dependencias.
 
 Los reportes de Playwright, Lighthouse, k6 y las métricas quedan como artefacto **reportes-calidad** de cada ejecución.
 
@@ -272,11 +280,11 @@ El workflow **Mantenimiento** (pestaña *Actions*, ejecución manual) regenera `
 
 ## API
 
-La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato en **`/api/openapi.json`** (OpenAPI 3.1). Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `login`, `refresh`, `logout`, `acceso/verificar`, `acceso/activar`, `health`, `openapi.json` y `docs`, las rutas exigen `Authorization: Bearer <token>`.
+La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato en **`/api/openapi.json`** (OpenAPI 3.1). Todas las respuestas usan el formato `{ success, message?, data? }`. Los errores devuelven `{ success: false, message, errors? }`. Excepto `captcha`, `login`, `refresh`, `logout`, `acceso/verificar`, `acceso/activar`, `health`, `openapi.json` y `docs`, las rutas exigen `Authorization: Bearer <token>`.
 
 | Recurso | Rutas principales |
 |---|---|
-| Autenticación | `POST /api/auth/login` · `POST /refresh` · `POST /logout` · `GET /me` · `PATCH /password` · `PATCH /tema` · `POST /acceso/verificar` · `POST /acceso/activar` |
+| Autenticación | `GET /api/auth/captcha` · `POST /api/auth/login` (con `captcha`) · `POST /refresh` · `POST /logout` · `GET /me` · `PATCH /password` · `PATCH /tema` · `POST /acceso/verificar` · `POST /acceso/activar` |
 | Usuarios | `GET/POST /api/usuarios` · `GET/PATCH /:id` · `PATCH /:id/estado` · `PATCH /:id/restablecer-password` · `POST /:id/enviar-acceso` · `GET /tecnicos` |
 | Configuración | `GET/PUT /api/configuracion/correo` (dominios empresariales; los cambia solo el administrador general) |
 | Centros | `GET /api/centros` · `POST /api/centros` · `PATCH /api/centros/:id` (crear y editar: solo el administrador general) |
@@ -284,6 +292,7 @@ La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato 
 | Atención | `PATCH /api/casos/:id/asignar` · `PATCH /:id/prioridad` · `PATCH /:id/estado` · `GET/POST /:id/observaciones` · `POST /:id/calificacion` |
 | Evidencias | `GET/POST /api/casos/:id/evidencias` · `GET /:id/evidencias/:evidenciaId/descargar` |
 | SLA, reportes y auditoría | `GET/PUT /api/sla` · `GET /api/reportes/kpis` · `GET /api/reportes/casos.xlsx` · `GET /api/auditoria` |
+| Seguridad | `GET /api/seguridad/resumen` · `GET /eventos` · `PATCH /eventos/:id/atender` · `POST /sesiones/cerrar` · `PUT /emergencia` (solo administradores; el bloqueo, solo el general) |
 | Notificaciones | `GET /api/notificaciones` · `PATCH /:id/leida` · `PATCH /leer-todas` · `GET /api/push/clave-publica` · `POST /api/push/suscripciones` |
 | Asistente | `POST /api/asistente/conversaciones` · `POST /:id/mensajes` · `PATCH /:id/mensajes/:mid/util` · `POST /sugerencia-caso` · `GET/POST/PATCH /conocimiento` |
 | Sistema | `GET /api/health` (`?deep=1` verifica la base de datos) · `GET /api/openapi.json` · `GET /api/docs` · `GET /api/metrics` (con `METRICS_TOKEN`) |
@@ -291,6 +300,11 @@ La documentación navegable está en **`/api/docs`** (Swagger UI) y el contrato 
 ## Seguridad
 
 - **Control de propiedad:** un usuario solo ve sus casos y un técnico solo los asignados. Un caso ajeno responde 404 para no revelar que existe.
+- **Captcha propio, sin terceros** (inicio de sesión y activación): prueba de trabajo SHA-256 con desafío firmado, de un solo uso y que vence en 2 minutos. El navegador la resuelve en segundo plano (1 o 2 s) y su dificultad sube con los fallos recientes de la IP, así un programa que prueba contraseñas se vuelve lento.
+- **Límites de intentos:** el inicio de sesión solo cuenta los fallos, por correo e IP (10 en 15 min) y por IP (100), para no bloquear a una sede que sale a internet por una sola IP. El resto de la API se limita por persona.
+- **Detección y alertas (panel Seguridad):** se registran los ingresos fallidos, cuentas bloqueadas, captcha inválido, exceso de peticiones, tokens alterados, accesos sin permiso, datos con patrones de inyección y archivos disfrazados. Diez fallos desde una IP en 15 minutos generan una alerta crítica de fuerza bruta que llega al administrador general y al del centro.
+- **Respuesta inmediata:** cerrar todas las sesiones (un centro o todo el sistema) revoca los tokens de refresco y anula los de acceso emitidos antes; el **bloqueo de emergencia** responde 503 con el motivo a todos menos al administrador general.
+- **Integridad del código:** la imagen Docker guarda la huella SHA-256 de cada archivo del servidor y la PWA, el código es de solo lectura para el proceso y el servidor lo compara cada 10 minutos; si algo cambia, avisa con una alerta crítica. CodeQL, Dependabot y `npm audit` revisan el código y las dependencias.
 - **Bloqueo de cuenta** tras 3 intentos fallidos (15 minutos). El bloqueo manual del administrador surte efecto de inmediato, incluso con sesiones abiertas.
 - **Contraseña temporal obligatoria de cambiar:** mientras no se cambie, la API solo permite ver el perfil, cambiar la contraseña y cerrar sesión.
 - **Sesiones:** token de acceso de 15 minutos y token de refresco rotativo y revocable. Al cambiar la contraseña o bloquear la cuenta se cierran todas las sesiones.
@@ -347,6 +361,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-UI-06 · Pie con manual, política y licencia | `pieLegal` en `ui.js`; `frontend/docs/manual-de-usuario.pdf`; `LICENSE` |
 | RF-CEN-01…04 · Centros de formación | Tabla `centros`, `usuarios.centroId`, `casos.centroId` (migración `20261117000000_centros`); `core/centros.ts`; `modules/centros/`; `views/centros.js`, `centros-ui.js` |
 | RF-ADM-06 · Dashboard con gráficas | `GET /api/reportes/kpis` (`resumen`, `tendencia`, `porTecnico`); hoja Dashboard del Excel; `views/dashboard.js`, `graficas.js` |
+| RF-SEG-01…05 · Captcha, eventos y alertas, panel Seguridad, cierre de sesiones, bloqueo de emergencia e integridad | `core/captcha.ts`, `core/seguridad.ts`, `core/integridad.ts`, `modules/seguridad/`, migración `20261119000000_seguridad`; `js/captcha.js`, `captcha-worker.js`, `views/seguridad.js`; `.github/workflows/codeql.yml`, `dependabot.yml` |
 | RF-ADM-04 · Auditoría inmutable | migración `20261105000000_v2_mejoras`, `modules/auditoria/` |
 | RF-PWA-01…06 · PWA | `frontend/manifest.webmanifest`, `sw.js`, `js/pwa.js`, `js/api.js` |
 | RF-IA-01…08 · Asistente Botito | `modules/asistente/`, `frontend/js/bot.js` |
@@ -383,7 +398,7 @@ Más detalle en [`docs/README.md`](docs/README.md).
 
 - La herramienta de análisis estático es Biome y no ESLint: `typescript-eslint` aún no admite TypeScript 7 (exige `typescript < 6.1`).
 
-**Pendientes de operación en producción:** configurar el proxy con TLS, conectar `/api/metrics` a un servidor de monitoreo con alertas, medir la disponibilidad real (RNF-03) y el rendimiento con usuarios reales (RNF-04), y capacitar a los usuarios.
+**Pendientes de operación en producción:** configurar el proxy con TLS, conectar `/api/metrics` a un servidor de monitoreo con alertas, medir la disponibilidad real (RNF-03) y el rendimiento con usuarios reales (RNF-04; la prueba de capacidad de la CI ya atiende 250 simultáneos), y capacitar a los usuarios.
 
 **Pendientes que dependen de terceros:** validar la paleta y la ilustración con el manual de marca de Betowa (RF-UI-03), confirmar el plazo de retención de las conversaciones de Botito (180 días por defecto) y contratar un proveedor de SMS si se requiere (RF-NOT-01).
 
