@@ -781,7 +781,7 @@ test("correos únicos, corrección del correo de acceso y datos corregidos por e
   assert.equal(datos.json.data.nombreCompleto, "Marta Ruiz Díaz");
   assert.equal(datos.json.data.correoPersonal, "marta.ruiz@gmail.com");
   assert.equal(
-    (await llamar("PATCH", `/api/usuarios/${ids.tecnico}/datos`, tokens.supervisor, { correoPersonal: "marta.ruiz@gmail.com" })).status,
+    (await llamar("PATCH", `/api/usuarios/${ids.otro}/datos`, tokens.supervisor, { correoPersonal: "marta.ruiz@gmail.com" })).status,
     409,
     "también para el supervisor los correos son únicos",
   );
