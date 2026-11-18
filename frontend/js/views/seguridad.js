@@ -30,6 +30,7 @@ const TIPOS = {
   EMERGENCIA_ACTIVADA: "Bloqueo de emergencia activado",
   EMERGENCIA_DESACTIVADA: "Bloqueo de emergencia levantado",
 };
+const COLUMNAS = ["Última vez", "Severidad", "Evento", "Origen", "Veces", "Estado"];
 const PERIODOS = { 24: "Últimas 24 horas", 168: "Últimos 7 días", 720: "Últimos 30 días" };
 const INTEGRIDAD = {
   INTEGRO: ["Íntegro", "b-verde", "✓", "Los archivos de la aplicación coinciden con la versión instalada."],
@@ -275,14 +276,14 @@ export async function vistaSeguridad({ usuario }) {
               envolturaTabla("Eventos de seguridad"),
               h(
                 "table",
-                {},
+                { class: "tabla-tarjetas" },
                 h(
                   "thead",
                   {},
                   h(
                     "tr",
                     {},
-                    ["Última vez", "Severidad", "Evento", "Origen", "Veces", "Estado"].map((t) => h("th", { scope: "col" }, t)),
+                    COLUMNAS.map((t) => h("th", { scope: "col" }, t)),
                   ),
                 ),
                 h(
@@ -292,14 +293,14 @@ export async function vistaSeguridad({ usuario }) {
                     h(
                       "tr",
                       {},
-                      h("td", {}, fecha(e.ultimoEn)),
-                      h("td", {}, badgeSev(e.severidad)),
-                      h("td", {}, h("strong", {}, e.nombre ?? TIPOS[e.tipo] ?? e.tipo), h("div", { class: "small muted" }, e.descripcion)),
-                      h("td", { class: "small" }, e.ip ? h("code", {}, e.ip) : "—", e.correo ? h("div", {}, e.correo) : null),
-                      h("td", {}, num.format(e.veces)),
+                      h("td", { "data-etiqueta": COLUMNAS[0] }, fecha(e.ultimoEn)),
+                      h("td", { "data-etiqueta": COLUMNAS[1] }, badgeSev(e.severidad)),
+                      h("td", { "data-etiqueta": COLUMNAS[2] }, h("strong", {}, e.nombre ?? TIPOS[e.tipo] ?? e.tipo), h("div", { class: "small muted" }, e.descripcion)),
+                      h("td", { class: "small", "data-etiqueta": COLUMNAS[3] }, e.ip ? h("code", {}, e.ip) : "—", e.correo ? h("div", {}, e.correo) : null),
+                      h("td", { "data-etiqueta": COLUMNAS[4] }, num.format(e.veces)),
                       h(
                         "td",
-                        {},
+                        { "data-etiqueta": COLUMNAS[5] },
                         e.atendido
                           ? h("span", { class: "badge b-verde" }, "✓ Atendido")
                           : h(

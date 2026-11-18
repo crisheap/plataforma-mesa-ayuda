@@ -729,6 +729,7 @@ td.num {
   z-index: 20;
 }
 .topbar .brand {
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1442,8 +1443,8 @@ dialog .dlg-foot {
     padding: 0.5rem;
   }
   .bot-fab {
-    right: 14px;
-    bottom: 14px;
+    right: calc(14px + env(safe-area-inset-right));
+    bottom: calc(14px + env(safe-area-inset-bottom));
   }
   .bot-panel {
     right: 12px;
@@ -1494,4 +1495,86 @@ dialog .dlg-foot {
 .mantenimiento .card {
   max-width: 34rem;
   margin: 0 auto;
+}
+
+/* ───── Celular y aplicación instalada (PWA) ───── */
+/* Respeta la muesca y la barra de gestos cuando la PWA se abre a pantalla completa (viewport-fit=cover). */
+.topbar {
+  padding-top: max(0.6rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+@media (max-width: 860px) {
+  .nav {
+    top: calc(60px + env(safe-area-inset-top));
+    height: calc(100dvh - 60px - env(safe-area-inset-top));
+    overflow-y: auto;
+  }
+  main {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); /* espacio para el botón de Botito */
+  }
+}
+/* Celulares angostos (360 px o menos de ancho): la barra superior cabe en una sola línea. */
+@media (max-width: 420px) {
+  .topbar {
+    gap: 0.4rem;
+    padding-left: max(0.6rem, env(safe-area-inset-left));
+    padding-right: max(0.6rem, env(safe-area-inset-right));
+  }
+  .topbar .brand-texto,
+  .topbar .avatar {
+    display: none;
+  }
+  .page-title {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .page-title h1 {
+    font-size: 1.4rem;
+  }
+}
+img,
+video,
+svg {
+  max-width: 100%;
+}
+pre,
+code {
+  overflow-wrap: anywhere;
+}
+/* En el celular, las tablas marcadas como .tabla-tarjetas se muestran como tarjetas (una fila = una tarjeta). */
+@media (max-width: 600px) {
+  .tabla-tarjetas thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .tabla-tarjetas,
+  .tabla-tarjetas tbody,
+  .tabla-tarjetas tr,
+  .tabla-tarjetas td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-tarjetas tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabla-tarjetas td {
+    position: relative;
+    border: 0;
+    padding: 0.3rem 0.75rem 0.3rem 7.25rem;
+    overflow-wrap: anywhere;
+  }
+  .tabla-tarjetas td::before {
+    content: attr(data-etiqueta);
+    position: absolute;
+    left: 0.75rem;
+    width: 6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
 }

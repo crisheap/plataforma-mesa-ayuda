@@ -13,8 +13,26 @@ const cred = JSON.parse(readFileSync(process.env.CREDENCIALES ?? "credenciales.j
   casoId: number;
 };
 
+/** Ninguna pantalla debe desbordarse a lo ancho (las tablas se desplazan dentro de su recuadro). */
+async function sinDesborde(page: Page, nombre: string) {
+  const r = await page.evaluate(() => {
+    const ancho = document.documentElement.clientWidth;
+    const fuera = [...document.querySelectorAll("body *")]
+      .filter((el) => {
+        const b = el.getBoundingClientRect();
+        return b.width > 0 && b.right > ancho + 1 && !el.closest(".table-wrap, .nav, dialog") && getComputedStyle(el).position !== "fixed";
+      })
+      .slice(0, 5)
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
+    return { ancho, total: document.documentElement.scrollWidth, fuera };
+  });
+  expect(r.fuera, `elementos que se salen de la pantalla en ${nombre}`).toEqual([]);
+  expect(r.total, `desborde horizontal en ${nombre}`).toBeLessThanOrEqual(r.ancho);
+}
+
 async function revisar(page: Page, nombre: string) {
   await page.waitForLoadState("networkidle");
+  await sinDesborde(page, nombre);
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   const graves = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   for (const v of r.violations) {

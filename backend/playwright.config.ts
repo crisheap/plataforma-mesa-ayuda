@@ -11,5 +11,7 @@ export default defineConfig({
   projects: [
     { name: "escritorio", use: { ...devices["Desktop Chrome"] } },
     { name: "celular", use: { ...devices["Pixel 7"] } },
+    // Celular angosto (360 px, muy común en Android de gama media y baja)
+    { name: "celular-360", use: { ...devices["Pixel 7"], viewport: { width: 360, height: 780 } } },
   ],
 });
