@@ -103,7 +103,10 @@ export function crearApp(): Application {
       ip: req.ip,
       usuarioId: clave.startsWith("u:") ? Number(clave.slice(2)) : null,
     });
-  app.use("/api", rateLimit({ ventanaMs: 60_000, max: env.rateLimitIpMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto", alExceder }));
+  app.use(
+    "/api",
+    rateLimit({ ventanaMs: 60_000, max: env.rateLimitIpMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto", alExceder }),
+  );
   app.use(
     "/api",
     rateLimit({

@@ -27,10 +27,11 @@ test("integridad: detecta archivos modificados, nuevos y eliminados (RF-SEG-04)"
     unlinkSync(path.join(raiz, "frontend/js/main.js"));
     const r = verificarIntegridad(manifiesto, false);
     assert.equal(r.estado, "ALTERADO");
-    assert.deepEqual(
-      r.cambios.map((c) => `${c.cambio}:${c.archivo}`).sort(),
-      ["ELIMINADO:frontend/js/main.js", "MODIFICADO:frontend/index.html", "NUEVO:frontend/js/puerta.js"],
-    );
+    assert.deepEqual(r.cambios.map((c) => `${c.cambio}:${c.archivo}`).sort(), [
+      "ELIMINADO:frontend/js/main.js",
+      "MODIFICADO:frontend/index.html",
+      "NUEVO:frontend/js/puerta.js",
+    ]);
     assert.equal(verificarIntegridad(path.join(raiz, "no-existe.json"), false).estado, "SIN_MANIFIESTO");
   } finally {
     rmSync(raiz, { recursive: true, force: true });

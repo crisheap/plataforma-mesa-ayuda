@@ -30,7 +30,11 @@ const limiteCuenta = rateLimit({
   ventanaMs: 15 * 60_000,
   max: 10,
   soloFallidos: true,
-  clave: (req) => `${req.ip}|${String(req.body?.correo ?? "").trim().toLowerCase().slice(0, 150)}`,
+  clave: (req) =>
+    `${req.ip}|${String(req.body?.correo ?? "")
+      .trim()
+      .toLowerCase()
+      .slice(0, 150)}`,
   mensaje: mensajeLimite,
   alExceder,
 });
@@ -38,9 +42,7 @@ const limiteIp = rateLimit({ ventanaMs: 15 * 60_000, max: 100, soloFallidos: tru
 const limiteLogin = [limiteIp, limiteCuenta];
 const limiteToken = rateLimit({ ventanaMs: 15 * 60_000, max: 60, soloFallidos: true, mensaje: mensajeLimite, alExceder });
 
-const captchaSchema = z
-  .object({ desafio: z.string().max(200), firma: z.string().max(100), nonce: z.string().max(20) })
-  .optional();
+const captchaSchema = z.object({ desafio: z.string().max(200), firma: z.string().max(100), nonce: z.string().max(20) }).optional();
 /** Verifica el captcha y registra el intento fallido (RF-SEG-01). */
 function exigirCaptcha(req: Request, captcha: z.infer<typeof captchaSchema>) {
   try {

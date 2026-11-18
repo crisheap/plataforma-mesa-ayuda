@@ -56,7 +56,11 @@ router.get("/resumen", async (req, res) => {
       ataques: n("ATAQUE_FUERZA_BRUTA"),
       bloqueados: n("CAPTCHA_INVALIDO") + n("LIMITE_EXCEDIDO") + n("TOKEN_INVALIDO"),
       sospechosos: n("ENTRADA_SOSPECHOSA") + n("ARCHIVO_RECHAZADO") + n("ACCESO_DENEGADO"),
-      porTipo: porTipo.map((x) => ({ tipo: x.tipo, nombre: TIPOS_SEGURIDAD[x.tipo as keyof typeof TIPOS_SEGURIDAD] ?? x.tipo, veces: x._sum.veces ?? 0 })),
+      porTipo: porTipo.map((x) => ({
+        tipo: x.tipo,
+        nombre: TIPOS_SEGURIDAD[x.tipo as keyof typeof TIPOS_SEGURIDAD] ?? x.tipo,
+        veces: x._sum.veces ?? 0,
+      })),
       sinAtender: Object.fromEntries(SEVERIDADES.map((s) => [s, sinAtender.find((x) => x.severidad === s)?._count._all ?? 0])),
       ips: porIp.map((x) => ({ ip: x.ip, veces: x._sum.veces ?? 0 })),
       emergencia: estado.emergencia,
@@ -122,7 +126,11 @@ router.post("/sesiones/cerrar", async (req, res) => {
   const valor = destino
     ? { global: actual.global ?? null, centros: { ...(actual.centros ?? {}), [String(destino)]: corte } }
     : { global: corte, centros: actual.centros ?? {} };
-  await prisma.configuracionSistema.upsert({ where: { clave: "sesionesDesde" }, create: { clave: "sesionesDesde", valor }, update: { valor } });
+  await prisma.configuracionSistema.upsert({
+    where: { clave: "sesionesDesde" },
+    create: { clave: "sesionesDesde", valor },
+    update: { valor },
+  });
   const revocados = await prisma.refreshToken.updateMany({
     where: { revokedAt: null, ...(destino ? { usuario: { centroId: destino } } : {}) },
     data: { revokedAt: new Date() },
@@ -137,7 +145,12 @@ router.post("/sesiones/cerrar", async (req, res) => {
     usuarioId: req.user!.userId,
     centroId: destino,
   });
-  await auditar(req, { accion: "SESIONES_CERRADAS", entidad: "seguridad", descripcion: `Cierre de sesiones ${alcanceTxt}`, datos: { centroId: destino } });
+  await auditar(req, {
+    accion: "SESIONES_CERRADAS",
+    entidad: "seguridad",
+    descripcion: `Cierre de sesiones ${alcanceTxt}`,
+    datos: { centroId: destino },
+  });
   // Quien ejecuta la acción recibe una sesión nueva para no expulsarse a sí mismo.
   const sesion = await nuevaSesion(req.user!.userId);
   res.json({ success: true, message: `Se cerraron las sesiones ${alcanceTxt}`, data: { sesionesRevocadas: revocados.count, sesion } });
@@ -146,10 +159,12 @@ router.post("/sesiones/cerrar", async (req, res) => {
 /** Bloqueo de emergencia: solo el administrador general entra mientras está activo. */
 router.put("/emergencia", soloGeneral, async (req, res) => {
   const d = validar(
-    z.object({ activo: z.boolean(), motivo: z.string().trim().max(200).optional() }).refine((x) => !x.activo || (x.motivo?.length ?? 0) >= 5, {
-      message: "Escribe el motivo (mínimo 5 caracteres); lo verán las personas al intentar entrar",
-      path: ["motivo"],
-    }),
+    z
+      .object({ activo: z.boolean(), motivo: z.string().trim().max(200).optional() })
+      .refine((x) => !x.activo || (x.motivo?.length ?? 0) >= 5, {
+        message: "Escribe el motivo (mínimo 5 caracteres); lo verán las personas al intentar entrar",
+        path: ["motivo"],
+      }),
     req.body,
   );
   const valor = d.activo

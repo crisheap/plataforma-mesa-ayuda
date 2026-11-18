@@ -280,7 +280,11 @@ test("captcha: el inicio de sesión lo exige y no acepta soluciones falsas ni re
   const sin = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: undefined });
   assert.equal(sin.status, 400);
   const c = await captcha();
-  const falso = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: { ...c, firma: "x".repeat(43) } });
+  const falso = await post("/api/auth/login", {
+    correo: "maria@sena.edu.co",
+    password: "Segura#2026ok",
+    captcha: { ...c, firma: "x".repeat(43) },
+  });
   assert.equal(falso.status, 400);
   const ok = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: c });
   assert.equal(ok.status, 200);

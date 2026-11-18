@@ -73,15 +73,18 @@ export function verificarIntegridad(manifiesto = rutaManifiesto(), avisar = true
   const firma = cambios.map((c) => `${c.cambio}:${c.archivo}`).join("|");
   if (cambios.length && firma !== firmaUltimoAviso) {
     firmaUltimoAviso = firma;
-    if (avisar) void import("./seguridad").then(({ registrarEvento }) => registrarEvento({
-      tipo: "INTEGRIDAD_ALTERADA",
-      severidad: "CRITICA",
-      descripcion: `${cambios.length} archivo(s) de la aplicación cambiaron desde su instalación: ${cambios
-        .slice(0, 3)
-        .map((c) => c.archivo)
-        .join(", ")}${cambios.length > 3 ? "…" : ""}`,
-      datos: { cambios: cambios.slice(0, 50) },
-    }));
+    if (avisar)
+      void import("./seguridad").then(({ registrarEvento }) =>
+        registrarEvento({
+          tipo: "INTEGRIDAD_ALTERADA",
+          severidad: "CRITICA",
+          descripcion: `${cambios.length} archivo(s) de la aplicación cambiaron desde su instalación: ${cambios
+            .slice(0, 3)
+            .map((c) => c.archivo)
+            .join(", ")}${cambios.length > 3 ? "…" : ""}`,
+          datos: { cambios: cambios.slice(0, 50) },
+        }),
+      );
   }
   if (!cambios.length) firmaUltimoAviso = "";
   return ultimo;

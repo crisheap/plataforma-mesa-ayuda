@@ -674,7 +674,9 @@ test("seguridad: captcha, fuerza bruta, alertas, panel por centro y acciones de 
   await llamar("GET", "/api/casos/mis-casos?q=%27%20OR%201%3D1%20--", tokens.usuario);
   await llamar("GET", "/api/auth/me", "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjF9.firma-falsa");
   await new Promise((r) => setTimeout(r, 300));
-  const tipos = (await llamar("GET", "/api/seguridad/eventos?pageSize=100", tokens.admin)).json.data.items.map((e: { tipo: string }) => e.tipo);
+  const tipos = (await llamar("GET", "/api/seguridad/eventos?pageSize=100", tokens.admin)).json.data.items.map(
+    (e: { tipo: string }) => e.tipo,
+  );
   assert.ok(tipos.includes("ENTRADA_SOSPECHOSA"), "registra la inyección SQL");
   assert.ok(tipos.includes("TOKEN_INVALIDO"), "registra el token alterado");
 

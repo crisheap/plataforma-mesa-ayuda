@@ -95,10 +95,13 @@ export async function purgarConversacionesAntiguas(dias = env.asistenteRetencion
 export function iniciarWorker(): () => void {
   const correos = setInterval(() => procesarCorreosPendientes().catch((e) => console.error("[worker]", e)), 30_000);
   const sla = setInterval(() => procesarAlertasSla().catch((e) => console.error("[worker]", e)), 60_000);
-  const retencion = setInterval(() => {
-    purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e));
-    purgarEventosSeguridad().catch((e) => console.error("[worker]", e));
-  }, 6 * 60 * 60_000);
+  const retencion = setInterval(
+    () => {
+      purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e));
+      purgarEventosSeguridad().catch((e) => console.error("[worker]", e));
+    },
+    6 * 60 * 60_000,
+  );
   setTimeout(() => purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e)), 60_000).unref();
   correos.unref();
   sla.unref();

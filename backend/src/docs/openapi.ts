@@ -91,7 +91,18 @@ const OPERACIONES: Operacion[] = [
     tag: "Autenticación",
     resumen: "Iniciar sesión (exige la solución del captcha)",
     publica: true,
-    cuerpo: obj({ correo: { type: "string", format: "email" }, password: txt(1, 200), captcha: { type: "object", description: "Solución del captcha de GET /api/auth/captcha", properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } } } }, ["correo", "password", "captcha"]),
+    cuerpo: obj(
+      {
+        correo: { type: "string", format: "email" },
+        password: txt(1, 200),
+        captcha: {
+          type: "object",
+          description: "Solución del captcha de GET /api/auth/captcha",
+          properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } },
+        },
+      },
+      ["correo", "password", "captcha"],
+    ),
     respuesta: ref("Sesion"),
   },
   {
@@ -125,7 +136,18 @@ const OPERACIONES: Operacion[] = [
     tag: "Autenticación",
     resumen: "Crear la contraseña con el enlace de acceso (un solo uso)",
     publica: true,
-    cuerpo: obj({ token: txt(20, 100), passwordNueva: txt(10, 200), captcha: { type: "object", description: "Solución del captcha de GET /api/auth/captcha", properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } } } }, ["token", "passwordNueva", "captcha"]),
+    cuerpo: obj(
+      {
+        token: txt(20, 100),
+        passwordNueva: txt(10, 200),
+        captcha: {
+          type: "object",
+          description: "Solución del captcha de GET /api/auth/captcha",
+          properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } },
+        },
+      },
+      ["token", "passwordNueva", "captcha"],
+    ),
   },
 
   {
@@ -296,7 +318,13 @@ const OPERACIONES: Operacion[] = [
     tag: "Seguridad",
     resumen: "Eventos de seguridad con filtros",
     roles: "Administrador",
-    query: { ...paginacion, severidad: enumer("INFO", "ADVERTENCIA", "CRITICA"), tipo: txt(0, 40), atendido: enumer("si", "no"), centroId: ent(1) },
+    query: {
+      ...paginacion,
+      severidad: enumer("INFO", "ADVERTENCIA", "CRITICA"),
+      tipo: txt(0, 40),
+      atendido: enumer("si", "no"),
+      centroId: ent(1),
+    },
   },
   {
     metodo: "patch",
@@ -309,7 +337,8 @@ const OPERACIONES: Operacion[] = [
     metodo: "post",
     ruta: "/api/seguridad/sesiones/cerrar",
     tag: "Seguridad",
-    resumen: "Cerrar todas las sesiones (del centro, o de un centro o toda la plataforma si es el general); devuelve una sesión nueva para quien lo ejecuta",
+    resumen:
+      "Cerrar todas las sesiones (del centro, o de un centro o toda la plataforma si es el general); devuelve una sesión nueva para quien lo ejecuta",
     roles: "Administrador",
     cuerpo: obj({ centroId: ent(1) }),
   },

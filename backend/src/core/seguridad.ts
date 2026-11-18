@@ -163,7 +163,11 @@ export function patronAtaque(texto: string): string | null {
 const textoDe = (v: unknown, prof = 0): string => {
   if (prof > 4 || v === null || v === undefined) return "";
   if (typeof v === "string") return v.slice(0, 4000);
-  if (Array.isArray(v)) return v.slice(0, 50).map((x) => textoDe(x, prof + 1)).join(" ");
+  if (Array.isArray(v))
+    return v
+      .slice(0, 50)
+      .map((x) => textoDe(x, prof + 1))
+      .join(" ");
   if (typeof v === "object")
     return Object.entries(v as Record<string, unknown>)
       .slice(0, 50)
@@ -216,7 +220,10 @@ export async function estadoSeguridad(): Promise<Estado> {
     const val = (k: string) => filas.find((f) => f.clave === k)?.valor as unknown;
     const em = val("emergencia") as Emergencia | undefined;
     const ses = (val("sesionesDesde") as Estado["sesionesDesde"] | undefined) ?? VACIO.sesionesDesde;
-    const estado: Estado = { emergencia: em?.activo ? em : null, sesionesDesde: { global: ses.global ?? null, centros: ses.centros ?? {} } };
+    const estado: Estado = {
+      emergencia: em?.activo ? em : null,
+      sesionesDesde: { global: ses.global ?? null, centros: ses.centros ?? {} },
+    };
     cache = { estado, en: Date.now() };
     return estado;
   } catch {

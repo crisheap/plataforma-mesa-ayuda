@@ -102,7 +102,11 @@ export async function vistaSeguridad({ usuario }) {
         { class: "card" },
         h("h2", {}, "Integridad del código"),
         h("p", {}, h("span", { class: `badge ${ic}` }, `${ii} ${it}`), " ", id),
-        h("p", { class: "muted small" }, r.integridad?.revisadoEn ? `Última revisión: ${fecha(r.integridad.revisadoEn)}` : "Aún no se ha revisado."),
+        h(
+          "p",
+          { class: "muted small" },
+          r.integridad?.revisadoEn ? `Última revisión: ${fecha(r.integridad.revisadoEn)}` : "Aún no se ha revisado.",
+        ),
         r.integridad?.cambios?.length
           ? h(
               "ul",
@@ -187,11 +191,7 @@ export async function vistaSeguridad({ usuario }) {
 
     const bloques = [
       h("h2", {}, "Acciones de emergencia"),
-      h(
-        "p",
-        { class: "muted small" },
-        "Úsalas si sospechas que alguien obtuvo una contraseña o está atacando la plataforma.",
-      ),
+      h("p", { class: "muted small" }, "Úsalas si sospechas que alguien obtuvo una contraseña o está atacando la plataforma."),
       h("h3", {}, "Cerrar todas las sesiones"),
       h("p", { class: "small" }, "Saca de inmediato a todas las personas conectadas, incluso si alguien robó una sesión."),
       alcance ? campo("Dónde", alcance) : null,
@@ -253,7 +253,11 @@ export async function vistaSeguridad({ usuario }) {
 
   // ───── Eventos ─────
   const lista = h("div", { "aria-live": "polite" });
-  const sSev = h("select", { "aria-label": "Severidad" }, opciones(Object.fromEntries(Object.entries(SEVERIDAD).map(([k, v]) => [k, v[0]])), "", "Todas las severidades"));
+  const sSev = h(
+    "select",
+    { "aria-label": "Severidad" },
+    opciones(Object.fromEntries(Object.entries(SEVERIDAD).map(([k, v]) => [k, v[0]])), "", "Todas las severidades"),
+  );
   const sAt = h("select", { "aria-label": "Estado" }, opciones({ no: "Sin atender", si: "Atendidos" }, "no", "Todos"));
   const sTipo = h("select", { "aria-label": "Tipo de evento" }, opciones(TIPOS, "", "Todos los tipos"));
   const cargarEventos = async () => {
@@ -275,7 +279,11 @@ export async function vistaSeguridad({ usuario }) {
                 h(
                   "thead",
                   {},
-                  h("tr", {}, ["Última vez", "Severidad", "Evento", "Origen", "Veces", "Estado"].map((t) => h("th", { scope: "col" }, t))),
+                  h(
+                    "tr",
+                    {},
+                    ["Última vez", "Severidad", "Evento", "Origen", "Veces", "Estado"].map((t) => h("th", { scope: "col" }, t)),
+                  ),
                 ),
                 h(
                   "tbody",
@@ -369,12 +377,6 @@ export async function vistaSeguridad({ usuario }) {
     banner,
     aviso,
     resumenCont,
-    h(
-      "section",
-      { class: "card" },
-      h("h2", {}, "Eventos de seguridad"),
-      h("div", { class: "row filtros" }, sSev, sAt, sTipo),
-      lista,
-    ),
+    h("section", { class: "card" }, h("h2", {}, "Eventos de seguridad"), h("div", { class: "row filtros" }, sSev, sAt, sTipo), lista),
   );
 }

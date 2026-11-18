@@ -58,7 +58,13 @@ const usuario = await sesion(USUARIO, [temporal, CLAVE]);
 const tokens = [];
 for (let i = 1; i <= CUENTAS; i++) {
   const correo = `carga${String(i).padStart(3, "0")}@mesaayuda.local`;
-  const c = await api("POST", "/api/usuarios", admin, { nombre: "Carga", apellido: `Usuario ${i}`, correo, rol: "USUARIO", centroId: centro.id });
+  const c = await api("POST", "/api/usuarios", admin, {
+    nombre: "Carga",
+    apellido: `Usuario ${i}`,
+    correo,
+    rol: "USUARIO",
+    centroId: centro.id,
+  });
   tokens.push(await sesion(correo, [c.status === 201 ? c.json.data.passwordTemporal : null, CLAVE]));
 }
 
