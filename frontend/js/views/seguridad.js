@@ -295,8 +295,18 @@ export async function vistaSeguridad({ usuario }) {
                       {},
                       h("td", { "data-etiqueta": COLUMNAS[0] }, fecha(e.ultimoEn)),
                       h("td", { "data-etiqueta": COLUMNAS[1] }, badgeSev(e.severidad)),
-                      h("td", { "data-etiqueta": COLUMNAS[2] }, h("strong", {}, e.nombre ?? TIPOS[e.tipo] ?? e.tipo), h("div", { class: "small muted" }, e.descripcion)),
-                      h("td", { class: "small", "data-etiqueta": COLUMNAS[3] }, e.ip ? h("code", {}, e.ip) : "—", e.correo ? h("div", {}, e.correo) : null),
+                      h(
+                        "td",
+                        { "data-etiqueta": COLUMNAS[2] },
+                        h("strong", {}, e.nombre ?? TIPOS[e.tipo] ?? e.tipo),
+                        h("div", { class: "small muted" }, e.descripcion),
+                      ),
+                      h(
+                        "td",
+                        { class: "small", "data-etiqueta": COLUMNAS[3] },
+                        e.ip ? h("code", {}, e.ip) : "—",
+                        e.correo ? h("div", {}, e.correo) : null,
+                      ),
                       h("td", { "data-etiqueta": COLUMNAS[4] }, num.format(e.veces)),
                       h(
                         "td",

@@ -155,7 +155,12 @@ function construirShell(u) {
     "header",
     { class: "topbar" },
     menu,
-    h("a", { class: "brand", href: "#/inicio" }, h("span", { class: "logo" }, iconoBot(26)), h("span", { class: "brand-texto" }, "Mesa de Ayuda")),
+    h(
+      "a",
+      { class: "brand", href: "#/inicio" },
+      h("span", { class: "logo" }, iconoBot(26)),
+      h("span", { class: "brand-texto" }, "Mesa de Ayuda"),
+    ),
     h("span", { class: "spacer" }),
     botTema,
     campana,
