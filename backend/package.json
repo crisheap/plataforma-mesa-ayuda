@@ -45,7 +45,7 @@
   },
   "optionalDependencies": {
     "nodemailer": "^6.9.16",
-    "web-push": "^3.6.7"
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
