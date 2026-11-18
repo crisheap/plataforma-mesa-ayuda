@@ -6,7 +6,7 @@
 import { generarManifiesto, rutaManifiesto, verificarIntegridad } from "../core/integridad";
 
 if (process.argv[2] === "verificar") {
-  const r = verificarIntegridad(rutaManifiesto(), false);
+  const r = verificarIntegridad(rutaManifiesto());
   console.log(JSON.stringify(r, null, 2));
   process.exit(r.estado === "INTEGRO" ? 0 : 1);
 } else {

@@ -16,23 +16,23 @@ test("integridad: detecta archivos modificados, nuevos y eliminados (RF-SEG-04)"
     writeFileSync(path.join(raiz, "frontend/js/main.js"), "export {}");
     const manifiesto = path.join(raiz, "integridad.json");
     assert.equal(generarManifiesto(manifiesto), 3);
-    assert.equal(verificarIntegridad(manifiesto, false).estado, "INTEGRO");
+    assert.equal(verificarIntegridad(manifiesto).estado, "INTEGRO");
 
     // Las evidencias subidas no cuentan como código
     writeFileSync(path.join(raiz, "backend/dist/uploads/foto.png"), "x");
-    assert.equal(verificarIntegridad(manifiesto, false).estado, "INTEGRO");
+    assert.equal(verificarIntegridad(manifiesto).estado, "INTEGRO");
 
     writeFileSync(path.join(raiz, "frontend/index.html"), "<html><script src=//malo></script></html>");
     writeFileSync(path.join(raiz, "frontend/js/puerta.js"), "fetch('//malo')");
     unlinkSync(path.join(raiz, "frontend/js/main.js"));
-    const r = verificarIntegridad(manifiesto, false);
+    const r = verificarIntegridad(manifiesto);
     assert.equal(r.estado, "ALTERADO");
     assert.deepEqual(r.cambios.map((c) => `${c.cambio}:${c.archivo}`).sort(), [
       "ELIMINADO:frontend/js/main.js",
       "MODIFICADO:frontend/index.html",
       "NUEVO:frontend/js/puerta.js",
     ]);
-    assert.equal(verificarIntegridad(path.join(raiz, "no-existe.json"), false).estado, "SIN_MANIFIESTO");
+    assert.equal(verificarIntegridad(path.join(raiz, "no-existe.json")).estado, "SIN_MANIFIESTO");
   } finally {
     rmSync(raiz, { recursive: true, force: true });
   }

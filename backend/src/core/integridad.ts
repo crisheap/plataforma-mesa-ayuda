@@ -53,9 +53,16 @@ let firmaUltimoAviso = "";
 export const estadoIntegridad = () => ultimo;
 
 /** Compara los archivos con el manifiesto y registra un evento crítico si algo cambió. */
-// La alerta se carga solo al necesitarla: generar el manifiesto al construir la imagen no requiere
-// base de datos ni variables de entorno.
-export function verificarIntegridad(manifiesto = rutaManifiesto(), avisar = true): EstadoIntegridad {
+/** Alerta que recibe el cambio detectado. El servidor pasa `registrarEvento`; así este módulo no
+ * depende de la base de datos y el manifiesto se puede generar al construir la imagen sin variables de entorno. */
+export interface AlertaIntegridad {
+  tipo: "INTEGRIDAD_ALTERADA";
+  severidad: "CRITICA";
+  descripcion: string;
+  datos: { cambios: EstadoIntegridad["cambios"] };
+}
+
+export function verificarIntegridad(manifiesto = rutaManifiesto(), avisar?: (a: AlertaIntegridad) => void): EstadoIntegridad {
   const ahora = new Date().toISOString();
   if (!existsSync(manifiesto)) {
     ultimo = { estado: "SIN_MANIFIESTO", revisadoEn: ahora, archivos: 0, cambios: [] };
@@ -73,28 +80,25 @@ export function verificarIntegridad(manifiesto = rutaManifiesto(), avisar = true
   const firma = cambios.map((c) => `${c.cambio}:${c.archivo}`).join("|");
   if (cambios.length && firma !== firmaUltimoAviso) {
     firmaUltimoAviso = firma;
-    if (avisar)
-      void import("./seguridad").then(({ registrarEvento }) =>
-        registrarEvento({
-          tipo: "INTEGRIDAD_ALTERADA",
-          severidad: "CRITICA",
-          descripcion: `${cambios.length} archivo(s) de la aplicación cambiaron desde su instalación: ${cambios
-            .slice(0, 3)
-            .map((c) => c.archivo)
-            .join(", ")}${cambios.length > 3 ? "…" : ""}`,
-          datos: { cambios: cambios.slice(0, 50) },
-        }),
-      );
+    avisar?.({
+      tipo: "INTEGRIDAD_ALTERADA",
+      severidad: "CRITICA",
+      descripcion: `${cambios.length} archivo(s) de la aplicación cambiaron desde su instalación: ${cambios
+        .slice(0, 3)
+        .map((c) => c.archivo)
+        .join(", ")}${cambios.length > 3 ? "…" : ""}`,
+      datos: { cambios: cambios.slice(0, 50) },
+    });
   }
   if (!cambios.length) firmaUltimoAviso = "";
   return ultimo;
 }
 
 /** Revisión al iniciar y cada `minutos` (por defecto 10). */
-export function vigilarIntegridad(minutos = Number(process.env.INTEGRIDAD_MINUTOS) || 10) {
+export function vigilarIntegridad(avisar: (a: AlertaIntegridad) => void, minutos = Number(process.env.INTEGRIDAD_MINUTOS) || 10) {
   const revisar = () => {
     try {
-      verificarIntegridad();
+      verificarIntegridad(rutaManifiesto(), avisar);
     } catch (e) {
       console.error("[integridad]", (e as Error).message);
     }
