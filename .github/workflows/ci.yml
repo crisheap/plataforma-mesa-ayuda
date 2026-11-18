@@ -18,7 +18,7 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependencias
@@ -56,7 +56,7 @@ jobs:
       CAPTCHA_BITS: "4"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instalar dependencias
@@ -129,7 +129,7 @@ jobs:
           echo "Usuarios en la base restaurada: $usuarios"
           test "$usuarios" -ge 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Dependencias para las pruebas web
