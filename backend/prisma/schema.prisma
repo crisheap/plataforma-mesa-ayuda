@@ -123,7 +123,8 @@ model Usuario {
   debeCambiarPassword Boolean       @default(false)
   /// Correo con el que inicia sesión (correo) y su tipo; el personal recibe la bienvenida y los enlaces de acceso.
   tipoCorreo          TipoCorreo    @default(EMPRESARIAL)
-  correoPersonal      String?       @db.VarChar(150)
+  /// Único en todo el sistema y distinto de cualquier correo de acceso (RF-USU-11).
+  correoPersonal      String?       @unique @db.VarChar(150)
   /// Prueba de la autorización de tratamiento de datos personales (Ley 1581 de 2012; Decreto 1074 de 2015).
   datosAutorizadosEn  DateTime?
   datosVersion        String?       @db.VarChar(20)

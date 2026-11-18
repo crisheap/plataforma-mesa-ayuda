@@ -57,6 +57,22 @@ function correoPersonalValido(correo: string, tipo: TipoCorreo, personal: string
   return personal;
 }
 
+/**
+ * Un correo identifica a una sola persona en todo el sistema (RF-USU-11): no puede ser el correo de
+ * acceso ni el correo personal de otra cuenta, en ningún centro.
+ */
+async function exigirCorreoLibre(correo: string, campo: "correo" | "correoPersonal", excluirId?: number) {
+  const otro = await prisma.usuario.findFirst({
+    where: { OR: [{ correo }, { correoPersonal: correo }], ...(excluirId ? { id: { not: excluirId } } : {}) },
+    select: { id: true },
+  });
+  if (otro)
+    throw AppError.conflict(
+      campo === "correo" ? "Ya existe un usuario con ese correo" : "Ese correo personal ya está registrado en otra cuenta",
+      [{ field: campo, message: "Este correo ya lo usa otra persona en la plataforma" }],
+    );
+}
+
 /** Centro donde quedará la cuenta: el general elige; el administrador de centro solo crea en el suyo (RF-CEN-03). */
 async function centroDestino(actor: Alcance, pedido?: number): Promise<number> {
   const id = esGeneral(actor) ? pedido : actor.centroId;
@@ -103,9 +119,10 @@ export async function crear(
 ): Promise<{ usuario: ReturnType<typeof mapear>; passwordTemporal?: string; acceso?: ResultadoAcceso }> {
   exigirRol(actor, d.rol);
   const centroId = await centroDestino(actor, d.centroId);
-  if (await prisma.usuario.findUnique({ where: { correo: d.correo } })) throw AppError.conflict("Ya existe un usuario con ese correo");
+  await exigirCorreoLibre(d.correo, "correo");
   const tipoCorreo = d.tipoCorreo ?? clasificarCorreo(d.correo, await dominiosEmpresariales());
   const correoPersonal = correoPersonalValido(d.correo, tipoCorreo, d.correoPersonal);
+  if (correoPersonal) await exigirCorreoLibre(correoPersonal, "correoPersonal");
   let temporal: string | undefined;
   let password = d.password;
   if (d.enviarAcceso)
@@ -197,10 +214,23 @@ export async function tecnicosDisponibles(actor: Alcance, centroId?: number) {
 export async function actualizar(
   actor: Alcance,
   id: number,
-  d: { nombre?: string; apellido?: string; rol?: RolNombre; centroId?: number; tipoCorreo?: TipoCorreo; correoPersonal?: string | null },
+  d: {
+    nombre?: string;
+    apellido?: string;
+    correo?: string;
+    rol?: RolNombre;
+    centroId?: number;
+    tipoCorreo?: TipoCorreo;
+    correoPersonal?: string | null;
+  },
 ) {
   const objetivo = await exigirGestion(actor, id);
   const previo = await obtener(actor, id);
+  // Corrección del correo de acceso (RF-USU-12): único en todo el sistema; si no se indica el tipo, se deduce del dominio.
+  const cambiaCorreo = d.correo !== undefined && d.correo !== previo.correo;
+  const correo = cambiaCorreo ? (d.correo as string) : previo.correo;
+  if (cambiaCorreo) await exigirCorreoLibre(correo, "correo", id);
+  const tipoNuevo = d.tipoCorreo ?? (cambiaCorreo ? clasificarCorreo(correo, await dominiosEmpresariales()) : undefined);
   if (d.rol && d.rol !== objetivo.rol) {
     if (id === actor.userId) throw AppError.badRequest("No puedes cambiar tu propio rol");
     exigirRol(actor, d.rol);
@@ -221,17 +251,57 @@ export async function actualizar(
       apellido: d.apellido,
       ...(d.rol ? { rolId: await rolId(d.rol) } : {}),
       ...(centroId ? { centroId } : {}),
-      ...(d.tipoCorreo !== undefined || d.correoPersonal !== undefined
-        ? (() => {
-            const tipo = d.tipoCorreo ?? previo.tipoCorreo;
-            const personal = d.correoPersonal !== undefined ? d.correoPersonal : previo.correoPersonal;
-            return { tipoCorreo: tipo, correoPersonal: correoPersonalValido(previo.correo, tipo, personal) };
-          })()
-        : {}),
+      ...(cambiaCorreo ? { correo } : {}),
+      ...(await correosNuevos(id, correo, previo, tipoNuevo, d.correoPersonal)),
     },
     select: publico,
   });
-  return mapear(u);
+  if (cambiaCorreo)
+    // Los enlaces de acceso enviados al correo anterior dejan de servir (podía estar mal escrito y ser de otra persona).
+    await prisma.tokenAcceso.updateMany({ where: { usuarioId: id, usadoEn: null }, data: { usadoEn: new Date() } });
+  return { ...mapear(u), correoAnterior: cambiaCorreo ? previo.correo : undefined };
+}
+
+/** Tipo de correo y correo personal resultantes de una edición, validados (RF-USU-09, RF-USU-11). */
+async function correosNuevos(
+  id: number,
+  correo: string,
+  previo: { correo: string; tipoCorreo: TipoCorreo; correoPersonal: string | null },
+  tipoNuevo: TipoCorreo | undefined,
+  personalNuevo: string | null | undefined,
+) {
+  if (tipoNuevo === undefined && personalNuevo === undefined && correo === previo.correo) return {};
+  const tipo = tipoNuevo ?? previo.tipoCorreo;
+  const personal = correoPersonalValido(correo, tipo, personalNuevo !== undefined ? personalNuevo : previo.correoPersonal);
+  if (personal && personal !== previo.correoPersonal) await exigirCorreoLibre(personal, "correoPersonal", id);
+  return { tipoCorreo: tipo, correoPersonal: personal };
+}
+
+/**
+ * Corrección de datos básicos por el supervisor (RF-USU-13), como respaldo del administrador:
+ * solo nombre, apellido y correo personal de los usuarios y técnicos de su centro.
+ */
+export async function corregirDatos(
+  actor: Alcance,
+  id: number,
+  d: { nombre?: string; apellido?: string; correoPersonal?: string | null },
+) {
+  if (actor.rol === "ADMINISTRADOR") return actualizar(actor, id, d);
+  const u = await prisma.usuario.findUnique({ where: { id }, select: { centroId: true, rol: { select: { nombre: true } } } });
+  if (!u || u.centroId === null || u.centroId !== actor.centroId) throw AppError.notFound("Usuario no encontrado");
+  if (!["USUARIO", "TECNICO"].includes(u.rol.nombre))
+    throw AppError.forbidden("El supervisor solo corrige los datos de usuarios y técnicos; los demás los gestiona el administrador");
+  const previo = await obtener(actor, id);
+  const upd = await prisma.usuario.update({
+    where: { id },
+    data: {
+      nombre: d.nombre,
+      apellido: d.apellido,
+      ...(await correosNuevos(id, previo.correo, previo, undefined, d.correoPersonal)),
+    },
+    select: publico,
+  });
+  return mapear(upd);
 }
 
 /** Bloquear / desbloquear / dar de baja (RF-USU-04, RF-USU-06). */

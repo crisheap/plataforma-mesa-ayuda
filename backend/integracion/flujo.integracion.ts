@@ -708,3 +708,88 @@ test("seguridad: captcha, fuerza bruta, alertas, panel por centro y acciones de 
   assert.equal((await llamar("PUT", "/api/seguridad/emergencia", tokens.admin, { activo: false })).status, 200);
   assert.equal((await llamar("GET", "/api/auth/me", tokens.usuario)).status, 200, "al levantarlo todo vuelve a la normalidad");
 });
+
+test("correos únicos, corrección del correo de acceso y datos corregidos por el supervisor (RF-USU-11 a 13)", async () => {
+  // RF-USU-11: un correo es de una sola persona, sea de acceso o personal, en cualquier centro
+  const base = { nombre: "Prueba", apellido: "Correos", rol: "USUARIO", centroId: ids.centro };
+  const conPersonal = await llamar("POST", "/api/usuarios", tokens.admin, {
+    ...base,
+    correo: "marta@integracion.test",
+    correoPersonal: "marta.personal@gmail.com",
+  });
+  assert.equal(conPersonal.status, 201, JSON.stringify(conPersonal.json));
+  const marta = conPersonal.json.data.usuario.id;
+  const repetido = await llamar("POST", "/api/usuarios", tokens.admin, { ...base, correo: "MARTA@integracion.test" });
+  assert.equal(repetido.status, 409, "el correo de acceso no se repite (sin importar mayúsculas)");
+  assert.equal(
+    (await llamar("POST", "/api/usuarios", tokens.admin, { ...base, correo: "marta.personal@gmail.com" })).status,
+    409,
+    "el correo personal de otra persona no sirve como correo de acceso",
+  );
+  const otroPersonal = await llamar("POST", "/api/usuarios", tokens.admin, {
+    ...base,
+    centroId: ids.otroCentro,
+    correo: "pedro@integracion.test",
+    correoPersonal: "Marta.Personal@gmail.com",
+  });
+  assert.equal(otroPersonal.status, 409, "ni se repite el correo personal, aunque sea en otro centro");
+  assert.equal(otroPersonal.json.errors[0].field, "correoPersonal");
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${ids.otro}`, tokens.admin, { correoPersonal: "usuario@integracion.test" })).status,
+    409,
+    "el correo de acceso de otra persona no sirve como correo personal",
+  );
+
+  // RF-USU-12: el administrador corrige un correo de acceso mal escrito
+  const enlace = await llamar("POST", `/api/usuarios/${marta}/enviar-acceso`, tokens.admin, {});
+  const viejo = new URL(enlace.json.data.enlace.replace("#/", "")).searchParams.get("token")!;
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${marta}`, tokens.admin, { correo: "otro@integracion.test" })).status,
+    409,
+    "no puede quedar con el correo de otra persona",
+  );
+  const corregido = await llamar("PATCH", `/api/usuarios/${marta}`, tokens.admin, { correo: "Marta.Ruiz@integracion.test" });
+  assert.equal(corregido.status, 200, JSON.stringify(corregido.json));
+  assert.equal(corregido.json.data.correo, "marta.ruiz@integracion.test");
+  assert.match(corregido.json.message, /enlaces de acceso/);
+  assert.equal((await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: viejo })).status, 400, "el enlace enviado antes ya no sirve");
+  const aud = await llamar("GET", `/api/auditoria?accion=CORREO_CAMBIADO&pageSize=5`, tokens.admin);
+  assert.ok(
+    aud.json.data.items.some((a: { descripcion: string }) => a.descripcion.includes("marta@integracion.test")),
+    "queda en la auditoría con el correo anterior y el nuevo",
+  );
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${marta}`, tokens.adminOtro, { correo: "x@integracion.test" })).status,
+    404,
+    "el administrador de otro centro no la ve",
+  );
+
+  // RF-USU-13: el supervisor consulta su centro y corrige nombre, apellido y correo personal de usuarios y técnicos
+  const lista = await llamar("GET", "/api/usuarios?pageSize=100", tokens.supervisor);
+  assert.equal(lista.status, 200);
+  for (const u of lista.json.data.items) assert.equal(u.centro?.id, ids.centro, "solo ve su centro");
+  const datos = await llamar("PATCH", `/api/usuarios/${marta}/datos`, tokens.supervisor, {
+    nombre: "Marta",
+    apellido: "Ruiz Díaz",
+    correoPersonal: "marta.ruiz@gmail.com",
+  });
+  assert.equal(datos.status, 200, JSON.stringify(datos.json));
+  assert.equal(datos.json.data.nombreCompleto, "Marta Ruiz Díaz");
+  assert.equal(datos.json.data.correoPersonal, "marta.ruiz@gmail.com");
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${ids.tecnico}/datos`, tokens.supervisor, { correoPersonal: "marta.ruiz@gmail.com" })).status,
+    409,
+    "también para el supervisor los correos son únicos",
+  );
+  assert.equal((await llamar("PATCH", `/api/usuarios/${ids.tecnico}/datos`, tokens.supervisor, { apellido: "Martínez Ríos" })).status, 200);
+  assert.equal(
+    (await llamar("PATCH", `/api/usuarios/${marta}/datos`, tokens.supervisor, { correo: "y@integracion.test", rol: "ADMINISTRADOR" })).status,
+    400,
+    "el rol y el correo de acceso no son parte de la corrección del supervisor",
+  );
+  assert.equal((await llamar("PATCH", `/api/usuarios/${ids.supervisor}/datos`, tokens.supervisor, { nombre: "Otra" })).status, 403);
+  assert.equal((await llamar("PATCH", `/api/usuarios/${ids.usuarioOtro}/datos`, tokens.supervisor, { nombre: "Otra" })).status, 404);
+  assert.equal((await llamar("PATCH", `/api/usuarios/${marta}`, tokens.supervisor, { nombre: "Otra" })).status, 403);
+  assert.equal((await llamar("PATCH", `/api/usuarios/${marta}/estado`, tokens.supervisor, { estado: "BLOQUEADO" })).status, 403);
+  assert.equal((await llamar("GET", "/api/usuarios", tokens.tecnico)).status, 403, "el técnico no consulta cuentas");
+});

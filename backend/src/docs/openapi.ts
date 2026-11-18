@@ -211,8 +211,8 @@ const OPERACIONES: Operacion[] = [
     metodo: "get",
     ruta: "/api/usuarios",
     tag: "Usuarios",
-    resumen: "Listar usuarios",
-    roles: "Administrador",
+    resumen: "Listar usuarios (el supervisor ve solo los de su centro)",
+    roles: "Supervisor, Administrador",
     query: {
       ...paginacion,
       q: txt(0, 80),
@@ -257,23 +257,35 @@ const OPERACIONES: Operacion[] = [
     ruta: "/api/usuarios/:id",
     tag: "Usuarios",
     resumen: "Detalle de un usuario",
-    roles: "Administrador",
+    roles: "Supervisor, Administrador",
     respuesta: ref("Usuario"),
   },
   {
     metodo: "patch",
     ruta: "/api/usuarios/:id",
     tag: "Usuarios",
-    resumen: "Editar nombre, apellido, rol, centro (solo el general) y correos",
+    resumen:
+      "Editar nombre, apellido, rol, centro (solo el general) y correos. Corregir el correo de acceso anula los enlaces de acceso enviados antes; los correos no se repiten en todo el sistema (409)",
     roles: "Administrador",
     cuerpo: obj({
       nombre: txt(2, 80),
       apellido: txt(2, 80),
+      correo: { type: "string", format: "email", description: "Corrección del correo de acceso (único en todo el sistema)." },
       rol: enumer(...ROLES),
       centroId: ent(1),
       tipoCorreo: enumer("EMPRESARIAL", "PERSONAL"),
       correoPersonal: { type: ["string", "null"], format: "email" },
     }),
+  },
+  {
+    metodo: "patch",
+    ruta: "/api/usuarios/:id/datos",
+    tag: "Usuarios",
+    resumen:
+      "Corregir nombre, apellido y correo personal. El supervisor solo lo hace con usuarios y técnicos de su centro; el rol, el centro, el correo de acceso y el estado son del administrador",
+    roles: "Supervisor, Administrador",
+    cuerpo: obj({ nombre: txt(2, 80), apellido: txt(2, 80), correoPersonal: { type: ["string", "null"], format: "email" } }),
+    respuesta: ref("Usuario"),
   },
   {
     metodo: "patch",

@@ -84,16 +84,16 @@ function camposCorreo({ correoAcceso, tipoInicial, personalInicial, dominios }) 
     "Recibe la bienvenida y los enlaces para crear o restablecer la contraseña. Las notificaciones de los casos llegan al correo de acceso.",
   );
   let tocado = false;
-  const pintar = () => {
-    if (!tocado && correoAcceso?.value.includes("@")) tipo.value = tipoDeCorreo(correoAcceso.value, dominios());
+  const pintar = (clasificar = true) => {
+    if (clasificar && !tocado && correoAcceso?.value.includes("@")) tipo.value = tipoDeCorreo(correoAcceso.value, dominios());
     bloquePersonal.classList.toggle("campo-oculto", tipo.value === "PERSONAL");
   };
   tipo.addEventListener("change", () => {
     tocado = true;
     pintar();
   });
-  correoAcceso?.addEventListener("input", pintar);
-  pintar();
+  correoAcceso?.addEventListener("input", () => pintar());
+  pintar(!tipoInicial); // al editar se respeta el tipo guardado hasta que cambie el correo
   return {
     nodos: [campo("Tipo de correo de acceso", tipo, "Se deduce del dominio (ver Configuración); puedes cambiarlo."), bloquePersonal],
     valores: () => ({ tipoCorreo: tipo.value, correoPersonal: tipo.value === "EMPRESARIAL" ? personal.value.trim() : "" }),
@@ -106,19 +106,22 @@ export async function vistaUsuarios({ usuario: yo }) {
   // Parámetros del enlace (desde Centros): ?centro=ID filtra; ?nuevo=ADMINISTRADOR abre la creación (RF-CEN-03).
   const qs = new URLSearchParams(location.hash.split("?")[1] ?? "");
   const general = yo.esGeneral;
+  // El supervisor solo consulta y corrige nombre, apellido y correo personal de usuarios y técnicos de su centro (RF-USU-13).
+  const supervisor = yo.rol === "SUPERVISOR";
   const f = { page: 1, pageSize: 15, q: "", rol: "", estado: "", tipoCorreo: "", centroId: general ? (qs.get("centro") ?? "") : "" };
   /** Roles que puedo asignar: el administrador de centro no crea administradores. */
   const rolesPermitidos = general ? ROLES : Object.fromEntries(Object.entries(ROLES).filter(([k]) => k !== "ADMINISTRADOR"));
   /** Misma regla del servidor (puedeGestionar): el general gestiona todo; el de centro, lo no administrador de su centro. */
   const gestionable = (u) =>
-    u.id === yo.id || (general ? u.centro !== null : u.centro?.id === yo.centro?.id && u.rol.nombre !== "ADMINISTRADOR");
+    supervisor ? u.centro?.id === yo.centro?.id && ["USUARIO", "TECNICO"].includes(u.rol.nombre) : u.id === yo.id || (general ? u.centro !== null : u.centro?.id === yo.centro?.id && u.rol.nombre !== "ADMINISTRADOR");
   const sCentro = general ? selectorCentro({ valor: f.centroId }) : null;
   let cfg = { dominiosEmpresariales: [], smtpConfigurado: true, vigenciaEnlaceHoras: 48 };
-  api("/api/configuracion/correo")
-    .then((d) => {
-      cfg = d;
-    })
-    .catch(() => undefined);
+  if (!supervisor)
+    api("/api/configuracion/correo")
+      .then((d) => {
+        cfg = d;
+      })
+      .catch(() => undefined);
   const sTipo = h("select", { "aria-label": "Filtrar por tipo de correo" }, opciones(TIPOS_CORREO, "", "Todos los correos"));
   const lista = h("div", { "aria-live": "polite" });
   const q = h("input", { type: "search", placeholder: "Buscar por nombre o correo", "aria-label": "Buscar usuarios" });
@@ -187,7 +190,11 @@ export async function vistaUsuarios({ usuario: yo }) {
                         {},
                         gestionable(u)
                           ? h("div", { class: "row" }, ...acciones(u))
-                          : h("span", { class: "small muted" }, "Lo gestiona el administrador general"),
+                          : h(
+                              "span",
+                              { class: "small muted" },
+                              supervisor ? "Lo gestiona el administrador del centro" : "Lo gestiona el administrador general",
+                            ),
                       ),
                     ),
                   ),
@@ -217,6 +224,7 @@ export async function vistaUsuarios({ usuario: yo }) {
     act(() => api(`/api/usuarios/${u.id}/estado`, { method: "PATCH", body: { estado: e } }), "Estado del usuario actualizado");
 
   function acciones(u) {
+    if (supervisor) return [h("button", { class: "btn sm", onclick: () => corregir(u) }, "Corregir datos")];
     const yoMismo = u.id === yo.id;
     const b = [h("button", { class: "btn sm", onclick: () => editar(u) }, "Editar")];
     if (u.estado !== "ACTIVO")
@@ -313,13 +321,57 @@ export async function vistaUsuarios({ usuario: yo }) {
       toast(msgs(e), { ms: 7000 });
     }
   }
+  /** Supervisor: corrige nombre, apellido y correo personal (RF-USU-13). */
+  async function corregir(u) {
+    const n = h("input", { value: u.nombre, maxlength: "80" }),
+      a = h("input", { value: u.apellido, maxlength: "80" });
+    const p = h("input", { type: "email", maxlength: "150", autocomplete: "off", value: u.correoPersonal ?? "", placeholder: "nombre@gmail.com" });
+    const ok = await modal({
+      titulo: "Corregir datos",
+      cuerpo: h(
+        "div",
+        {},
+        campo("Nombre", n),
+        campo("Apellido", a),
+        u.tipoCorreo === "EMPRESARIAL"
+          ? campo("Correo personal (opcional)", p, "No puede ser el correo de otra persona de la plataforma.")
+          : null,
+        h(
+          "p",
+          { class: "small muted" },
+          "Correo de acceso: ",
+          h("strong", {}, u.correo),
+          ". El rol, el centro, el correo de acceso y el estado de la cuenta los cambia el administrador del centro.",
+        ),
+      ),
+      acciones: [
+        { texto: "Cancelar", valor: false },
+        { texto: "Guardar", primario: true, valor: true },
+      ],
+    });
+    if (!ok) return;
+    act(
+      () =>
+        api(`/api/usuarios/${u.id}/datos`, {
+          method: "PATCH",
+          body: {
+            nombre: n.value.trim(),
+            apellido: a.value.trim(),
+            ...(u.tipoCorreo === "EMPRESARIAL" ? { correoPersonal: p.value.trim() } : {}),
+          },
+        }),
+      "Datos actualizados",
+    )();
+  }
   async function editar(u) {
     const n = h("input", { value: u.nombre, maxlength: "80" }),
       a = h("input", { value: u.apellido, maxlength: "80" });
     const r = h("select", {}, opciones(u.id === yo.id ? ROLES : rolesPermitidos, u.rol.nombre));
     if (u.id === yo.id) r.disabled = true;
     const cen = general && u.centro ? selectorCentro({ todos: null, etiqueta: "Centro", valor: u.centro.id, soloActivos: true }) : null;
+    const acceso = h("input", { type: "email", maxlength: "150", autocomplete: "off", value: u.correo });
     const correos = camposCorreo({
+      correoAcceso: acceso,
       tipoInicial: u.tipoCorreo,
       personalInicial: u.correoPersonal,
       dominios: () => cfg.dominiosEmpresariales,
@@ -333,7 +385,11 @@ export async function vistaUsuarios({ usuario: yo }) {
         campo("Apellido", a),
         campo("Rol", r, u.id === yo.id ? "No puedes cambiar tu propio rol." : undefined),
         cen ? campo("Centro", cen, "Para cambiar a alguien de centro no debe tener casos asignados sin terminar.") : null,
-        h("p", { class: "small" }, "Correo de acceso: ", h("strong", {}, u.correo)),
+        campo(
+          "Correo de acceso",
+          acceso,
+          "Corrígelo solo si está mal escrito. No puede repetirse en la plataforma; los enlaces de acceso enviados antes dejan de servir.",
+        ),
         correos.nodos,
       ),
       acciones: [
@@ -349,12 +405,15 @@ export async function vistaUsuarios({ usuario: yo }) {
           body: {
             nombre: n.value.trim(),
             apellido: a.value.trim(),
+            ...(acceso.value.trim().toLowerCase() !== u.correo ? { correo: acceso.value.trim() } : {}),
             ...(u.id === yo.id ? {} : { rol: r.value }),
             ...(cen?.value ? { centroId: Number(cen.value) } : {}),
             ...correos.valores(),
           },
         }),
-      "Usuario actualizado",
+      acceso.value.trim().toLowerCase() !== u.correo
+        ? "Usuario actualizado. Los enlaces de acceso anteriores ya no sirven: envía uno nuevo si hace falta"
+        : "Usuario actualizado",
     )();
   }
   async function crear({ rol = "USUARIO", centro = f.centroId } = {}) {
@@ -480,7 +539,7 @@ export async function vistaUsuarios({ usuario: yo }) {
       "div",
       { class: "page-title" },
       h("h1", {}, general ? "Usuarios de todos los centros" : `Usuarios del centro ${yo.centro?.codigo ?? ""}`),
-      h("button", { class: "btn primary", onclick: crear }, "Nuevo usuario"),
+      supervisor ? null : h("button", { class: "btn primary", onclick: crear }, "Nuevo usuario"),
     ),
     h("div", { class: "card row" }, h("div", { class: "grow" }, q), sCentro, sRol, sEst, sTipo),
     lista,

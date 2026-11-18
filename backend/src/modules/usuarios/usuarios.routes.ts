@@ -37,11 +37,16 @@ const editarSchema = z
   .object({
     nombre: texto("El nombre").optional(),
     apellido: texto("El apellido").optional(),
+    // Corrección del correo de acceso por el administrador (RF-USU-12)
+    correo: z.string().trim().toLowerCase().email("Correo inválido").max(150).optional(),
     rol: z.enum(ROLES).optional(),
     centroId: centroId.optional(),
     tipoCorreo: z.enum(TIPOS_CORREO).optional(),
     correoPersonal: correoPersonal.optional(),
   })
+  .refine((d) => Object.keys(d).length > 0, "Envía al menos un campo");
+const datosSchema = z
+  .object({ nombre: texto("El nombre").optional(), apellido: texto("El apellido").optional(), correoPersonal: correoPersonal.optional() })
   .refine((d) => Object.keys(d).length > 0, "Envía al menos un campo");
 const estadoSchema = z.object({ estado: z.enum(["ACTIVO", "BLOQUEADO", "INACTIVO"]) });
 const resetSchema = z.object({ passwordNueva: z.string().max(72).optional() });
@@ -57,6 +62,24 @@ const listaSchema = paginacion.extend({
 router.get("/tecnicos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
   const { centroId: c } = validar(z.object({ centroId: centroId.optional() }), req.query);
   res.json({ success: true, data: await svc.tecnicosDisponibles(alcance(req), c) });
+});
+
+// Consulta y corrección de datos básicos: el supervisor ve las cuentas de su centro y corrige
+// nombre, apellido y correo personal de usuarios y técnicos (RF-USU-13).
+router.get("/", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
+  res.json({ success: true, data: await svc.listar(alcance(req), validar(listaSchema, req.query)) });
+});
+
+router.get("/:id", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
+  res.json({ success: true, data: await svc.obtener(alcance(req), idParam(req.params.id)) });
+});
+
+router.patch("/:id/datos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async (req, res) => {
+  const id = idParam(req.params.id);
+  const d = validar(datosSchema, req.body);
+  const u = await svc.corregirDatos(alcance(req), id, d);
+  await auditar(req, { accion: "USUARIO_EDITADO", entidad: "usuario", entidadId: id, descripcion: `Datos corregidos por ${req.user!.rol}`, datos: d });
+  res.json({ success: true, message: "Datos actualizados", data: u });
 });
 
 router.use(authorizeRoles("ADMINISTRADOR"));
@@ -93,20 +116,26 @@ router.post("/:id/enviar-acceso", async (req, res) => {
   res.json({ success: true, message: r.enviado ? `Enlace de acceso enviado a ${r.enviadoA}` : "No se pudo enviar el correo", data: r });
 });
 
-router.get("/", async (req, res) => {
-  res.json({ success: true, data: await svc.listar(alcance(req), validar(listaSchema, req.query)) });
-});
-
-router.get("/:id", async (req, res) => {
-  res.json({ success: true, data: await svc.obtener(alcance(req), idParam(req.params.id)) });
-});
-
 router.patch("/:id", async (req, res) => {
   const id = idParam(req.params.id);
   const d = validar(editarSchema, req.body);
   const u = await svc.actualizar(alcance(req), id, d);
   await auditar(req, { accion: "USUARIO_EDITADO", entidad: "usuario", entidadId: id, datos: d });
-  res.json({ success: true, message: "Usuario actualizado", data: u });
+  if (u.correoAnterior)
+    await auditar(req, {
+      accion: "CORREO_CAMBIADO",
+      entidad: "usuario",
+      entidadId: id,
+      descripcion: `Correo de acceso corregido de ${u.correoAnterior} a ${u.correo}`,
+      datos: { anterior: u.correoAnterior, nuevo: u.correo },
+    });
+  res.json({
+    success: true,
+    message: u.correoAnterior
+      ? "Usuario actualizado. El correo de acceso cambió: los enlaces enviados antes ya no sirven; envía uno nuevo si hace falta"
+      : "Usuario actualizado",
+    data: u,
+  });
 });
 
 router.patch("/:id/estado", async (req, res) => {
