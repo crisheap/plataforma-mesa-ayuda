@@ -27,7 +27,12 @@ test("soloFallidos: los ingresos correctos de un centro tras una misma IP no se 
   const respuesta = (status: number) => {
     const fin: (() => void)[] = [];
     const r = { setHeader() {}, statusCode: status, on: (_e: string, f: () => void) => fin.push(f) } as unknown as Response;
-    return { r, terminar: () => fin.forEach((f) => f()) };
+    return {
+      r,
+      terminar: () => {
+        for (const f of fin) f();
+      },
+    };
   };
   for (let i = 0; i < 50; i++) {
     const { r, terminar } = respuesta(200);
