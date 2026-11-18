@@ -44,7 +44,7 @@
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^10.6.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
