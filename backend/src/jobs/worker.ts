@@ -68,6 +68,12 @@ export function corteRetencion(dias: number, ahora = new Date()): Date | null {
  * Borra las conversaciones de Botito sin actividad en los últimos ASISTENTE_RETENCION_DIAS días
  * (RF-IA-07, RNF-13). Los mensajes se borran en cascada; la acción queda en la auditoría.
  */
+/** Borra los eventos de seguridad más antiguos que RETENCION_SEGURIDAD_DIAS (RF-SEG-02). */
+export async function purgarEventosSeguridad(dias = env.retencionSeguridadDias, ahora = new Date()): Promise<number> {
+  const { count } = await prisma.eventoSeguridad.deleteMany({ where: { ultimoEn: { lt: new Date(ahora.getTime() - dias * 86_400_000) } } });
+  return count;
+}
+
 export async function purgarConversacionesAntiguas(dias = env.asistenteRetencionDias, ahora = new Date()): Promise<number> {
   const corte = corteRetencion(dias, ahora);
   if (!corte) return 0;
@@ -89,7 +95,10 @@ export async function purgarConversacionesAntiguas(dias = env.asistenteRetencion
 export function iniciarWorker(): () => void {
   const correos = setInterval(() => procesarCorreosPendientes().catch((e) => console.error("[worker]", e)), 30_000);
   const sla = setInterval(() => procesarAlertasSla().catch((e) => console.error("[worker]", e)), 60_000);
-  const retencion = setInterval(() => purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e)), 6 * 60 * 60_000);
+  const retencion = setInterval(() => {
+    purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e));
+    purgarEventosSeguridad().catch((e) => console.error("[worker]", e));
+  }, 6 * 60 * 60_000);
   setTimeout(() => purgarConversacionesAntiguas().catch((e) => console.error("[worker]", e)), 60_000).unref();
   correos.unref();
   sla.unref();

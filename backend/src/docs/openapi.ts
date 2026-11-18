@@ -89,9 +89,9 @@ const OPERACIONES: Operacion[] = [
     metodo: "post",
     ruta: "/api/auth/login",
     tag: "Autenticación",
-    resumen: "Iniciar sesión",
+    resumen: "Iniciar sesión (exige la solución del captcha)",
     publica: true,
-    cuerpo: obj({ correo: { type: "string", format: "email" }, password: txt(1, 200) }, ["correo", "password"]),
+    cuerpo: obj({ correo: { type: "string", format: "email" }, password: txt(1, 200), captcha: { type: "object", description: "Solución del captcha de GET /api/auth/captcha", properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } } } }, ["correo", "password", "captcha"]),
     respuesta: ref("Sesion"),
   },
   {
@@ -125,9 +125,16 @@ const OPERACIONES: Operacion[] = [
     tag: "Autenticación",
     resumen: "Crear la contraseña con el enlace de acceso (un solo uso)",
     publica: true,
-    cuerpo: obj({ token: txt(20, 100), passwordNueva: txt(10, 200) }, ["token", "passwordNueva"]),
+    cuerpo: obj({ token: txt(20, 100), passwordNueva: txt(10, 200), captcha: { type: "object", description: "Solución del captcha de GET /api/auth/captcha", properties: { desafio: { type: "string" }, firma: { type: "string" }, nonce: { type: "string" } } } }, ["token", "passwordNueva", "captcha"]),
   },
 
+  {
+    metodo: "get",
+    ruta: "/api/auth/captcha",
+    tag: "Autenticación",
+    resumen: "Desafío del captcha propio: hallar un nonce tal que SHA-256(desafio:nonce) empiece con «bits» ceros",
+    publica: true,
+  },
   {
     metodo: "get",
     ruta: "/api/auth/politica-datos",
@@ -273,6 +280,47 @@ const OPERACIONES: Operacion[] = [
 
   { metodo: "get", ruta: "/api/roles", tag: "Usuarios", resumen: "Catálogo de roles (solo lectura)", roles: "Administrador general" },
   { metodo: "get", ruta: "/api/roles/:id", tag: "Usuarios", resumen: "Detalle de un rol", roles: "Administrador general" },
+
+  // Seguridad (RF-SEG-02 a RF-SEG-05)
+  {
+    metodo: "get",
+    ruta: "/api/seguridad/resumen",
+    tag: "Seguridad",
+    resumen: "Resumen de eventos de seguridad, IPs más activas, estado de emergencia e integridad del código",
+    roles: "Administrador (su centro) · Administrador general (todo)",
+    query: { horas: ent(1), centroId: ent(1) },
+  },
+  {
+    metodo: "get",
+    ruta: "/api/seguridad/eventos",
+    tag: "Seguridad",
+    resumen: "Eventos de seguridad con filtros",
+    roles: "Administrador",
+    query: { ...paginacion, severidad: enumer("INFO", "ADVERTENCIA", "CRITICA"), tipo: txt(0, 40), atendido: enumer("si", "no"), centroId: ent(1) },
+  },
+  {
+    metodo: "patch",
+    ruta: "/api/seguridad/eventos/:id/atender",
+    tag: "Seguridad",
+    resumen: "Marcar un evento como atendido",
+    roles: "Administrador",
+  },
+  {
+    metodo: "post",
+    ruta: "/api/seguridad/sesiones/cerrar",
+    tag: "Seguridad",
+    resumen: "Cerrar todas las sesiones (del centro, o de un centro o toda la plataforma si es el general); devuelve una sesión nueva para quien lo ejecuta",
+    roles: "Administrador",
+    cuerpo: obj({ centroId: ent(1) }),
+  },
+  {
+    metodo: "put",
+    ruta: "/api/seguridad/emergencia",
+    tag: "Seguridad",
+    resumen: "Activar o levantar el bloqueo de emergencia (solo entra el administrador general)",
+    roles: "Administrador general",
+    cuerpo: obj({ activo: { type: "boolean" }, motivo: txt(5, 200) }, ["activo"]),
+  },
 
   // Centros (RF-CEN-01)
   {
@@ -825,6 +873,7 @@ export function construirOpenApi(version = "2.1.0") {
       "Autenticación",
       "Usuarios",
       "Centros",
+      "Seguridad",
       "Casos",
       "Evidencias",
       "Administración",

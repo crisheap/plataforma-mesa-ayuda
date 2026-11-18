@@ -4,6 +4,7 @@ const US_KEY = "usuarioCache";
 let accessToken = null;
 let usuario = null;
 let refrescando = null;
+let avisoSesion = null;
 const oyentes = new Set();
 
 export class ApiError extends Error {
@@ -18,6 +19,12 @@ export class ApiError extends Error {
 }
 
 export const getUsuario = () => usuario;
+/** Mensaje para mostrar en el inicio de sesión (p. ej. "Tu sesión se cerró por seguridad"). Se lee una vez. */
+export const tomarAvisoSesion = () => {
+  const m = avisoSesion;
+  avisoSesion = null;
+  return m;
+};
 export const getToken = () => accessToken;
 export const alCambiarSesion = (fn) => {
   oyentes.add(fn);
@@ -99,7 +106,12 @@ export async function api(ruta, opts = {}) {
     /* sin cuerpo JSON */
   }
   if (!r.ok) {
+    if (r.status === 503 && /mantenimiento por seguridad/i.test(json?.message ?? "")) {
+      // Bloqueo de emergencia (RF-SEG-03): la app muestra una pantalla de mantenimiento.
+      document.dispatchEvent(new CustomEvent("mantenimiento-seguridad", { detail: json.message }));
+    }
     if (r.status === 401 && opts.auth !== false) {
+      if (/por seguridad/i.test(json?.message ?? "")) avisoSesion = json.message;
       limpiarSesion();
       notificar();
     }
@@ -108,8 +120,8 @@ export async function api(ruta, opts = {}) {
   return json?.data ?? json;
 }
 
-export async function login(correo, password) {
-  const r = await crudo("/api/auth/login", { method: "POST", body: { correo, password }, auth: false });
+export async function login(correo, password, captcha) {
+  const r = await crudo("/api/auth/login", { method: "POST", body: { correo, password, captcha }, auth: false });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new ApiError(j.message ?? "No se pudo iniciar sesión", r.status, j.errors ?? []);
   guardarSesion(j.data);
@@ -158,6 +170,12 @@ export async function logout() {
   })();
   if (rt) await crudo("/api/auth/logout", { method: "POST", body: { refreshToken: rt }, auth: false }).catch(() => undefined);
   limpiarSesion();
+  notificar();
+}
+
+/** Guarda la sesión nueva que entrega el servidor (p. ej. al cerrar todas las sesiones por seguridad). */
+export function reemplazarSesion(d) {
+  guardarSesion(d);
   notificar();
 }
 

@@ -5,6 +5,8 @@ import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { corsRestringido, securityHeaders } from "./middlewares/security.middleware";
 import { rateLimit } from "./middlewares/rateLimit.middleware";
+import { registrarEvento, revisarEntrada } from "./core/seguridad";
+import { verificarAccessToken } from "./utils/jwt";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware";
 import { authenticate } from "./middlewares/auth.middleware";
@@ -16,6 +18,7 @@ import slaRoutes from "./modules/sla/sla.routes";
 import auditoriaRoutes from "./modules/auditoria/auditoria.routes";
 import configuracionRoutes from "./modules/configuracion/configuracion.routes";
 import centrosRoutes from "./modules/centros/centros.routes";
+import seguridadRoutes from "./modules/seguridad/seguridad.routes";
 import reportesRoutes from "./modules/reportes/reportes.routes";
 import { notificacionesRouter, pushRouter } from "./modules/notificaciones/notificaciones.routes";
 import { crearAsistenteRouter } from "./modules/asistente/asistente.routes";
@@ -91,7 +94,41 @@ export function crearApp(): Application {
     express.static(swaggerUi, { index: false }),
   );
 
-  app.use("/api", rateLimit({ ventanaMs: 60_000, max: env.rateLimitApiMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto" }));
+  // Límites de solicitudes (RNF-04): por persona autenticada y, como techo, por IP (todo un centro sale por una IP).
+  const alExceder = (req: express.Request, clave: string) =>
+    registrarEvento({
+      tipo: "LIMITE_EXCEDIDO",
+      severidad: "ADVERTENCIA",
+      descripcion: `Exceso de solicitudes (${clave.startsWith("u:") ? "por cuenta" : "por IP"}) en ${req.method} ${req.path}`,
+      ip: req.ip,
+      usuarioId: clave.startsWith("u:") ? Number(clave.slice(2)) : null,
+    });
+  app.use("/api", rateLimit({ ventanaMs: 60_000, max: env.rateLimitIpMin, mensaje: "Demasiadas solicitudes. Intenta en un minuto", alExceder }));
+  app.use(
+    "/api",
+    rateLimit({
+      ventanaMs: 60_000,
+      max: env.rateLimitApiMin,
+      mensaje: "Demasiadas solicitudes. Intenta en un minuto",
+      clave: (req) => {
+        const cab = req.headers.authorization;
+        if (cab?.startsWith("Bearer ")) {
+          try {
+            return `u:${verificarAccessToken(cab.slice(7)).userId}`;
+          } catch {
+            /* token inválido: cuenta por IP */
+          }
+        }
+        return `ip:${req.ip}`;
+      },
+      alExceder,
+    }),
+  );
+  // Patrones de ataque en las solicitudes: se registran para el panel de Seguridad (RF-SEG-02).
+  app.use("/api", (req, _res, next) => {
+    revisarEntrada(req);
+    next();
+  });
 
   app.use("/api/auth", authRoutes);
   app.use("/api/usuarios", usuarioRoutes);
@@ -103,6 +140,7 @@ export function crearApp(): Application {
   app.use("/api/auditoria", auditoriaRoutes);
   app.use("/api/configuracion", configuracionRoutes);
   app.use("/api/centros", centrosRoutes);
+  app.use("/api/seguridad", seguridadRoutes);
   app.use("/api/reportes", reportesRoutes);
   if (env.embedAsistente) app.use("/api/asistente", crearAsistenteRouter(authenticate));
 

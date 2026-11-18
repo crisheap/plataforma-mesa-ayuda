@@ -433,3 +433,34 @@ model ConfiguracionSistema {
 
   @@map("configuracion_sistema")
 }
+
+/// Eventos de seguridad (RF-SEG-02): intentos de acceso, ataques y acciones de emergencia.
+enum SeveridadSeguridad {
+  INFO
+  ADVERTENCIA
+  CRITICA
+}
+
+model EventoSeguridad {
+  id          Int                @id @default(autoincrement())
+  tipo        String             @db.VarChar(40)
+  severidad   SeveridadSeguridad
+  descripcion String             @db.VarChar(300)
+  ip          String?            @db.VarChar(64)
+  correo      String?            @db.VarChar(150)
+  usuarioId   Int?
+  centroId    Int?
+  datos       Json?
+  /// Repeticiones agrupadas del mismo evento (misma IP, tipo y cuenta) en pocos minutos.
+  veces       Int                @default(1)
+  ultimoEn    DateTime           @default(now())
+  atendido    Boolean            @default(false)
+  atendidoPor Int?
+  atendidoEn  DateTime?
+  createdAt   DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([centroId, createdAt])
+  @@index([severidad, atendido])
+  @@map("eventos_seguridad")
+}

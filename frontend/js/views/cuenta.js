@@ -202,7 +202,7 @@ export async function vistaNotificaciones() {
                 "a",
                 {
                   class: "card",
-                  href: n.casoId ? `#/casos/${n.casoId}` : "#/notificaciones",
+                  href: n.casoId ? `#/casos/${n.casoId}` : n.tipo === "SEGURIDAD" ? "#/seguridad" : "#/notificaciones",
                   style: null,
                   onclick: () => {
                     if (!n.leida)

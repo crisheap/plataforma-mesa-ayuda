@@ -28,6 +28,8 @@ jobs:
       - name: Análisis estático y formato (Biome)
         run: npm run check
       - run: npm test
+      - name: Dependencias sin vulnerabilidades críticas
+        run: npm audit --omit=dev --audit-level=critical
 
   integracion:
     name: Integración con PostgreSQL
@@ -51,6 +53,7 @@ jobs:
       JWT_SECRET: secreto-de-integracion-continua-con-mas-de-32-caracteres
       ADMIN_EMAIL: admin@mesaayuda.local
       ADMIN_INITIAL_PASSWORD: Admin#2026Ci!
+      CAPTCHA_BITS: "4"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -81,6 +84,7 @@ jobs:
           {
             echo "METRICS_TOKEN=token-metricas-ci"
             echo "RATE_LIMIT_API_MIN=100000"
+            echo "CAPTCHA_BITS=8"
             echo "LOG_PETICIONES=json"
           } >> .env
       - name: Construir y levantar
@@ -96,9 +100,19 @@ jobs:
         run: |
           curl -fsS http://localhost:4000/ | grep -q "<html"
           curl -fsS http://localhost:4000/manifest.webmanifest | grep -q '"display"'
+          # Sin captcha el inicio de sesión se rechaza; resolviéndolo, entra (RF-SEG-01)
           code=$(curl -s -o /dev/null -w "%{http_code}" -H "content-type: application/json" \
             -d '{"correo":"admin@mesaayuda.local","password":"Admin#2026Docker!"}' http://localhost:4000/api/auth/login)
-          test "$code" = "200"
+          test "$code" = "400"
+          test "$(node carga/captcha.mjs admin@mesaayuda.local 'Admin#2026Docker!')" = "200"
+      - name: Integridad del código (RF-SEG-05)
+        run: |
+          docker compose exec -T api node dist/scripts/integridad.js verificar
+          # Simula una alteración del código publicado: la verificación debe detectarla
+          docker compose exec -T -u root api sh -c 'cp /app/frontend/index.html /tmp/i && echo "<!-- alterado -->" >> /app/frontend/index.html'
+          if docker compose exec -T api node dist/scripts/integridad.js verificar; then echo "No detectó la alteración"; exit 1; fi
+          docker compose exec -T -u root api sh -c 'cp /tmp/i /app/frontend/index.html'
+          docker compose exec -T api node dist/scripts/integridad.js verificar
       - name: Documentación de la API
         run: |
           curl -fsS http://localhost:4000/api/openapi.json | grep -q '"openapi":"3.1.0"'
@@ -129,9 +143,26 @@ jobs:
       - uses: grafana/setup-k6-action@v1
       - name: Prueba de carga con k6 (RNF-04, p95 ≤ 3 s)
         run: |
-          k6 run -e BASE_URL=http://localhost:4000 -e VUS=25 -e DURACION=40s \
-            -e CORREO="$(jq -r .usuario.correo credenciales.json)" -e PASSWORD="$(jq -r .usuario.password credenciales.json)" \
+          k6 run -e BASE_URL=http://localhost:4000 -e VUS=25 -e DURACION=40s -e CREDENCIALES=../credenciales.json \
             --summary-export=carga-resumen.json carga/escenario.js
+
+      - name: Capacidad con 250 personas conectadas a la vez (informativa)
+        continue-on-error: true
+        run: |
+          k6 run -e BASE_URL=http://localhost:4000 -e VUS=250 -e DURACION=90s -e PENSAR=1 -e CREDENCIALES=../credenciales.json \
+            --summary-export=capacidad.json carga/escenario.js || true
+          {
+            echo "### Capacidad: 250 usuarios simultáneos, pausa de 5 a 15 s entre acciones"
+            echo ""
+            echo "| Métrica | Valor |"
+            echo "|---|---|"
+            jq -r '"| Peticiones | \(.metrics.http_reqs.count) (\(.metrics.http_reqs.rate|floor) por segundo) |",
+                   "| Tiempo promedio | \(.metrics.http_req_duration.avg|floor) ms |",
+                   "| p95 | \(.metrics.http_req_duration["p(95)"]|floor) ms |",
+                   "| Máximo | \(.metrics.http_req_duration.max|floor) ms |",
+                   "| Errores | \((.metrics.http_req_failed.value // .metrics.http_req_failed.rate) * 100) % |",
+                   "| Verificaciones correctas | \((.metrics.checks.value // .metrics.checks.rate) * 100) % |"' capacidad.json
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Métricas después de la carga (RNF-14)
         run: |
@@ -158,6 +189,7 @@ jobs:
             backend/playwright-report
             lighthouse
             carga-resumen.json
+            capacidad.json
             metricas.txt
           if-no-files-found: ignore
 

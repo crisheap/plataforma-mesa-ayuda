@@ -5,6 +5,7 @@ import { compararPassword, hashPassword, HASH_FICTICIO, validarPolitica } from "
 import { firmarAccessToken, generarRefreshToken, hashToken } from "../../utils/jwt";
 import { nombreCompleto } from "../../utils/nombre";
 import { auditar } from "../../core/audit";
+import { estadoSeguridad, registrarEvento } from "../../core/seguridad";
 import { POLITICA_DATOS_VERSION, autorizacionVigente } from "../../core/datos";
 import type { RolNombre, TemaPreferido } from "../../generated/prisma/client";
 
@@ -79,9 +80,12 @@ async function emitirSesion(u: UsuarioDb) {
 export async function login(correo: string, password: string, ip?: string) {
   const u = await prisma.usuario.findUnique({ where: { correo }, select: seleccionUsuario });
 
+  const fallo = (descripcion: string, extra: { usuarioId?: number; centroId?: number | null } = {}) =>
+    registrarEvento({ tipo: "LOGIN_FALLIDO", severidad: "INFO", descripcion, ip, correo, ...extra });
   if (!u) {
     await compararPassword(password, HASH_FICTICIO); // iguala tiempos de respuesta
     await prisma.intentoLogin.create({ data: { exitoso: false, ip } });
+    fallo("Correo que no existe en la plataforma");
     throw AppError.unauthorized("Correo o contraseña incorrectos");
   }
   if (u.estado === "INACTIVO") throw AppError.forbidden("La cuenta está inactiva. Contacta al administrador");
@@ -96,6 +100,7 @@ export async function login(correo: string, password: string, ip?: string) {
     } else {
       // Bloqueo vigente o manual (sin fecha): SIEMPRE se rechaza (corrige H-02).
       const min = u.bloqueadoHasta ? Math.max(1, Math.ceil((u.bloqueadoHasta.getTime() - Date.now()) / 60_000)) : null;
+      fallo("Intento de ingreso a una cuenta bloqueada", { usuarioId: u.id, centroId: u.centro?.id ?? null });
       throw AppError.forbidden(
         min
           ? `Cuenta bloqueada temporalmente. Intenta de nuevo en ${min} minuto(s)`
@@ -118,7 +123,17 @@ export async function login(correo: string, password: string, ip?: string) {
       }),
       prisma.intentoLogin.create({ data: { exitoso: false, ip, usuarioId: u.id } }),
     ]);
+    fallo(`Contraseña incorrecta (intento ${intentos} de ${MAX_INTENTOS})`, { usuarioId: u.id, centroId: u.centro?.id ?? null });
     if (bloquear) {
+      registrarEvento({
+        tipo: "CUENTA_BLOQUEADA",
+        severidad: "ADVERTENCIA",
+        descripcion: `Cuenta bloqueada ${MINUTOS_BLOQUEO} minutos tras ${MAX_INTENTOS} intentos fallidos`,
+        ip,
+        correo,
+        usuarioId: u.id,
+        centroId: u.centro?.id ?? null,
+      });
       await auditar(
         { ip },
         {
@@ -133,6 +148,11 @@ export async function login(correo: string, password: string, ip?: string) {
     }
     throw AppError.unauthorized(`Correo o contraseña incorrectos. Intentos restantes: ${MAX_INTENTOS - intentos}`);
   }
+
+  // Bloqueo de emergencia (RF-SEG-05): mientras esté activo solo entra el administrador general.
+  const { emergencia } = await estadoSeguridad();
+  if (emergencia && !(u.rol.nombre === "ADMINISTRADOR" && u.centro === null))
+    throw new AppError(503, `La plataforma está en mantenimiento por seguridad: ${emergencia.motivo}`);
 
   // Éxito: reinicia el contador sin tocar el estado (ya es ACTIVO).
   await prisma.$transaction([
@@ -211,4 +231,11 @@ export async function autorizarDatos(userId: number, version: string, ip?: strin
     },
   );
   return perfil(userId);
+}
+
+/** Sesión nueva para quien ejecuta un cierre de sesiones de emergencia, para que no se expulse a sí mismo (RF-SEG-05). */
+export async function nuevaSesion(userId: number) {
+  const u = await prisma.usuario.findUnique({ where: { id: userId }, select: seleccionUsuario });
+  if (!u) throw AppError.unauthorized();
+  return emitirSesion(u);
 }

@@ -9,10 +9,33 @@ import { test, before, after } from "node:test";
 import ExcelJS from "exceljs";
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
+import { createHash } from "node:crypto";
+
+/** Resuelve el captcha propio (RF-SEG-01) como lo hace el navegador. */
+function resolver(desafio: string, bits: number): string {
+  for (let n = 0; ; n++) {
+    const h = createHash("sha256").update(`${desafio}:${n}`).digest();
+    let ceros = 0;
+    for (const b of h) {
+      if (b === 0) {
+        ceros += 8;
+        continue;
+      }
+      ceros += Math.clz32(b) - 24;
+      break;
+    }
+    if (ceros >= bits) return String(n);
+  }
+}
+async function captcha() {
+  const d = (await (await fetch(`${base}/api/auth/captcha`)).json()).data;
+  return { desafio: d.desafio, firma: d.firma, nonce: resolver(d.desafio, d.bits) };
+}
 
 const PUERTO = 4010;
 process.env.CORE_API_URL = `http://127.0.0.1:${PUERTO}`; // el asistente consulta los casos por HTTP
 process.env.RUN_WORKER = "false";
+process.env.CAPTCHA_BITS = "4"; // captcha fácil para las pruebas (en producción: 15 bits o más)
 process.env.UPLOAD_DIR = process.env.UPLOAD_DIR ?? "uploads-integracion";
 
 const ADMIN = process.env.ADMIN_EMAIL ?? "admin@mesaayuda.local";
@@ -26,6 +49,9 @@ let prisma: any;
 
 type Resp = { status: number; json: any; headers: Headers };
 async function llamar(metodo: string, ruta: string, token?: string, body?: unknown): Promise<Resp> {
+  // El inicio de sesión y la activación exigen captcha: se agrega solo si la prueba no trae uno.
+  if ((ruta === "/api/auth/login" || ruta === "/api/auth/acceso/activar") && body && typeof body === "object" && !("captcha" in body))
+    body = { ...body, captcha: await captcha() };
   const headers: Record<string, string> = {};
   if (token) headers.authorization = `Bearer ${token}`;
   let cuerpo: BodyInit | undefined;
@@ -613,4 +639,70 @@ test("datos personales: la autorización queda registrada con fecha, versión e 
   const reg = aud.json.data.items.find((i: { usuarioId: number }) => i.usuarioId === ids.usuario);
   assert.ok(reg, "la auditoría conserva la prueba");
   assert.ok(reg.ip, "con la dirección IP");
+});
+
+test("seguridad: captcha, fuerza bruta, alertas, panel por centro y acciones de emergencia (RF-SEG-01 a 05)", async () => {
+  // Captcha obligatorio y de un solo uso
+  assert.equal((await llamar("POST", "/api/auth/login", undefined, { correo: ADMIN, password: NUEVA, captcha: undefined })).status, 400);
+  const c = await captcha();
+  assert.equal((await llamar("POST", "/api/auth/login", undefined, { correo: ADMIN, password: NUEVA, captcha: c })).status, 200);
+  assert.equal((await llamar("POST", "/api/auth/login", undefined, { correo: ADMIN, password: NUEVA, captcha: c })).status, 400);
+  const sube = await (await fetch(`${base}/api/auth/captcha`)).json();
+  assert.ok(sube.data.bits >= 4, "la dificultad parte de la base y sube con los fallos");
+
+  // Fuerza bruta contra varias cuentas desde una IP → alerta crítica al administrador general
+  for (let i = 0; i < 12; i++)
+    await llamar("POST", "/api/auth/login", undefined, { correo: `nadie${i % 4}@integracion.test`, password: "Adivina#2026" });
+  await new Promise((r) => setTimeout(r, 400));
+  const res = await llamar("GET", "/api/seguridad/resumen", tokens.admin);
+  assert.equal(res.status, 200, JSON.stringify(res.json));
+  assert.ok(res.json.data.intentosFallidos >= 12, "registra cada intento fallido");
+  assert.ok(res.json.data.ataques >= 1, "detecta la fuerza bruta");
+  const ev = await llamar("GET", "/api/seguridad/eventos?severidad=CRITICA&atendido=no", tokens.admin);
+  const ataque = ev.json.data.items.find((e: { tipo: string }) => e.tipo === "ATAQUE_FUERZA_BRUTA");
+  assert.ok(ataque, "evento crítico de fuerza bruta");
+  assert.ok(ataque.datos.cuentas.length >= 3, "con las cuentas atacadas");
+  const notis = await llamar("GET", "/api/notificaciones?page=1&pageSize=20", tokens.admin);
+  assert.ok(
+    notis.json.data.items.some((n: { titulo: string }) => n.titulo.includes("fuerza bruta")),
+    "el administrador general recibe la alerta",
+  );
+  const ok = await llamar("PATCH", `/api/seguridad/eventos/${ataque.id}/atender`, tokens.admin);
+  assert.equal(ok.json.data.atendido, true);
+
+  // Entradas con patrones de ataque y tokens falsos
+  await llamar("GET", "/api/casos/mis-casos?q=%27%20OR%201%3D1%20--", tokens.usuario);
+  await llamar("GET", "/api/auth/me", "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjF9.firma-falsa");
+  await new Promise((r) => setTimeout(r, 300));
+  const tipos = (await llamar("GET", "/api/seguridad/eventos?pageSize=100", tokens.admin)).json.data.items.map((e: { tipo: string }) => e.tipo);
+  assert.ok(tipos.includes("ENTRADA_SOSPECHOSA"), "registra la inyección SQL");
+  assert.ok(tipos.includes("TOKEN_INVALIDO"), "registra el token alterado");
+
+  // Panel: el administrador de centro solo ve su centro; el supervisor no entra
+  assert.equal((await llamar("GET", "/api/seguridad/resumen", tokens.supervisor)).status, 403);
+  const delCentro = await llamar("GET", "/api/seguridad/eventos?pageSize=100", tokens.adminOtro);
+  assert.equal(delCentro.status, 200);
+  for (const e of delCentro.json.data.items) assert.equal(e.centroId, ids.otroCentro);
+  assert.equal((await llamar("PUT", "/api/seguridad/emergencia", tokens.adminOtro, { activo: true, motivo: "No permitido" })).status, 403);
+
+  // Cerrar las sesiones de un centro: sus personas deben volver a ingresar; quien lo ejecuta sigue dentro
+  await new Promise((r) => setTimeout(r, 1100));
+  const cierre = await llamar("POST", "/api/seguridad/sesiones/cerrar", tokens.adminOtro, {});
+  assert.equal(cierre.status, 200, JSON.stringify(cierre.json));
+  assert.equal((await llamar("GET", "/api/auth/me", tokens.usuarioOtro)).status, 401, "sesión del centro cerrada");
+  assert.equal((await llamar("GET", "/api/auth/me", tokens.usuario)).status, 200, "otro centro no se afecta");
+  tokens.adminOtro = cierre.json.data.sesion.token;
+  assert.equal((await llamar("GET", "/api/auth/me", tokens.adminOtro)).status, 200, "quien cierra recibe una sesión nueva");
+
+  // Bloqueo de emergencia: solo entra el general
+  assert.equal((await llamar("PUT", "/api/seguridad/emergencia", tokens.admin, { activo: true })).status, 400, "pide el motivo");
+  const em = await llamar("PUT", "/api/seguridad/emergencia", tokens.admin, { activo: true, motivo: "Revisión de un incidente" });
+  assert.equal(em.status, 200);
+  const bloqueado = await llamar("GET", "/api/auth/me", tokens.usuario);
+  assert.equal(bloqueado.status, 503);
+  assert.match(bloqueado.json.message, /Revisión de un incidente/);
+  assert.equal((await llamar("POST", "/api/auth/login", undefined, { correo: "usuario@integracion.test", password: NUEVA })).status, 503);
+  assert.equal((await llamar("GET", "/api/seguridad/resumen", tokens.admin)).json.data.emergencia.activo, true);
+  assert.equal((await llamar("PUT", "/api/seguridad/emergencia", tokens.admin, { activo: false })).status, 200);
+  assert.equal((await llamar("GET", "/api/auth/me", tokens.usuario)).status, 200, "al levantarlo todo vuelve a la normalidad");
 });

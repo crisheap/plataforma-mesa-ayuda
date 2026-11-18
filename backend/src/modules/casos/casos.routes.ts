@@ -1,4 +1,5 @@
 import { Router, type Request } from "express";
+import { registrarEvento } from "../../core/seguridad";
 import { esNumeroCaso } from "../../core/centros";
 import { z } from "zod";
 import path from "node:path";
@@ -158,6 +159,16 @@ router.post(
     const invalidos = archivos.filter((a) => !firmaValida(a.path, a.mimetype));
     if (invalidos.length) {
       descartar(archivos);
+      // Un archivo disfrazado (por ejemplo un ejecutable con extensión .pdf) queda registrado (RF-SEG-02).
+      registrarEvento({
+        tipo: "ARCHIVO_RECHAZADO",
+        severidad: "ADVERTENCIA",
+        descripcion: `Contenido que no coincide con el tipo declarado: ${invalidos.map((a) => a.originalname).join(", ")}`.slice(0, 300),
+        ip: req.ip,
+        usuarioId: req.user!.userId,
+        centroId: req.user!.centroId ?? null,
+        datos: { archivos: invalidos.map((a) => ({ nombre: a.originalname.slice(0, 120), tipo: a.mimetype })) },
+      });
       throw AppError.badRequest(`El contenido no coincide con el tipo declarado: ${invalidos.map((a) => a.originalname).join(", ")}`);
     }
     const data = await svc.registrarEvidencias(idParam(req.params.id), actor(req), archivos);

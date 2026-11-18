@@ -1462,3 +1462,36 @@ dialog .dlg-foot {
     display: block;
   }
 }
+
+/* ───── Seguridad (RF-SEG-01 a 05) ───── */
+.captcha-estado {
+  margin: 0.25rem 0 0.75rem;
+}
+.captcha-estado.ok {
+  color: var(--b-verde-fg);
+}
+.seguridad .filtros select {
+  min-width: 12rem;
+}
+.acciones-emergencia h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+}
+.acciones-emergencia .btn {
+  margin-top: 0.25rem;
+}
+.lista-cambios {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+.mantenimiento {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.mantenimiento .card {
+  max-width: 34rem;
+  margin: 0 auto;
+}

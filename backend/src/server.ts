@@ -3,12 +3,14 @@ import app from "./app";
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { iniciarWorker } from "./jobs/worker";
+import { vigilarIntegridad } from "./core/integridad";
 
 async function iniciar() {
   try {
     await prisma.$connect();
     console.log("✓ Conexión con PostgreSQL establecida");
     const detener = env.runWorker ? iniciarWorker() : () => undefined;
+    vigilarIntegridad(); // protección del código (RF-SEG-04)
     const servidor = app.listen(env.port, () => {
       console.log(`🚀 API ejecutándose en http://localhost:${env.port}`);
       console.log(`❤️ Health check: http://localhost:${env.port}/api/health`);

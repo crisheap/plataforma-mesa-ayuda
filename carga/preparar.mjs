@@ -1,16 +1,21 @@
 /**
  * Prepara una instalación nueva para las pruebas automáticas (carga, accesibilidad):
- * activa al administrador, crea un usuario de prueba y algunos casos.
+ * activa al administrador, crea un usuario de prueba, algunos casos y las cuentas de la
+ * prueba de capacidad (una sesión por usuario virtual, como en la vida real).
  * Uso:  node carga/preparar.mjs > credenciales.json
- * Variables: BASE_URL, ADMIN_EMAIL, ADMIN_INITIAL_PASSWORD, CLAVE_PRUEBAS.
+ * Variables: BASE_URL, ADMIN_EMAIL, ADMIN_INITIAL_PASSWORD, CLAVE_PRUEBAS, CUENTAS_CARGA (50).
  */
+import { captcha } from "./captcha.mjs";
+
 const BASE = process.env.BASE_URL ?? "http://localhost:4000";
 const ADMIN = process.env.ADMIN_EMAIL ?? "admin@mesaayuda.local";
 const INICIAL = process.env.ADMIN_INITIAL_PASSWORD ?? "";
 const CLAVE = process.env.CLAVE_PRUEBAS ?? "Pruebas#2026ok";
 const USUARIO = "pruebas@mesaayuda.local";
+const CUENTAS = Number(process.env.CUENTAS_CARGA ?? 50);
 
 async function api(metodo, ruta, token, body) {
+  if (ruta === "/api/auth/login") body = { ...body, captcha: await captcha(BASE) };
   const r = await fetch(BASE + ruta, {
     method: metodo,
     headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -49,6 +54,14 @@ const creado = await api("POST", "/api/usuarios", admin, {
 if (creado.status === 201) temporal = creado.json.data.passwordTemporal;
 const usuario = await sesion(USUARIO, [temporal, CLAVE]);
 
+// Cuentas para la prueba de capacidad: cada usuario virtual de k6 usa su propia sesión.
+const tokens = [];
+for (let i = 1; i <= CUENTAS; i++) {
+  const correo = `carga${String(i).padStart(3, "0")}@mesaayuda.local`;
+  const c = await api("POST", "/api/usuarios", admin, { nombre: "Carga", apellido: `Usuario ${i}`, correo, rol: "USUARIO", centroId: centro.id });
+  tokens.push(await sesion(correo, [c.status === 201 ? c.json.data.passwordTemporal : null, CLAVE]));
+}
+
 const casos = [];
 for (const [titulo, categoria] of [
   ["No enciende el monitor de la sala 3", "HARDWARE"],
@@ -72,6 +85,7 @@ console.log(
       admin: { correo: ADMIN, password: CLAVE },
       usuario: { correo: USUARIO, password: CLAVE },
       casoId: casos[0],
+      tokens,
     },
     null,
     2,

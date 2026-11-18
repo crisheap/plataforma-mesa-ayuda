@@ -12,6 +12,7 @@ process.env.JWT_SECRET = "secreto-de-prueba-secreto-de-prueba-123";
 process.env.DATABASE_URL = "postgresql://x:x@localhost:5432/x";
 process.env.CORS_ORIGINS = "http://permitido.test";
 process.env.METRICS_TOKEN = "token-de-metricas-de-prueba";
+process.env.CAPTCHA_BITS = "4"; // captcha fácil en pruebas (RF-SEG-01)
 
 type U = {
   id: number;
@@ -71,18 +72,29 @@ const fake = {
     updateMany: async () => ({ count: 0 }),
   },
   auditoria: { create: async () => ({}) },
+  eventoSeguridad: { create: async () => ({ id: 1 }), update: async () => ({}) },
+  configuracionSistema: { findMany: async () => [], findUnique: async () => null },
   $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   $queryRaw: async () => [{ "?column?": 1 }],
 };
 
 let server: Server,
   base = "";
-const post = (ruta: string, body: unknown, token?: string) =>
-  fetch(base + ruta, {
+/** Resuelve el captcha propio como lo haría el navegador (RF-SEG-01). */
+async function captcha() {
+  const { resolverDesafio } = require("./core/captcha") as typeof import("./core/captcha");
+  const d = (await (await fetch(`${base}/api/auth/captcha`)).json()).data;
+  return { desafio: d.desafio, firma: d.firma, nonce: resolverDesafio(d.desafio, d.bits) };
+}
+const post = async (ruta: string, body: unknown, token?: string) => {
+  const conCaptcha =
+    ruta === "/api/auth/login" && body && typeof body === "object" && !("captcha" in body) ? { ...body, captcha: await captcha() } : body;
+  return fetch(base + ruta, {
     method: "POST",
     headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify(body),
+    body: JSON.stringify(conCaptcha),
   });
+};
 const get = (ruta: string, token?: string, headers: Record<string, string> = {}) =>
   fetch(base + ruta, { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers } });
 
@@ -262,4 +274,22 @@ test("enlace de acceso y configuración de correo: validación y permisos (RF-US
   const u = (await (await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok" })).json()).data.token;
   assert.equal((await get("/api/configuracion/correo", u)).status, 403);
   assert.equal((await get("/api/configuracion/correo")).status, 401);
+});
+
+test("captcha: el inicio de sesión lo exige y no acepta soluciones falsas ni reutilizadas (RF-SEG-01)", async () => {
+  const sin = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: undefined });
+  assert.equal(sin.status, 400);
+  const c = await captcha();
+  const falso = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: { ...c, firma: "x".repeat(43) } });
+  assert.equal(falso.status, 400);
+  const ok = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: c });
+  assert.equal(ok.status, 200);
+  const otraVez = await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok", captcha: c });
+  assert.equal(otraVez.status, 400, "un desafío sirve una sola vez");
+});
+
+test("seguridad: el panel exige rol de administrador", async () => {
+  const u = (await (await post("/api/auth/login", { correo: "maria@sena.edu.co", password: "Segura#2026ok" })).json()).data.token;
+  assert.equal((await get("/api/seguridad/resumen", u)).status, 403);
+  assert.equal((await get("/api/seguridad/resumen")).status, 401);
 });

@@ -74,7 +74,13 @@ export const env = {
       : "no") as "json" | "texto" | "no",
   metricsToken: process.env.METRICS_TOKEN ?? "",
   // Peticiones por minuto y por IP a /api (súbelo detrás de un proxy que agrupe usuarios o en pruebas de carga).
+  // Límite por usuario autenticado (o por IP si no hay sesión) y techo por IP para todo un centro tras la misma IP.
   rateLimitApiMin: Math.max(1, numero("RATE_LIMIT_API_MIN", 600)),
+  rateLimitIpMin: Math.max(1, numero("RATE_LIMIT_IP_MIN", 20000)),
+  // Captcha propio de prueba de trabajo (RF-SEG-01): bits de dificultad base; sube con los fallos por IP.
+  captchaBits: Math.min(24, Math.max(1, numero("CAPTCHA_BITS", 15))),
+  // Eventos de seguridad (RF-SEG-02): días que se conservan.
+  retencionSeguridadDias: Math.max(7, numero("RETENCION_SEGURIDAD_DIAS", 180)),
 
   // Correos de acceso (RF-USU-09/10, RF-ADM-05)
   // Dirección pública de la plataforma, para los enlaces de los correos de bienvenida.

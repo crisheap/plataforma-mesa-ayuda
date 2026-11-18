@@ -9,6 +9,8 @@ export interface JwtPayload {
   rol: RolNombre;
   /** Centro del usuario; null solo para el administrador general (RF-CEN-02). */
   centroId?: number | null;
+  /** Emisión del token (segundos); lo usa el cierre de sesiones de emergencia. */
+  iat?: number;
 }
 
 export function firmarAccessToken(payload: JwtPayload): string {
@@ -26,6 +28,7 @@ export function verificarAccessToken(token: string): JwtPayload {
     rol: d.rol as RolNombre,
     // Tokens anteriores a los centros no traen el campo: queda undefined y no cuenta como general.
     centroId: d.centroId === null ? null : typeof d.centroId === "number" ? d.centroId : undefined,
+    iat: typeof d.iat === "number" ? d.iat : undefined,
   };
 }
 

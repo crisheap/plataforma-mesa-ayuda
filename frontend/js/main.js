@@ -23,6 +23,7 @@ import { vistaCasoDetalle } from "./views/caso-detalle.js";
 import { vistaCasoNuevo } from "./views/caso-nuevo.js";
 import { vistaUsuarios, vistaSla, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
 import { vistaDashboard } from "./views/dashboard.js";
+import { vistaSeguridad } from "./views/seguridad.js";
 import { vistaCentros } from "./views/centros.js";
 import { vistaPerfil, vistaNotificaciones } from "./views/cuenta.js";
 
@@ -45,6 +46,7 @@ const RUTAS = [
   ["perfil", vistaPerfil, TODOS, "Mi perfil"],
   ["dashboard", vistaDashboard, STAFF, "Dashboard"],
   ["reportes", vistaDashboard, STAFF, "Dashboard"],
+  ["seguridad", vistaSeguridad, ["ADMINISTRADOR"], "Seguridad"],
   ["auditoria", vistaAuditoria, STAFF, "Bitácora de auditoría"],
   ["usuarios", vistaUsuarios, ["ADMINISTRADOR"], "Usuarios"],
   ["centros", vistaCentros, GENERAL, "Centros de formación"],
@@ -61,6 +63,7 @@ const NAV = [
   ["__sep", "", "Supervisión", STAFF],
   ["casos", "📋", "Todos los casos", STAFF],
   ["dashboard", "📊", "Dashboard", STAFF],
+  ["seguridad", "🛡️", "Seguridad", ["ADMINISTRADOR"]],
   ["auditoria", "🧾", "Auditoría", STAFF],
   ["__sep", "", "Administración", ["ADMINISTRADOR"]],
   ["centros", "🏫", "Centros", GENERAL],
@@ -227,10 +230,67 @@ window.addEventListener("online", async () => {
   refrescarNotificaciones();
 });
 
+// ───────────── Bloqueo de emergencia (RF-SEG-03) ─────────────
+let mantenimiento = null;
+document.addEventListener("mantenimiento-seguridad", (e) => {
+  mantenimiento = e.detail;
+  token++; // descarta la vista que se estaba cargando
+  enrutar();
+});
+function vistaMantenimiento(mensaje) {
+  return h(
+    "div",
+    { class: "login-form mantenimiento" },
+    h(
+      "div",
+      { class: "card center" },
+      h("div", { class: "row" }, iconoBot(40), h("strong", {}, "Mesa de Ayuda · SENA")),
+      h("h1", {}, "🛡️ Mantenimiento por seguridad"),
+      h("p", {}, mensaje),
+      h("p", { class: "muted" }, "Tus casos y datos están a salvo. Vuelve a intentarlo en unos minutos."),
+      h(
+        "div",
+        { class: "row" },
+        h(
+          "button",
+          {
+            class: "btn primary",
+            type: "button",
+            onclick: () => {
+              mantenimiento = null;
+              enrutar();
+            },
+          },
+          "Reintentar",
+        ),
+        h(
+          "button",
+          {
+            class: "btn",
+            type: "button",
+            onclick: async () => {
+              mantenimiento = null;
+              await logout();
+            },
+          },
+          "Salir",
+        ),
+      ),
+    ),
+    pieLegal(),
+  );
+}
+
 // ───────────── Enrutador ─────────────
 let token = 0;
 async function enrutar() {
   const u = getUsuario();
+  if (mantenimiento && u) {
+    shell = null;
+    desmontarBot();
+    document.title = "Mantenimiento por seguridad · Mesa de Ayuda SENA";
+    return montar(root, vistaMantenimiento(mantenimiento));
+  }
   const hash = location.hash || "#/";
   // Enlace de acceso del correo de bienvenida: página pública, con o sin sesión (RF-USU-10).
   if (hash.startsWith("#/activar")) {
@@ -304,7 +364,7 @@ async function enrutar() {
     shell.main.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   } catch (e) {
-    if (mi === token) montar(shell.main, errorBox(e));
+    if (mi === token && shell) montar(shell.main, errorBox(e));
   }
 }
 

@@ -3,6 +3,7 @@
  * La persona crea su propia contraseña; el enlace sirve una sola vez y vence en 48 horas.
  */
 import { api } from "../api.js";
+import { avisoCaptcha, tomarCaptcha } from "../captcha.js";
 import { h, campo, montar, cargando, pieLegal } from "../ui.js";
 import { iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
@@ -58,6 +59,7 @@ export function vistaActivar({ token }) {
     pintarReglas();
     nueva.addEventListener("input", pintarReglas);
     const error = h("div", { class: "alert hidden", role: "alert" });
+    const verificacion = avisoCaptcha(h);
     const boton = h(
       "button",
       { class: "btn primary", type: "submit" },
@@ -84,7 +86,10 @@ export function vistaActivar({ token }) {
           }
           boton.disabled = true;
           try {
-            await api("/api/auth/acceso/activar", { method: "POST", body: { token, passwordNueva: nueva.value } });
+            await api("/api/auth/acceso/activar", {
+              method: "POST",
+              body: { token, passwordNueva: nueva.value, captcha: await tomarCaptcha() },
+            });
             history.replaceState(null, "", "#/activar"); // retira el token de la barra de direcciones
             montar(
               contenido,
@@ -96,6 +101,7 @@ export function vistaActivar({ token }) {
             error.textContent = [err.message, ...(err.errors ?? []).map((x) => x.message)].join(" · ");
             error.classList.remove("hidden");
             boton.disabled = false;
+            verificacion.reiniciar();
           }
         },
       },
@@ -103,6 +109,7 @@ export function vistaActivar({ token }) {
       reglas,
       campo("Repite la contraseña", repetir),
       error,
+      verificacion.el,
       boton,
     );
     montar(

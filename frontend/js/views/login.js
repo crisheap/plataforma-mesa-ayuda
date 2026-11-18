@@ -1,4 +1,5 @@
-import { api, login } from "../api.js";
+import { api, login, tomarAvisoSesion } from "../api.js";
+import { avisoCaptcha, tomarCaptcha } from "../captcha.js";
 import { h, campo, toast, pieLegal } from "../ui.js";
 import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
@@ -14,6 +15,12 @@ export function vistaLogin({ alIngresar }) {
   });
   const pass = h("input", { type: "password", name: "password", autocomplete: "current-password", required: true });
   const error = h("div", { class: "alert hidden", role: "alert" });
+  const avisoSesion = tomarAvisoSesion();
+  if (avisoSesion) {
+    error.textContent = avisoSesion;
+    error.classList.remove("hidden");
+  }
+  const verificacion = avisoCaptcha(h);
   const boton = h("button", { class: "btn primary", type: "submit", style: null }, "Ingresar");
   const ver = h(
     "button",
@@ -46,8 +53,9 @@ export function vistaLogin({ alIngresar }) {
         boton.disabled = true;
         boton.textContent = "Ingresando…";
         try {
-          await alIngresar(await login(correo.value.trim(), pass.value));
+          await alIngresar(await login(correo.value.trim(), pass.value, await tomarCaptcha()));
         } catch (err) {
+          verificacion.reiniciar(); // cada intento usa una verificación nueva
           error.textContent = err.sinConexion ? "No hay conexión con el servidor. Revisa tu internet." : err.message;
           error.classList.remove("hidden");
           pass.value = "";
@@ -62,6 +70,7 @@ export function vistaLogin({ alIngresar }) {
     campo("Contraseña", pass),
     h("div", { class: "field" }, ver),
     error,
+    verificacion.el,
     boton,
   );
 

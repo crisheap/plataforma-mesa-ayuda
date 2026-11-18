@@ -2,9 +2,20 @@ import type { NextFunction, Request, Response } from "express";
 import { MulterError } from "multer";
 import { AppError } from "../utils/errors";
 import { env } from "../config/env";
+import { registrarEvento } from "../core/seguridad";
 
-export function errorMiddleware(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorMiddleware(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
+    // Una persona autenticada que intenta algo fuera de su rol o centro queda registrada (RF-SEG-02).
+    if (err.statusCode === 403 && req.user && !/contraseña temporal/.test(err.message))
+      registrarEvento({
+        tipo: "ACCESO_DENEGADO",
+        severidad: "INFO",
+        descripcion: `${err.message.slice(0, 200)} · ${req.method} ${req.path}`,
+        ip: req.ip,
+        usuarioId: req.user.userId,
+        centroId: req.user.centroId ?? null,
+      });
     return res.status(err.statusCode).json({ success: false, message: err.message, errors: err.errors });
   }
   if (err instanceof MulterError) {

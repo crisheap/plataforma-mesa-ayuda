@@ -1,0 +1,27 @@
+name: CodeQL
+
+# Análisis de seguridad del código (RF-SEG-05): busca inyecciones, XSS y otros fallos
+# en el backend y en la PWA cada semana y en cada cambio a main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analizar:
+    name: Analizar JavaScript y TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3

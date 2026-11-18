@@ -74,7 +74,7 @@ for (const esquema of ["light", "dark"] as const) {
 
     test("pantallas de administración", async ({ page }) => {
       await ingresar(page, cred.admin.correo, cred.admin.password);
-      for (const ruta of ["casos", "dashboard", "auditoria", "usuarios", "centros", "sla", "conocimiento", "configuracion"]) {
+      for (const ruta of ["casos", "dashboard", "seguridad", "auditoria", "usuarios", "centros", "sla", "conocimiento", "configuracion"]) {
         await page.goto(`/#/${ruta}`);
         await revisar(page, `${ruta} (${esquema})`);
       }

@@ -25,6 +25,7 @@ const MONTAJES: [string, string, string][] = [
   ["modules/asistente/asistente.routes.ts", "/api/asistente", "router"],
   ["modules/configuracion/configuracion.routes.ts", "/api/configuracion", "router"],
   ["modules/centros/centros.routes.ts", "/api/centros", "router"],
+  ["modules/seguridad/seguridad.routes.ts", "/api/seguridad", "router"],
 ];
 
 function rutasDelCodigo(): Set<string> {

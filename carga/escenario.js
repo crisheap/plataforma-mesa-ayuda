@@ -1,13 +1,16 @@
 /**
  * Prueba de carga con k6 (RNF-04: p95 ≤ 3 s).
- * Ejecución:  k6 run -e BASE_URL=http://localhost:4000 -e CORREO=... -e PASSWORD=... carga/escenario.js
- * Nota: la API limita las peticiones por IP (RATE_LIMIT_API_MIN, 600/min). Para medir carga real
- * desde un solo equipo, súbelo temporalmente en el entorno de pruebas.
+ * Ejecución:  k6 run -e BASE_URL=http://localhost:4000 -e CREDENCIALES=../credenciales.json carga/escenario.js
+ * Las sesiones salen de carga/preparar.mjs: cada usuario virtual usa la suya (el límite de la API
+ * es por usuario, RATE_LIMIT_API_MIN, así que no se mezclan como si fueran una sola persona).
+ * PENSAR=1 agrega entre 5 y 15 s de pausa entre acciones, como una persona real (prueba de capacidad).
  */
 import http from "k6/http";
 import { check, group, sleep } from "k6";
 
 const BASE = __ENV.BASE_URL || "http://localhost:4000";
+const TOKENS = JSON.parse(open(__ENV.CREDENCIALES || "../credenciales.json")).tokens;
+const PENSAR = __ENV.PENSAR === "1";
 
 export const options = {
   scenarios: {
@@ -29,16 +32,9 @@ export const options = {
   },
 };
 
-export function setup() {
-  const r = http.post(`${BASE}/api/auth/login`, JSON.stringify({ correo: __ENV.CORREO, password: __ENV.PASSWORD }), {
-    headers: { "Content-Type": "application/json" },
-  });
-  check(r, { "inicio de sesión": (x) => x.status === 200 });
-  return { token: r.json("data.token") };
-}
-
-export default function (datos) {
-  const params = (grupo) => ({ headers: { Authorization: `Bearer ${datos.token}`, "Content-Type": "application/json" }, tags: { grupo } });
+export default function () {
+  const token = TOKENS[(__VU - 1) % TOKENS.length];
+  const params = (grupo) => ({ headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, tags: { grupo } });
   group("casos", () => {
     const lista = http.get(`${BASE}/api/casos/mis-casos?page=1&pageSize=10`, params("casos"));
     check(lista, { "mis casos 200": (x) => x.status === 200 });
@@ -65,5 +61,5 @@ export default function (datos) {
     );
     check(nuevo, { "registro 201": (x) => x.status === 201 });
   }
-  sleep(1);
+  sleep(PENSAR ? 5 + Math.random() * 10 : 1);
 }
