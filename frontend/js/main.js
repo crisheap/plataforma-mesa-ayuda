@@ -157,7 +157,7 @@ function construirShell(u) {
     menu,
     h(
       "a",
-      { class: "brand", href: "#/inicio" },
+      { class: "brand", href: "#/inicio", "aria-label": "Mesa de Ayuda, ir al inicio" },
       h("span", { class: "logo" }, iconoBot(26)),
       h("span", { class: "brand-texto" }, "Mesa de Ayuda"),
     ),
