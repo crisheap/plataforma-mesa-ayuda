@@ -19,8 +19,8 @@ export class AppError extends Error {
   static notFound(m = "Recurso no encontrado") {
     return new AppError(404, m);
   }
-  static conflict(m: string) {
-    return new AppError(409, m);
+  static conflict(m: string, e?: AppError["errors"]) {
+    return new AppError(409, m, e);
   }
   static tooMany(m = "Demasiadas solicitudes. Intenta de nuevo más tarde") {
     return new AppError(429, m);
