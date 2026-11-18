@@ -752,7 +752,11 @@ test("correos únicos, corrección del correo de acceso y datos corregidos por e
   assert.equal(corregido.status, 200, JSON.stringify(corregido.json));
   assert.equal(corregido.json.data.correo, "marta.ruiz@integracion.test");
   assert.match(corregido.json.message, /enlaces de acceso/);
-  assert.equal((await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: viejo })).status, 400, "el enlace enviado antes ya no sirve");
+  assert.equal(
+    (await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: viejo })).status,
+    400,
+    "el enlace enviado antes ya no sirve",
+  );
   const aud = await llamar("GET", `/api/auditoria?accion=CORREO_CAMBIADO&pageSize=5`, tokens.admin);
   assert.ok(
     aud.json.data.items.some((a: { descripcion: string }) => a.descripcion.includes("marta@integracion.test")),
@@ -783,7 +787,8 @@ test("correos únicos, corrección del correo de acceso y datos corregidos por e
   );
   assert.equal((await llamar("PATCH", `/api/usuarios/${ids.tecnico}/datos`, tokens.supervisor, { apellido: "Martínez Ríos" })).status, 200);
   assert.equal(
-    (await llamar("PATCH", `/api/usuarios/${marta}/datos`, tokens.supervisor, { correo: "y@integracion.test", rol: "ADMINISTRADOR" })).status,
+    (await llamar("PATCH", `/api/usuarios/${marta}/datos`, tokens.supervisor, { correo: "y@integracion.test", rol: "ADMINISTRADOR" }))
+      .status,
     400,
     "el rol y el correo de acceso no son parte de la corrección del supervisor",
   );

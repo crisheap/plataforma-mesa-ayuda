@@ -78,7 +78,13 @@ router.patch("/:id/datos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async 
   const id = idParam(req.params.id);
   const d = validar(datosSchema, req.body);
   const u = await svc.corregirDatos(alcance(req), id, d);
-  await auditar(req, { accion: "USUARIO_EDITADO", entidad: "usuario", entidadId: id, descripcion: `Datos corregidos por ${req.user!.rol}`, datos: d });
+  await auditar(req, {
+    accion: "USUARIO_EDITADO",
+    entidad: "usuario",
+    entidadId: id,
+    descripcion: `Datos corregidos por ${req.user!.rol}`,
+    datos: d,
+  });
   res.json({ success: true, message: "Datos actualizados", data: u });
 });
 

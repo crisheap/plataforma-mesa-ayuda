@@ -113,7 +113,9 @@ export async function vistaUsuarios({ usuario: yo }) {
   const rolesPermitidos = general ? ROLES : Object.fromEntries(Object.entries(ROLES).filter(([k]) => k !== "ADMINISTRADOR"));
   /** Misma regla del servidor (puedeGestionar): el general gestiona todo; el de centro, lo no administrador de su centro. */
   const gestionable = (u) =>
-    supervisor ? u.centro?.id === yo.centro?.id && ["USUARIO", "TECNICO"].includes(u.rol.nombre) : u.id === yo.id || (general ? u.centro !== null : u.centro?.id === yo.centro?.id && u.rol.nombre !== "ADMINISTRADOR");
+    supervisor
+      ? u.centro?.id === yo.centro?.id && ["USUARIO", "TECNICO"].includes(u.rol.nombre)
+      : u.id === yo.id || (general ? u.centro !== null : u.centro?.id === yo.centro?.id && u.rol.nombre !== "ADMINISTRADOR");
   const sCentro = general ? selectorCentro({ valor: f.centroId }) : null;
   let cfg = { dominiosEmpresariales: [], smtpConfigurado: true, vigenciaEnlaceHoras: 48 };
   if (!supervisor)
@@ -325,7 +327,13 @@ export async function vistaUsuarios({ usuario: yo }) {
   async function corregir(u) {
     const n = h("input", { value: u.nombre, maxlength: "80" }),
       a = h("input", { value: u.apellido, maxlength: "80" });
-    const p = h("input", { type: "email", maxlength: "150", autocomplete: "off", value: u.correoPersonal ?? "", placeholder: "nombre@gmail.com" });
+    const p = h("input", {
+      type: "email",
+      maxlength: "150",
+      autocomplete: "off",
+      value: u.correoPersonal ?? "",
+      placeholder: "nombre@gmail.com",
+    });
     const ok = await modal({
       titulo: "Corregir datos",
       cuerpo: h(

@@ -281,11 +281,7 @@ async function correosNuevos(
  * Corrección de datos básicos por el supervisor (RF-USU-13), como respaldo del administrador:
  * solo nombre, apellido y correo personal de los usuarios y técnicos de su centro.
  */
-export async function corregirDatos(
-  actor: Alcance,
-  id: number,
-  d: { nombre?: string; apellido?: string; correoPersonal?: string | null },
-) {
+export async function corregirDatos(actor: Alcance, id: number, d: { nombre?: string; apellido?: string; correoPersonal?: string | null }) {
   if (actor.rol === "ADMINISTRADOR") return actualizar(actor, id, d);
   const u = await prisma.usuario.findUnique({ where: { id }, select: { centroId: true, rol: { select: { nombre: true } } } });
   if (!u || u.centroId === null || u.centroId !== actor.centroId) throw AppError.notFound("Usuario no encontrado");
