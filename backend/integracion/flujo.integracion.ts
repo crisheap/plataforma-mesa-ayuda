@@ -751,7 +751,7 @@ test("correos únicos, corrección del correo de acceso y datos corregidos por e
   const corregido = await llamar("PATCH", `/api/usuarios/${marta}`, tokens.admin, { correo: "Marta.Ruiz@integracion.test" });
   assert.equal(corregido.status, 200, JSON.stringify(corregido.json));
   assert.equal(corregido.json.data.correo, "marta.ruiz@integracion.test");
-  assert.match(corregido.json.message, /enlaces de acceso/);
+  assert.match(corregido.json.message, /enlaces enviados antes ya no sirven/);
   assert.equal(
     (await llamar("POST", "/api/auth/acceso/verificar", undefined, { token: viejo })).status,
     400,

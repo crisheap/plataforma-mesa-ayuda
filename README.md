@@ -41,7 +41,7 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 |---|---|
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
-| **Supervisor** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría |
+| **Supervisor** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría · **corregir nombre, apellido y correo personal** de usuarios y técnicos de su centro |
 | **Administrador de centro** | Gestionar los usuarios, técnicos y supervisores de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro · panel de **Seguridad** de su centro y cerrar sus sesiones |
 | **Administrador general** | Cuenta única sin centro (la del seed, `admin@mesaayuda.local`) · crear los **centros de formación** (CEET, CMTC…) y el administrador de cada uno · ver todos los centros, por separado o consolidados · lo común a la entidad: tiempos de SLA, base de conocimiento del asistente y dominios empresariales · panel de **Seguridad** de toda la plataforma, cerrar sesiones y **bloqueo de emergencia** |
 
@@ -346,6 +346,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 |---|---|
 | RF-CAS-01…04, 11, 13 · Casos, número único, observaciones, calificación | `modules/casos/`, `core/reglas.ts` |
 | RF-CAS-14 · Número de contacto del solicitante | `telefonoContacto` en `casos.routes.ts` y migración `20261114230000_telefono_contacto`; `views/caso-nuevo.js` y `views/caso-detalle.js` |
+| RF-USU-11…13 · Correos únicos en todo el sistema, corrección del correo de acceso y datos corregidos por el supervisor | `exigirCorreoLibre`, `corregirDatos` en `usuarios.service.ts`; `PATCH /api/usuarios/:id/datos`; migración `20261120000000_correos_unicos`; `views/admin.js` |
 | RF-USU-09 · Tipo de correo y correo personal | `tipoCorreo`, `correoPersonal` en `schema.prisma` y migración `20261115000000_correos_y_acceso`; `core/correos.ts`; `views/admin.js` |
 | RF-USU-10 · Bienvenida y enlace de activación | `core/acceso.ts` (tabla `tokens_acceso`), `POST /api/usuarios/:id/enviar-acceso`, `POST /api/auth/acceso/*`; `views/activar.js` |
 | RF-ADM-05 · Dominios empresariales | `modules/configuracion/`, `GET/PUT /api/configuracion/correo`; `vistaConfiguracion` en `views/admin.js` |
