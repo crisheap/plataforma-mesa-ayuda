@@ -83,7 +83,12 @@ export function vistaLogin({ alIngresar }) {
   return h(
     "div",
     { class: "login" },
-    h("div", { class: "theme-float" }, botonAyuda(() => null), toggle),
+    h(
+      "div",
+      { class: "theme-float" },
+      botonAyuda(() => null),
+      toggle,
+    ),
     h(
       "section",
       { class: "login-art", "aria-label": "Presentación" },

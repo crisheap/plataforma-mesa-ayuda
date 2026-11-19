@@ -49,7 +49,9 @@ const SECCIONES = [
           "Presiona **Crear contraseña** y luego **Iniciar sesión**.",
         ],
       },
-      { p: "Si el enlace ya no está disponible, pide al administrador de tu centro que te envíe uno nuevo. Revisa también la carpeta de spam." },
+      {
+        p: "Si el enlace ya no está disponible, pide al administrador de tu centro que te envíe uno nuevo. Revisa también la carpeta de spam.",
+      },
     ],
   },
   {
@@ -110,7 +112,9 @@ const SECCIONES = [
     titulo: "Seguir y cerrar mis casos",
     roles: [U, T],
     bloques: [
-      { p: "En **Mis casos** ves tus reportes con su estado. Al abrir uno ves el técnico asignado, el historial, los comentarios y las evidencias." },
+      {
+        p: "En **Mis casos** ves tus reportes con su estado. Al abrir uno ves el técnico asignado, el historial, los comentarios y las evidencias.",
+      },
       {
         lista: [
           "Responde al técnico con **Comentar**.",
@@ -178,7 +182,9 @@ const SECCIONES = [
     titulo: "Dashboard y Excel",
     roles: [S, A],
     bloques: [
-      { p: "El **Dashboard** muestra el total de casos, los por realizar, en proceso, realizados y vencidos, con gráficas de avance, calidad del servicio y carga por técnico." },
+      {
+        p: "El **Dashboard** muestra el total de casos, los por realizar, en proceso, realizados y vencidos, con gráficas de avance, calidad del servicio y carga por técnico.",
+      },
       {
         lista: [
           "Filtra por fechas, prioridad o técnico.",
@@ -203,7 +209,9 @@ const SECCIONES = [
           "Corrige el nombre, el apellido o el correo personal y presiona **Guardar**.",
         ],
       },
-      { p: "Puedes corregir a usuarios y técnicos de tu centro. El rol, el centro, el correo de acceso y el estado de la cuenta los cambia el administrador." },
+      {
+        p: "Puedes corregir a usuarios y técnicos de tu centro. El rol, el centro, el correo de acceso y el estado de la cuenta los cambia el administrador.",
+      },
     ],
   },
   {
@@ -233,7 +241,9 @@ const SECCIONES = [
     titulo: "Seguridad",
     roles: [A],
     bloques: [
-      { p: "En **Seguridad** ves los intentos fallidos, las cuentas bloqueadas, los ataques detectados y las alertas. Revisa cada evento y presiona **Marcar atendido**." },
+      {
+        p: "En **Seguridad** ves los intentos fallidos, las cuentas bloqueadas, los ataques detectados y las alertas. Revisa cada evento y presiona **Marcar atendido**.",
+      },
       {
         lista: [
           "**Cerrar todas las sesiones** saca a todas las personas conectadas; deberán volver a ingresar.",
@@ -309,8 +319,18 @@ function texto(s) {
 
 function bloque(b) {
   if (b.p) return h("p", {}, texto(b.p));
-  if (b.pasos) return h("ol", {}, b.pasos.map((x) => h("li", {}, texto(x))));
-  if (b.lista) return h("ul", {}, b.lista.map((x) => h("li", {}, texto(x))));
+  if (b.pasos)
+    return h(
+      "ol",
+      {},
+      b.pasos.map((x) => h("li", {}, texto(x))),
+    );
+  if (b.lista)
+    return h(
+      "ul",
+      {},
+      b.lista.map((x) => h("li", {}, texto(x))),
+    );
   if (b.tabla)
     return h(
       "dl",
@@ -330,16 +350,16 @@ export function seccionesPara(usuario) {
 export function abrirAyuda(usuario) {
   document.querySelector("dialog.dlg-ayuda")?.remove();
   const secciones = seccionesPara(usuario);
-  const buscar = h("input", { type: "search", placeholder: "Buscar en la ayuda (por ejemplo: contraseña)", "aria-label": "Buscar en la ayuda" });
+  const buscar = h("input", {
+    type: "search",
+    placeholder: "Buscar en la ayuda (por ejemplo: contraseña)",
+    "aria-label": "Buscar en la ayuda",
+  });
   const sinResultados = h("p", { class: "muted hidden", role: "status" }, "No hay temas con esa palabra.");
   const items = secciones.map((s, i) =>
     h("details", { class: "ayuda-seccion", ...(i === 0 ? { open: "" } : {}) }, h("summary", {}, s.titulo), ...s.bloques.map(bloque)),
   );
-  const normal = (x) =>
-    x
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "");
+  const normal = (x) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   buscar.addEventListener("input", () => {
     const q = normal(buscar.value.trim());
     let visibles = 0;
