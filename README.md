@@ -41,14 +41,15 @@ Plataforma web para que funcionarios y aprendices **reporten incidentes y solici
 |---|---|
 | **Usuario** | Registrar casos con tipo, categoría, número de contacto opcional y evidencias (imágenes, PDF, documentos, video) · ver «Mis casos» con estado, técnico e historial · confirmar o rechazar la solución · calificar la atención de 1 a 5 · conversar con Botito |
 | **Técnico** | Panel de casos asignados ordenado por SLA y prioridad · llamar al solicitante desde el detalle del caso · iniciar atención, registrar observaciones (públicas o internas) y marcar como resuelto con la solución |
-| **Supervisor** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría · **corregir nombre, apellido y correo personal** de usuarios y técnicos de su centro |
-| **Administrador de centro** | Gestionar los usuarios, técnicos y supervisores de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro · panel de **Seguridad** de su centro y cerrar sus sesiones |
+| **Dinamizador TICs** | Ver los casos de su centro · asignar técnico y prioridad (con la carga de cada técnico) · cerrar casos · **dashboard** con gráficas y descarga en Excel · bitácora de auditoría · **corregir nombre, apellido y correo personal** de usuarios y técnicos de su centro |
+| **Administrador de centro** | Gestionar los usuarios, técnicos y dinamizadores TICs de su centro (crear, editar, bloquear, inactivar) · indicar si el correo de acceso es empresarial o personal y registrar un correo personal · enviar el correo de bienvenida con un enlace para que la persona cree su contraseña · dashboard, Excel y auditoría de su centro · panel de **Seguridad** de su centro y cerrar sus sesiones |
 | **Administrador general** | Cuenta única sin centro (la del seed, `admin@mesaayuda.local`) · crear los **centros de formación** (CEET, CMTC…) y el administrador de cada uno · ver todos los centros, por separado o consolidados · lo común a la entidad: tiempos de SLA, base de conocimiento del asistente y dominios empresariales · panel de **Seguridad** de toda la plataforma, cerrar sesiones y **bloqueo de emergencia** |
 
 Además, para todos los roles:
 
 - **Correo de bienvenida y activación de la cuenta:** al crear un usuario se envía un mensaje de bienvenida al nuevo sistema con un enlace de un solo uso (vence en 48 h) para que la persona cree su propia contraseña. La contraseña nunca viaja por correo. Si la cuenta tiene correo personal, la bienvenida llega allí; las notificaciones de los casos siguen llegando al correo de acceso.
 - **Datos personales (Ley 1581 de 2012):** al primer ingreso cada persona autoriza el tratamiento de sus datos de forma previa, expresa e informada; se guardan la fecha, la versión de la política y la IP como prueba. La política completa está en `#/privacidad`.
+- **Calificación privada:** la calificación y la observación que deja quien reportó el caso solo las ve el administrador de su centro (también en su Excel); el técnico y el Dinamizador TICs no.
 - **Ayuda en línea** con el botón **«?»**: la guía de uso de cada rol dentro de la aplicación, con buscador y sin archivos para descargar.
 - **Pie en todas las pantallas** con la ayuda, la política de datos, la licencia y la autoría.
 - **Centros de formación independientes:** cada centro solo ve y gestiona sus usuarios, casos, dashboard, Excel y auditoría; los casos solo se asignan a técnicos del mismo centro, y el administrador general ve todo.
@@ -58,7 +59,7 @@ Además, para todos los roles:
 - **Aplicación web progresiva (PWA):** instalable en celular y computador, funciona sin conexión y envía los casos redactados offline al volver la red.
 - **Tema diurno y nocturno** sin destello al cargar, con contraste WCAG 2.2 AA.
 - **Nombre completo y rol** del usuario en el encabezado y en la bienvenida.
-- **Dashboard** para el Supervisor y el Administrador: total de casos, por realizar, en proceso, realizados y vencidos; gráfica de casos creados frente a realizados; carga de cada técnico; cumplimiento de SLA y satisfacción. Cada gráfica tiene su tabla de datos y se puede recorrer con el teclado.
+- **Dashboard** para el Dinamizador TICs y el Administrador: total de casos, por realizar, en proceso, realizados y vencidos; gráfica de casos creados frente a realizados; carga de cada técnico; cumplimiento de SLA y satisfacción. Cada gráfica tiene su tabla de datos y se puede recorrer con el teclado.
 - **Reportes en Excel** filtrables por fecha, técnico y prioridad, con una hoja **Dashboard** que resume lo mismo que la pantalla.
 - **Bitácora de auditoría inmutable**, protegida por un trigger de PostgreSQL.
 - **Protección contra fraudes y ataques:** captcha propio sin terceros al ingresar, detección de fuerza bruta con alertas a los administradores, panel **Seguridad**, cierre de todas las sesiones, bloqueo de emergencia y verificación de integridad del código (ver [Seguridad](#seguridad)).
@@ -171,7 +172,7 @@ npm run db:seed                 # roles, administrador, SLA y base de conocimien
 npm run dev                     # API + PWA en http://localhost:4000
 ```
 
-Ingresa con `admin@mesaayuda.local` y la contraseña de `ADMIN_INITIAL_PASSWORD`. Si la dejaste vacía, el seed genera una aleatoria y la muestra **una sola vez**. El sistema obliga a cambiarla en el primer ingreso. Después crea técnicos, supervisores y usuarios desde **Usuarios**.
+Ingresa con `admin@mesaayuda.local` y la contraseña de `ADMIN_INITIAL_PASSWORD`. Si la dejaste vacía, el seed genera una aleatoria y la muestra **una sola vez**. El sistema obliga a cambiarla en el primer ingreso. Después crea técnicos, dinamizadores TICs y usuarios desde **Usuarios**.
 
 Para generar un `JWT_SECRET` seguro:
 
@@ -346,8 +347,9 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | Requerimiento | Implementación |
 |---|---|
 | RF-CAS-01…04, 11, 13 · Casos, número único, observaciones, calificación | `modules/casos/`, `core/reglas.ts` |
+| RF-CAS-15 · Calificación privada: solo la ven quien calificó y el administrador (detalle, dashboard y Excel) | `casos.service.ts` (`detalle`), `reportes.routes.ts` |
 | RF-CAS-14 · Número de contacto del solicitante | `telefonoContacto` en `casos.routes.ts` y migración `20261114230000_telefono_contacto`; `views/caso-nuevo.js` y `views/caso-detalle.js` |
-| RF-USU-11…13 · Correos únicos en todo el sistema, corrección del correo de acceso y datos corregidos por el supervisor | `exigirCorreoLibre`, `corregirDatos` en `usuarios.service.ts`; `PATCH /api/usuarios/:id/datos`; migración `20261120000000_correos_unicos`; `views/admin.js` |
+| RF-USU-11…13 · Correos únicos en todo el sistema, corrección del correo de acceso y datos corregidos por el dinamizador TICs | `exigirCorreoLibre`, `corregirDatos` en `usuarios.service.ts`; `PATCH /api/usuarios/:id/datos`; migración `20261120000000_correos_unicos`; `views/admin.js` |
 | RF-USU-09 · Tipo de correo y correo personal | `tipoCorreo`, `correoPersonal` en `schema.prisma` y migración `20261115000000_correos_y_acceso`; `core/correos.ts`; `views/admin.js` |
 | RF-USU-10 · Bienvenida y enlace de activación | `core/acceso.ts` (tabla `tokens_acceso`), `POST /api/usuarios/:id/enviar-acceso`, `POST /api/auth/acceso/*`; `views/activar.js` |
 | RF-ADM-05 · Dominios empresariales | `modules/configuracion/`, `GET/PUT /api/configuracion/correo`; `vistaConfiguracion` en `views/admin.js` |
@@ -387,7 +389,7 @@ Los 17 hallazgos del análisis de brechas (H-01 a H-17, sección 10 del ERS) est
 |---|---|---|
 | [ERS y documentación técnica v2.2](docs/Plataforma_Mesa_de_Ayuda_ERS_y_Documentacion_Tecnica_v2.2.docx) | Equipo técnico y evaluadores | Requerimientos con su estado actual, historias de usuario, arquitectura y ADR, UX/UI, UML, manual técnico, hallazgos corregidos, plan por fases y matriz de trazabilidad |
 | [Manual de instalación v2.2](docs/Manual_de_Instalacion_Mesa_de_Ayuda_v2.2.docx) | Quien instala la plataforma | Instalación paso a paso, recorrido de prueba, respaldos, documentación de la API, métricas y solución de problemas |
-| [Manual de usuario v2.2](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.2.docx) | Usuarios, técnicos, supervisores y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
+| [Manual de usuario v2.2](docs/Manual_de_Usuario_Mesa_de_Ayuda_v2.2.docx) | Usuarios, técnicos, dinamizadores TICs y administradores | Cómo reportar bien un caso, seguimiento, Botito y las tareas de cada rol |
 
 Más detalle en [`docs/README.md`](docs/README.md).
 

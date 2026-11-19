@@ -35,7 +35,7 @@ const filtrosDe = (req: Request) => {
   return { ...f, centroId: filtroCentro({ rol: req.user!.rol, centroId: req.user!.centroId ?? null }, f.centroId).centroId };
 };
 
-/** La satisfacción (calificaciones y sus observaciones) solo la ve el administrador (RF-CAS-11). */
+/** La satisfacción (calificaciones y sus observaciones) solo la ve el administrador (RF-CAS-15). */
 const veCalificaciones = (req: Request) => req.user!.rol === "ADMINISTRADOR";
 
 router.get("/kpis", async (req, res) => {

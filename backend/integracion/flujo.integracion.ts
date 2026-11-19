@@ -243,7 +243,7 @@ test("el técnico atiende y resuelve; el usuario rechaza y luego confirma", asyn
   assert.equal((await llamar("POST", `/api/casos/${casoId}/calificacion`, tokens.usuario, { puntuacion: 4 })).status, 409);
 });
 
-test("la calificación y su observación solo las ven quien calificó y el administrador (RF-CAS-11)", async () => {
+test("la calificación y su observación solo las ven quien calificó y el administrador (RF-CAS-15)", async () => {
   const ver = async (t: string) => (await llamar("GET", `/api/casos/${casoId}`, t)).json.data.calificacion;
   assert.equal((await ver(tokens.usuario))?.comentario, "Excelente", "quien calificó la ve");
   assert.equal((await ver(tokens.admin))?.puntuacion, 5, "el administrador la ve");

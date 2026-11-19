@@ -189,7 +189,7 @@ export async function vistaDashboard({ usuario }) {
           h("dd", {}, h("strong", {}, minutos(k.tiempoMedioResolucionMin))),
           h("dt", {}, "Resueltos fuera de tiempo"),
           h("dd", {}, h("strong", {}, num.format(r.resueltosFueraDeTiempo))),
-          // Solo el administrador recibe la satisfacción (RF-CAS-11)
+          // Solo el administrador recibe la satisfacción (RF-CAS-15)
           k.satisfaccion ? h("dt", {}, "Satisfacción") : null,
           k.satisfaccion
             ? h(
