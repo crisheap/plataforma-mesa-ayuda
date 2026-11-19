@@ -195,7 +195,6 @@ export const credito = (clase = "credito") => h("p", { class: clase }, `© ${AUT
 
 /** Enlaces fijos del pie: manual, política de datos y licencia (RF-DAT-01, RF-UI-06). */
 export const ENLACES_LEGALES = {
-  manual: "/docs/manual-de-usuario.pdf",
   privacidad: "#/privacidad",
   licencia: "https://github.com/crisheap/plataforma-mesa-ayuda/blob/main/LICENSE",
 };
@@ -206,7 +205,11 @@ export const pieLegal = (clase = "") =>
     h(
       "nav",
       { "aria-label": "Información legal y ayuda" },
-      h("a", { href: ENLACES_LEGALES.manual, target: "_blank", rel: "noopener" }, "Manual de usuario (PDF)"),
+      h(
+        "button",
+        { class: "btn-enlace", type: "button", onclick: () => document.dispatchEvent(new CustomEvent("abrir-ayuda")) },
+        "Ayuda: cómo usar la plataforma",
+      ),
       h("a", { href: ENLACES_LEGALES.privacidad }, "Política de tratamiento de datos personales"),
       h("a", { href: ENLACES_LEGALES.licencia, target: "_blank", rel: "noopener" }, "Licencia MIT"),
     ),

@@ -63,7 +63,7 @@ async function ingresar(page: Page, correo: string, password: string) {
     await page.getByRole("button", { name: "Aceptar y continuar" }).click();
   }
   await expect(page.locator("#nav a").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Manual de usuario (PDF)" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ayuda: cómo usar la plataforma" })).toBeVisible();
 }
 
 for (const esquema of ["light", "dark"] as const) {
@@ -88,6 +88,20 @@ for (const esquema of ["light", "dark"] as const) {
         .click();
       await expect(page.getByRole("textbox", { name: /mensaje/i })).toBeVisible();
       await revisar(page, `Botito (${esquema})`);
+      await page.keyboard.press("Escape");
+
+      // Ayuda en línea (RF-UI-07): se abre con «?», muestra solo los temas del rol y no ofrece descargas
+      await page.getByRole("button", { name: "Ayuda", exact: true }).click();
+      const ayuda = page.getByRole("dialog", { name: /Cómo se usa/ });
+      await expect(ayuda).toBeVisible();
+      await expect(ayuda.getByText("Reportar un caso", { exact: true })).toBeVisible();
+      await expect(ayuda.getByText("Centros y sus administradores")).toHaveCount(0);
+      await expect(ayuda.locator("a[download], a[href$='.pdf']")).toHaveCount(0);
+      await revisar(page, `ayuda (${esquema})`);
+      await ayuda.getByRole("searchbox").fill("contraseña");
+      await expect(ayuda.getByText("Ingresar a la plataforma", { exact: true })).toBeVisible();
+      await ayuda.getByRole("button", { name: "Cerrar" }).click();
+      await expect(ayuda).toHaveCount(0);
     });
 
     test("pantallas de administración", async ({ page }) => {
@@ -104,9 +118,9 @@ test("política de tratamiento de datos personales", async ({ page }) => {
   await page.goto("/#/privacidad");
   await expect(page.getByRole("heading", { name: /Tus derechos como titular/ })).toBeVisible();
   await revisar(page, "privacidad");
+  // El manual ya no se publica como PDF descargable: la ayuda vive dentro de la aplicación
   const pdf = await page.request.get("/docs/manual-de-usuario.pdf");
-  expect(pdf.status()).toBe(200);
-  expect(pdf.headers()["content-type"]).toContain("pdf");
+  expect(pdf.headers()["content-type"] ?? "").not.toContain("pdf");
 });
 
 test("página de activación de cuenta", async ({ page }) => {

@@ -162,7 +162,15 @@ export async function vistaPerfil() {
           h("a", { href: ENLACES_LEGALES.licencia, target: "_blank", rel: "noopener" }, "licencia MIT"),
           ".",
         ),
-        h("p", {}, h("a", { href: ENLACES_LEGALES.manual, target: "_blank", rel: "noopener" }, "Abrir el manual de usuario (PDF)")),
+        h(
+          "p",
+          {},
+          h(
+            "button",
+            { class: "btn", type: "button", onclick: () => document.dispatchEvent(new CustomEvent("abrir-ayuda")) },
+            "? Ver la ayuda de la plataforma",
+          ),
+        ),
       ),
       h(
         "section",

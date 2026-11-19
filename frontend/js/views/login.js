@@ -3,6 +3,7 @@ import { avisoCaptcha, tomarCaptcha } from "../captcha.js";
 import { h, campo, toast, pieLegal } from "../ui.js";
 import { heroTecnico, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
+import { botonAyuda } from "./ayuda.js";
 
 export function vistaLogin({ alIngresar }) {
   const correo = h("input", {
@@ -82,7 +83,7 @@ export function vistaLogin({ alIngresar }) {
   return h(
     "div",
     { class: "login" },
-    h("div", { class: "theme-float" }, toggle),
+    h("div", { class: "theme-float" }, botonAyuda(() => null), toggle),
     h(
       "section",
       { class: "login-art", "aria-label": "Presentación" },

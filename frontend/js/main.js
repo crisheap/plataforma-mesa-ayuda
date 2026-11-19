@@ -24,6 +24,7 @@ import { vistaCasoNuevo } from "./views/caso-nuevo.js";
 import { vistaUsuarios, vistaSla, vistaAuditoria, vistaConocimiento, vistaConfiguracion } from "./views/admin.js";
 import { vistaDashboard } from "./views/dashboard.js";
 import { vistaSeguridad } from "./views/seguridad.js";
+import { abrirAyuda, botonAyuda } from "./views/ayuda.js";
 import { vistaCentros } from "./views/centros.js";
 import { vistaPerfil, vistaNotificaciones } from "./views/cuenta.js";
 
@@ -96,6 +97,9 @@ function resolverRuta(hash) {
   return null;
 }
 
+// El enlace «Ayuda» del pie abre la misma guía que el botón «?» (RF-UI-07).
+document.addEventListener("abrir-ayuda", () => abrirAyuda(getUsuario()));
+
 // ───────────── Layout autenticado ─────────────
 function construirShell(u) {
   const botTema = h("button", {
@@ -163,6 +167,7 @@ function construirShell(u) {
     ),
     h("span", { class: "spacer" }),
     botTema,
+    botonAyuda(getUsuario),
     campana,
     chip,
     h(
