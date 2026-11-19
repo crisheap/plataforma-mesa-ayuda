@@ -12,18 +12,19 @@ export function heroTecnico() {
   <defs>
     <linearGradient id="gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#39A900"/><stop offset="1" stop-color="#0B8FA0"/></linearGradient>
   </defs>
-  <ellipse cx="240" cy="190" rx="205" ry="160" fill="var(--il-blob)" opacity=".14"/>
-  <circle cx="400" cy="70" r="46" fill="var(--il-blob)" opacity=".13"/>
-  <circle cx="70" cy="300" r="30" fill="var(--il-blob)" opacity=".13"/>
+  <ellipse class="an-respira" cx="240" cy="190" rx="205" ry="160" fill="var(--il-blob)" opacity=".14"/>
+  <circle class="an-burbuja" cx="400" cy="70" r="46" fill="var(--il-blob)" opacity=".13"/>
+  <circle class="an-burbuja an-d2" cx="70" cy="300" r="30" fill="var(--il-blob)" opacity=".13"/>
   <!-- iconos flotantes -->
-  <g transform="translate(60 70)"><path d="M0 0l34 11v22c0 20-14 34-34 41C-20 67-34 53-34 33V11z" transform="translate(34 0) scale(.78)" fill="url(#gb)"/><path d="M20 28l9 9 17-19" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <g transform="translate(372 150)" fill="none" stroke="var(--il-code2)" stroke-width="5" stroke-linecap="round"><path d="M0 22q22-22 44 0"/><path d="M9 31q13-13 26 0"/><circle cx="22" cy="40" r="3" fill="var(--il-code2)"/></g>
-  <g transform="translate(70 195)"><circle cx="24" cy="24" r="22" fill="none" stroke="var(--il-code1)" stroke-width="7" stroke-dasharray="9 7"/><circle cx="24" cy="24" r="8" fill="var(--il-code1)"/></g>
-  <g transform="translate(330 38)"><rect width="84" height="48" rx="14" fill="var(--il-blob)" opacity=".92"/><path d="M18 48l-6 14 18-14z" fill="var(--il-blob)" opacity=".92"/><circle cx="26" cy="24" r="5" fill="var(--il-accent)"/><circle cx="42" cy="24" r="5" fill="var(--il-accent)"/><circle cx="58" cy="24" r="5" fill="var(--il-accent)"/></g>
+  <g transform="translate(60 70)"><g class="an-flota"><path d="M0 0l34 11v22c0 20-14 34-34 41C-20 67-34 53-34 33V11z" transform="translate(34 0) scale(.78)" fill="url(#gb)"/><path d="M20 28l9 9 17-19" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+  <g transform="translate(372 150)" fill="none" stroke="var(--il-code2)" stroke-width="5" stroke-linecap="round"><g class="an-lado"><path class="an-senal an-s3" d="M0 22q22-22 44 0"/><path class="an-senal an-s2" d="M9 31q13-13 26 0"/><circle class="an-senal" cx="22" cy="40" r="3" fill="var(--il-code2)"/></g></g>
+  <g transform="translate(70 195)"><g class="an-lado an-d2"><circle class="an-gira" cx="24" cy="24" r="22" fill="none" stroke="var(--il-code1)" stroke-width="7" stroke-dasharray="9 7"/><circle class="an-late" cx="24" cy="24" r="8" fill="var(--il-code1)"/></g></g>
+  <g transform="translate(330 38)"><g class="an-flota an-d3"><rect width="84" height="48" rx="14" fill="var(--il-blob)" opacity=".92"/><path d="M18 48l-6 14 18-14z" fill="var(--il-blob)" opacity=".92"/><circle class="an-punto" cx="26" cy="24" r="5" fill="var(--il-accent)"/><circle class="an-punto an-p2" cx="42" cy="24" r="5" fill="var(--il-accent)"/><circle class="an-punto an-p3" cx="58" cy="24" r="5" fill="var(--il-accent)"/></g></g>
   <!-- escritorio -->
   <rect x="40" y="288" width="400" height="16" rx="8" fill="var(--il-desk)"/>
   <rect x="80" y="304" width="14" height="40" rx="4" fill="var(--il-desk)"/><rect x="386" y="304" width="14" height="40" rx="4" fill="var(--il-desk)"/>
   <!-- persona -->
+  <g class="an-cabeza">
   <path d="M146 288c-4-52 22-92 74-100h40c52 8 78 48 74 100z" fill="var(--il-shirt)"/>
   <path d="M224 190l16 30 16-30z" fill="#fff" opacity=".9"/>
   <rect x="226" y="160" width="28" height="36" rx="12" fill="var(--il-skin)"/>
@@ -34,17 +35,61 @@ export function heroTecnico() {
   <rect x="180" y="116" width="18" height="40" rx="9" fill="#2B3A31"/><rect x="282" y="116" width="18" height="40" rx="9" fill="#2B3A31"/>
   <path d="M190 154q6 30 38 36" fill="none" stroke="#2B3A31" stroke-width="5" stroke-linecap="round"/><circle cx="232" cy="190" r="7" fill="#2B3A31"/>
   <g fill="none" stroke="#1B1F23" stroke-width="4"><rect x="208" y="126" width="26" height="20" rx="8"/><rect x="246" y="126" width="26" height="20" rx="8"/><path d="M234 134h12"/></g>
-  <circle cx="221" cy="136" r="3.5" fill="#1B1F23"/><circle cx="259" cy="136" r="3.5" fill="#1B1F23"/>
+  <g class="an-parpadea"><circle cx="221" cy="136" r="3.5" fill="#1B1F23"/><circle cx="259" cy="136" r="3.5" fill="#1B1F23"/></g>
   <path d="M222 160q18 14 36 0" fill="none" stroke="#7A3E2A" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
   <!-- portátil -->
+  <g class="an-portatil">
   <path d="M150 288l16-64h148l16 64z" fill="var(--il-laptop)"/>
   <rect x="172" y="232" width="136" height="48" rx="5" fill="var(--il-screen)"/>
-  <g stroke-linecap="round" stroke-width="5"><path d="M184 245h36" stroke="var(--il-code1)"/><path d="M184 258h60" stroke="var(--il-code2)"/><path d="M184 270h28" stroke="var(--il-code1)"/><path d="M256 245h30" stroke="var(--il-code2)"/></g>
+  <rect class="an-brillo" x="172" y="232" width="136" height="48" rx="5" fill="var(--il-code2)"/>
+  <g stroke-linecap="round" stroke-width="5"><path class="an-codigo" d="M184 245h36" stroke="var(--il-code1)"/><path class="an-codigo an-c2" d="M184 258h60" stroke="var(--il-code2)"/><path class="an-codigo an-c3" d="M184 270h28" stroke="var(--il-code1)"/><path class="an-codigo an-c4" d="M256 245h30" stroke="var(--il-code2)"/></g>
+  <rect class="an-cursor" x="218" y="265" width="3" height="10" rx="1" fill="var(--il-code1)"/>
+  </g>
   <path d="M138 288h204v6a6 6 0 0 1-6 6H144a6 6 0 0 1-6-6z" fill="var(--il-laptop)"/>
   <!-- brazos -->
   <path d="M158 262c-12-6-14-24-4-34l22 4-6 26z" fill="var(--il-shirt)"/><path d="M322 262c12-6 14-24 4-34l-22 4 6 26z" fill="var(--il-shirt)"/>
-  <circle cx="186" cy="266" r="11" fill="var(--il-skin)"/><circle cx="294" cy="266" r="11" fill="var(--il-skin)"/>
+  <circle class="an-tecla" cx="186" cy="266" r="11" fill="var(--il-skin)"/><circle class="an-tecla an-t2" cx="294" cy="266" r="11" fill="var(--il-skin)"/>
 </svg>`);
+}
+
+const CLAVE_ANIMACION = "animacionPausada";
+
+/**
+ * Ilustración principal animada (RF-UI-03) con botón para pausar el movimiento (WCAG 2.2.2).
+ * Si la persona pidió reducir el movimiento en su sistema, se muestra quieta.
+ */
+export function heroAnimado() {
+  const caja = document.createElement("div");
+  caja.className = "hero-animado";
+  const svg = heroTecnico();
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.className = "btn sm pausa-animacion";
+  let pausado = false;
+  try {
+    pausado = localStorage.getItem(CLAVE_ANIMACION) === "1";
+  } catch {
+    /* sin almacenamiento: queda en movimiento */
+  }
+  const pintar = () => {
+    caja.classList.toggle("pausado", pausado);
+    boton.textContent = pausado ? "▶ Animar" : "❚❚ Pausar";
+    boton.setAttribute("aria-label", pausado ? "Reanudar la animación de la ilustración" : "Pausar la animación de la ilustración");
+    boton.setAttribute("aria-pressed", String(pausado));
+  };
+  boton.addEventListener("click", () => {
+    pausado = !pausado;
+    try {
+      localStorage.setItem(CLAVE_ANIMACION, pausado ? "1" : "0");
+    } catch {
+      /* sin almacenamiento */
+    }
+    pintar();
+  });
+  pintar();
+  caja.append(svg, boton);
+  return caja;
 }
 
 /** Robot amigable del asistente (ícono del bot). */

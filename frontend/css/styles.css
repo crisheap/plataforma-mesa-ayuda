@@ -1678,3 +1678,226 @@ dialog.dlg-ayuda:not([open]) {
     display: none !important;
   }
 }
+
+/* ───── Ilustración animada (RF-UI-03) ───── */
+.hero-animado {
+  position: relative;
+}
+.hero-animado svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.hero-animado svg * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pausa-animacion {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  opacity: 0.85;
+}
+.pausa-animacion:hover,
+.pausa-animacion:focus-visible {
+  opacity: 1;
+}
+.hero-animado.pausado *,
+.hero-animado.pausado *::before {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .an-flota {
+    animation: an-flota 5s ease-in-out infinite;
+  }
+  .an-lado {
+    animation: an-lado 6s ease-in-out infinite;
+  }
+  .an-d2 {
+    animation-delay: -2s;
+  }
+  .an-d3 {
+    animation-delay: -3.5s;
+  }
+  .an-gira {
+    animation: an-gira 9s linear infinite;
+  }
+  .an-late {
+    animation: an-late 1.8s ease-in-out infinite;
+  }
+  .an-senal {
+    animation: an-senal 2.4s ease-in-out infinite;
+  }
+  .an-s2 {
+    animation-delay: 0.3s;
+  }
+  .an-s3 {
+    animation-delay: 0.6s;
+  }
+  .an-punto {
+    animation: an-punto 1.4s ease-in-out infinite;
+  }
+  .an-p2 {
+    animation-delay: 0.2s;
+  }
+  .an-p3 {
+    animation-delay: 0.4s;
+  }
+  .an-respira {
+    animation: an-respira 8s ease-in-out infinite;
+  }
+  .an-burbuja {
+    animation: an-burbuja 7s ease-in-out infinite;
+  }
+  .an-cabeza {
+    transform-origin: 50% 100%;
+    animation: an-cabeza 6s ease-in-out infinite;
+  }
+  .an-parpadea {
+    animation: an-parpadea 5s infinite;
+  }
+  .an-portatil {
+    animation: an-portatil 3s ease-in-out infinite;
+  }
+  .an-brillo {
+    opacity: 0;
+    animation: an-brillo 3s ease-in-out infinite;
+  }
+  .an-codigo {
+    transform-origin: 0 50%;
+    animation: an-escribe 4s ease-in-out infinite;
+  }
+  .an-c2 {
+    animation-delay: 0.5s;
+  }
+  .an-c3 {
+    animation-delay: 1s;
+  }
+  .an-c4 {
+    animation-delay: 1.5s;
+  }
+  .an-cursor {
+    animation: an-cursor 1s steps(1) infinite;
+  }
+  .an-tecla {
+    animation: an-tecla 0.5s ease-in-out infinite alternate;
+  }
+  .an-t2 {
+    animation-delay: 0.25s;
+  }
+}
+@keyframes an-flota {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(6px, -12px) rotate(-5deg);
+  }
+}
+@keyframes an-lado {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(14px);
+  }
+}
+@keyframes an-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes an-late {
+  50% {
+    transform: scale(1.35);
+  }
+}
+@keyframes an-senal {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes an-punto {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes an-respira {
+  50% {
+    transform: scale(1.03);
+  }
+}
+@keyframes an-burbuja {
+  50% {
+    transform: translate(-8px, 8px) scale(1.12);
+  }
+}
+@keyframes an-cabeza {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(-2.5deg);
+  }
+  70% {
+    transform: rotate(2.5deg);
+  }
+}
+@keyframes an-parpadea {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes an-portatil {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes an-brillo {
+  50% {
+    opacity: 0.12;
+  }
+}
+@keyframes an-escribe {
+  0% {
+    transform: scaleX(0);
+  }
+  35%,
+  85% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+@keyframes an-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes an-tecla {
+  to {
+    transform: translateY(-4px);
+  }
+}

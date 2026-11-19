@@ -369,7 +369,7 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-PWA-01…06 · PWA | `frontend/manifest.webmanifest`, `sw.js`, `js/pwa.js`, `js/api.js` |
 | RF-IA-01…08 · Asistente Botito | `modules/asistente/`, `frontend/js/bot.js` |
 | RF-UI-01/02 · Tema diurno y nocturno | `css/styles.css`, `js/theme-init.js`, `js/theme.js` |
-| RF-UI-03 · Identidad visual | `css/styles.css` (tokens), `js/illustrations.js` |
+| RF-UI-03 · Identidad visual e ilustración animada (con botón Pausar) | `css/styles.css` (tokens y animaciones), `js/illustrations.js` (`heroAnimado`) |
 | RF-UI-04 · Nombre completo | `usuarioPublico()` en `auth.service.ts`; encabezado y bienvenida |
 
 Los 17 hallazgos del análisis de brechas (H-01 a H-17, sección 10 del ERS) están corregidos en el código. Los más importantes son: control de propiedad de casos (H-05), bloqueo manual efectivo (H-02), restablecimiento de contraseña (H-03), roles de solo lectura (H-04), número de caso atómico (H-12) y ausencia de secretos en el repositorio (H-14).

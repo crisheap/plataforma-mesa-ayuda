@@ -1,7 +1,7 @@
 import { api, login, tomarAvisoSesion } from "../api.js";
 import { avisoCaptcha, tomarCaptcha } from "../captcha.js";
 import { h, campo, toast, pieLegal } from "../ui.js";
-import { heroTecnico, iconoBot, icono } from "../illustrations.js";
+import { heroAnimado, iconoBot, icono } from "../illustrations.js";
 import * as tema from "../theme.js";
 import { botonAyuda } from "./ayuda.js";
 
@@ -99,7 +99,7 @@ export function vistaLogin({ alIngresar }) {
         h("h1", {}, "Soporte técnico a un clic"),
         h("p", {}, "Reporta tus casos, sigue su avance y recibe ayuda inmediata de nuestro asistente."),
       ),
-      h("div", { class: "art" }, heroTecnico()),
+      h("div", { class: "art" }, heroAnimado()),
     ),
     h(
       "section",

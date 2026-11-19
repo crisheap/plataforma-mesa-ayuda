@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { h, vacio, ROLES } from "../ui.js";
-import { heroTecnico } from "../illustrations.js";
+import { heroAnimado } from "../illustrations.js";
 import { tablaCasos } from "./casos.js";
 
 function bienvenida(u, texto) {
@@ -18,7 +18,7 @@ function bienvenida(u, texto) {
         u.esGeneral ? "Administrador general · todos los centros" : `Rol: ${ROLES[u.rol]} · Centro ${u.centro?.nombre ?? ""}`,
       ),
     ),
-    h("div", { class: "art" }, heroTecnico()),
+    h("div", { class: "art" }, heroAnimado()),
   );
 }
 const kpi = (n, l) => h("div", { class: "card kpi" }, h("div", { class: "n" }, String(n ?? "—")), h("div", { class: "l" }, l));
