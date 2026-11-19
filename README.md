@@ -49,7 +49,8 @@ Además, para todos los roles:
 
 - **Correo de bienvenida y activación de la cuenta:** al crear un usuario se envía un mensaje de bienvenida al nuevo sistema con un enlace de un solo uso (vence en 48 h) para que la persona cree su propia contraseña. La contraseña nunca viaja por correo. Si la cuenta tiene correo personal, la bienvenida llega allí; las notificaciones de los casos siguen llegando al correo de acceso.
 - **Datos personales (Ley 1581 de 2012):** al primer ingreso cada persona autoriza el tratamiento de sus datos de forma previa, expresa e informada; se guardan la fecha, la versión de la política y la IP como prueba. La política completa está en `#/privacidad`.
-- **Pie en todas las pantallas** con el manual de usuario (PDF), la política de datos, la licencia y la autoría.
+- **Ayuda en línea** con el botón **«?»**: la guía de uso de cada rol dentro de la aplicación, con buscador y sin archivos para descargar.
+- **Pie en todas las pantallas** con la ayuda, la política de datos, la licencia y la autoría.
 - **Centros de formación independientes:** cada centro solo ve y gestiona sus usuarios, casos, dashboard, Excel y auditoría; los casos solo se asignan a técnicos del mismo centro, y el administrador general ve todo.
 - **Número único de caso** con el código del centro y un consecutivo anual por centro (`CEET-2026-000001`), generado de forma atómica.
 - **SLA con semáforo** (en tiempo, en riesgo, vencido) y alertas automáticas al vencer.
@@ -359,7 +360,8 @@ Copia la carpeta `respaldos/` fuera del servidor (otro disco o la nube).
 | RF-ADM-01 · SLA | `modules/sla/`, `core/sla.ts`, `jobs/worker.ts` |
 | RF-ADM-02/03 · Reportes Excel y KPIs | `modules/reportes/` |
 | RF-DAT-01/02 · Autorización y política de datos | `core/datos.ts`, `POST /api/auth/autorizacion-datos`, `GET /api/auth/politica-datos`, migración `20261118000000_autorizacion_datos`; `views/legal.js` |
-| RF-UI-06 · Pie con manual, política y licencia | `pieLegal` en `ui.js`; `frontend/docs/manual-de-usuario.pdf`; `LICENSE` |
+| RF-UI-06 · Pie con ayuda, política y licencia | `pieLegal` en `ui.js`; `LICENSE` |
+| RF-UI-07 · Ayuda en línea con el botón «?» (por rol, sin PDF descargable) | `views/ayuda.js` |
 | RF-CEN-01…04 · Centros de formación | Tabla `centros`, `usuarios.centroId`, `casos.centroId` (migración `20261117000000_centros`); `core/centros.ts`; `modules/centros/`; `views/centros.js`, `centros-ui.js` |
 | RF-ADM-06 · Dashboard con gráficas | `GET /api/reportes/kpis` (`resumen`, `tendencia`, `porTecnico`); hoja Dashboard del Excel; `views/dashboard.js`, `graficas.js` |
 | RF-SEG-01…05 · Captcha, eventos y alertas, panel Seguridad, cierre de sesiones, bloqueo de emergencia e integridad | `core/captcha.ts`, `core/seguridad.ts`, `core/integridad.ts`, `modules/seguridad/`, migración `20261119000000_seguridad`; `js/captcha.js`, `captcha-worker.js`, `views/seguridad.js`; `.github/workflows/codeql.yml`, `dependabot.yml` |
