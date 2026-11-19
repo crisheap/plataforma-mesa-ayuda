@@ -202,7 +202,7 @@ export async function vistaCentros() {
     h(
       "p",
       { class: "muted" },
-      "Cada centro funciona de forma independiente: su administrador gestiona sus usuarios, técnicos y supervisores, y solo ve sus casos. Tú, como administrador general, ves todos los centros. Los tiempos de SLA y la base de Botito son comunes.",
+      "Cada centro funciona de forma independiente: su administrador gestiona sus usuarios, técnicos y dinamizadores TICs, y solo ve sus casos. Tú, como administrador general, ves todos los centros. Los tiempos de SLA y la base de Botito son comunes.",
     ),
     lista,
   );

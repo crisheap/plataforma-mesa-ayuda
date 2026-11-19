@@ -35,14 +35,21 @@ const filtrosDe = (req: Request) => {
   return { ...f, centroId: filtroCentro({ rol: req.user!.rol, centroId: req.user!.centroId ?? null }, f.centroId).centroId };
 };
 
+/** La satisfacción (calificaciones y sus observaciones) solo la ve el administrador (RF-CAS-11). */
+const veCalificaciones = (req: Request) => req.user!.rol === "ADMINISTRADOR";
+
 router.get("/kpis", async (req, res) => {
-  res.json({ success: true, data: await kpis(filtrosDe(req)) });
+  const k = await kpis(filtrosDe(req));
+  res.json({ success: true, data: veCalificaciones(req) ? k : { ...k, satisfaccion: null } });
 });
 
 router.get("/casos.xlsx", async (req, res) => {
   const f = filtrosDe(req);
   const general = esGeneral({ rol: req.user!.rol, centroId: req.user!.centroId ?? null });
-  const filas = await casosParaExcel(f);
+  const conCalificacion = veCalificaciones(req);
+  const filas = (await casosParaExcel(f)).map((x) =>
+    conCalificacion ? x : { ...x, calificacion: undefined, observacionCalificacion: undefined },
+  );
   const resumen = await kpis(f);
 
   const wb = new ExcelJS.Workbook();
@@ -100,7 +107,7 @@ router.get("/casos.xlsx", async (req, res) => {
   cabecera(d.addRow(["Indicador", "Valor"]));
   d.addRow(["Tiempo medio de resolución (min)", resumen.tiempoMedioResolucionMin ?? "—"]);
   d.addRow(["Cumplimiento de SLA (%)", resumen.cumplimientoSla.porcentaje ?? "—"]);
-  d.addRow(["Satisfacción promedio (1–5)", resumen.satisfaccion.promedio ?? "—"]);
+  if (conCalificacion) d.addRow(["Satisfacción promedio (1–5)", resumen.satisfaccion.promedio ?? "—"]);
   for (const [k, n] of Object.entries(resumen.porPrioridad)) d.addRow([`Prioridad ${k}`, n]);
   d.addRow([]);
 
@@ -138,7 +145,12 @@ router.get("/casos.xlsx", async (req, res) => {
     { header: "SLA vence", key: "slaVence", width: 19 },
     { header: "Grupo", key: "grupo", width: 13 },
     { header: "SLA", key: "sla", width: 13 },
-    { header: "Calificación", key: "calificacion", width: 12 },
+    ...(conCalificacion
+      ? [
+          { header: "Calificación", key: "calificacion", width: 12 },
+          { header: "Observación de la calificación", key: "observacionCalificacion", width: 50 },
+        ]
+      : []),
   ];
   hoja.addRows(filas);
   cabecera(hoja.getRow(1));
@@ -161,7 +173,7 @@ router.get("/casos.xlsx", async (req, res) => {
     ...Object.entries(resumen.porPrioridad).map(([k, v]) => ({ k: `Prioridad ${k}`, v })),
     { k: "Tiempo medio de resolución (min)", v: resumen.tiempoMedioResolucionMin ?? "—" },
     { k: "Cumplimiento de SLA (%)", v: resumen.cumplimientoSla.porcentaje ?? "—" },
-    { k: "Satisfacción promedio (1–5)", v: resumen.satisfaccion.promedio ?? "—" },
+    ...(conCalificacion ? [{ k: "Satisfacción promedio (1–5)", v: resumen.satisfaccion.promedio ?? "—" }] : []),
     { k: "Casos con SLA vencido (abiertos)", v: resumen.slaVencidosAbiertos },
     ...(filas.length >= MAX_FILAS_EXCEL ? [{ k: "Aviso", v: `Limitado a ${MAX_FILAS_EXCEL} filas` }] : []),
   ]);

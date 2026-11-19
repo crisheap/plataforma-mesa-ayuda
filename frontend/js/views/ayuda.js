@@ -119,7 +119,7 @@ const SECCIONES = [
         lista: [
           "Responde al técnico con **Comentar**.",
           "Cuando el caso quede **Resuelto**: si se solucionó, presiona **Sí, se resolvió: cerrar caso**; si no, **No se resolvió** y explica qué sigue fallando.",
-          "Al cerrarlo, **califica la atención** de 1 a 5 estrellas.",
+          "Al cerrarlo, **califica la atención** de 1 a 5 estrellas y deja tu observación. Solo la ve el **administrador de tu centro**: el técnico y el dinamizador TICs no.",
         ],
       },
     ],
@@ -192,6 +192,13 @@ const SECCIONES = [
           "**Descargar Excel** genera el archivo con los mismos datos y filtros.",
         ],
       },
+    ],
+  },
+  {
+    titulo: "Calificaciones de la atención",
+    roles: [A],
+    bloques: [
+      { p: "Las calificaciones y las observaciones que dejan las personas al cerrar sus casos solo las ve el **administrador**: en el detalle de cada caso, en la satisfacción del **Dashboard** y en las columnas **Calificación** y **Observación de la calificación** del Excel. El técnico y el dinamizador TICs no las ven, ni siquiera en su Excel." },
     ],
   },
   {

@@ -202,8 +202,12 @@ export async function detalle(id: number, actor: Actor) {
   await cargarAutorizado(id, actor);
   const c = await prisma.caso.findUniqueOrThrow({ where: { id }, include: detalleInclude });
   const observaciones = await listarObservaciones(id, actor);
+  // La calificación y su observación solo las ven quien la dio y el administrador (RF-CAS-11):
+  // el técnico y el dinamizador TICs no, para que la opinión sea libre.
+  const verCalificacion = actor.rol === "ADMINISTRADOR" || c.usuarioId === actor.userId;
   return {
     ...presentar(c),
+    calificacion: verCalificacion ? c.calificacion : null,
     observaciones,
     historial: c.historial.map((h) => ({ ...h, usuario: conPersona(h.usuario) })),
   };
@@ -459,7 +463,7 @@ export async function calificar(id: number, actor: Actor, d: { puntuacion: numbe
     entidad: "caso",
     entidadId: id,
     usuarioId: actor.userId,
-    datos: { puntuacion: d.puntuacion },
+    // Sin la puntuación: la bitácora la consulta también el dinamizador TICs (RF-CAS-11)
   });
   return c;
 }

@@ -189,13 +189,16 @@ export async function vistaDashboard({ usuario }) {
           h("dd", {}, h("strong", {}, minutos(k.tiempoMedioResolucionMin))),
           h("dt", {}, "Resueltos fuera de tiempo"),
           h("dd", {}, h("strong", {}, num.format(r.resueltosFueraDeTiempo))),
-          h("dt", {}, "Satisfacción"),
-          h(
-            "dd",
-            {},
-            h("strong", {}, k.satisfaccion.promedio ?? "—"),
-            ` de 5 · ${num.format(k.satisfaccion.calificaciones)} calificaciones`,
-          ),
+          // Solo el administrador recibe la satisfacción (RF-CAS-11)
+          k.satisfaccion ? h("dt", {}, "Satisfacción") : null,
+          k.satisfaccion
+            ? h(
+                "dd",
+                {},
+                h("strong", {}, k.satisfaccion.promedio ?? "—"),
+                ` de 5 · ${num.format(k.satisfaccion.calificaciones)} calificaciones`,
+              )
+            : null,
         ),
         h("h3", {}, "Por prioridad"),
         h(

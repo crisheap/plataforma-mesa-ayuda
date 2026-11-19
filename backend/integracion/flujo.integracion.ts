@@ -243,6 +243,35 @@ test("el técnico atiende y resuelve; el usuario rechaza y luego confirma", asyn
   assert.equal((await llamar("POST", `/api/casos/${casoId}/calificacion`, tokens.usuario, { puntuacion: 4 })).status, 409);
 });
 
+test("la calificación y su observación solo las ven quien calificó y el administrador (RF-CAS-11)", async () => {
+  const ver = async (t: string) => (await llamar("GET", `/api/casos/${casoId}`, t)).json.data.calificacion;
+  assert.equal((await ver(tokens.usuario))?.comentario, "Excelente", "quien calificó la ve");
+  assert.equal((await ver(tokens.admin))?.puntuacion, 5, "el administrador la ve");
+  assert.equal(await ver(tokens.tecnico), null, "el técnico no la ve");
+  assert.equal(await ver(tokens.supervisor), null, "el dinamizador TICs no la ve");
+  assert.equal((await llamar("GET", "/api/reportes/kpis", tokens.supervisor)).json.data.satisfaccion, null);
+  assert.ok((await llamar("GET", "/api/reportes/kpis", tokens.admin)).json.data.satisfaccion.calificaciones >= 1);
+  const aud = await llamar("GET", "/api/auditoria?accion=CASO_CALIFICADO&pageSize=5", tokens.supervisor);
+  assert.ok(aud.json.data.items.every((a: { datos: unknown }) => !JSON.stringify(a.datos ?? {}).includes("puntuacion")), "la bitácora no la revela");
+
+  const libro = async (t: string) => {
+    const x = await fetch(`${base}/api/reportes/casos.xlsx`, { headers: { authorization: `Bearer ${t}` } });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(Buffer.from(await x.arrayBuffer()));
+    return wb;
+  };
+  const delAdmin = await libro(tokens.admin);
+  const cab = delAdmin.getWorksheet("Casos")!.getRow(1).values as string[];
+  const col = cab.indexOf("Observación de la calificación");
+  assert.ok(cab.includes("Calificación") && col > 0, "el Excel del administrador trae la calificación y la observación");
+  const filas = delAdmin.getWorksheet("Casos")!.getColumn(col).values.map(String);
+  assert.ok(filas.includes("Excelente"));
+  const delDinamizador = await libro(tokens.supervisor);
+  const cab2 = (delDinamizador.getWorksheet("Casos")!.getRow(1).values as string[]).map(String);
+  assert.ok(!cab2.includes("Calificación") && !cab2.includes("Observación de la calificación"), "el Excel del dinamizador TICs no las trae");
+  assert.ok(!delDinamizador.getWorksheet("Resumen")!.getColumn(1).values.map(String).includes("Satisfacción promedio (1–5)"));
+});
+
 test("el historial registra cada transición y hay notificaciones para el usuario", async () => {
   const h = await llamar("GET", `/api/casos/${casoId}/historial`, tokens.usuario);
   const estados = h.json.data.map((x: { estadoNuevo: string }) => x.estadoNuevo);

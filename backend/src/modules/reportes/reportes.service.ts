@@ -200,7 +200,7 @@ export async function casosParaExcel(f: RangoFiltro) {
     include: {
       usuario: { select: { nombre: true, apellido: true } },
       tecnico: { select: { nombre: true, apellido: true } },
-      calificacion: { select: { puntuacion: true } },
+      calificacion: { select: { puntuacion: true, comentario: true } },
       centro: { select: { codigo: true } },
     },
   });
@@ -223,5 +223,6 @@ export async function casosParaExcel(f: RangoFiltro) {
     grupo: GRUPOS[grupoDeEstado(c.estado)],
     sla: semaforoSla(c),
     calificacion: c.calificacion?.puntuacion ?? null,
+    observacionCalificacion: c.calificacion?.comentario ?? "",
   }));
 }

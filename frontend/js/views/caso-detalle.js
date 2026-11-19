@@ -417,6 +417,13 @@ function seccionCalificacion(c, esCreador, accion) {
       h("h2", {}, "Calificación"),
       h("p", {}, "★".repeat(c.calificacion.puntuacion) + "☆".repeat(5 - c.calificacion.puntuacion), ` (${c.calificacion.puntuacion}/5)`),
       c.calificacion.comentario ? h("p", { class: "muted" }, c.calificacion.comentario) : null,
+      h(
+        "p",
+        { class: "small muted" },
+        esCreador
+          ? "🔒 Tu calificación solo la ve el administrador de tu centro; el técnico y el dinamizador TICs no la ven."
+          : "🔒 Solo la ven quien calificó y los administradores.",
+      ),
     );
   if (!esCreador || !["RESUELTO", "CERRADO"].includes(c.estado)) return null;
   let valor = 0;
@@ -445,6 +452,7 @@ function seccionCalificacion(c, esCreador, accion) {
     h("h2", {}, "Califica la atención"),
     h("div", { class: "stars", role: "group", "aria-label": "Calificación de 1 a 5 estrellas" }, estrellas),
     com,
+    h("p", { class: "small muted" }, "🔒 Tu calificación y tu observación solo las verá el administrador de tu centro. El técnico y el dinamizador TICs no las ven."),
     h(
       "button",
       {

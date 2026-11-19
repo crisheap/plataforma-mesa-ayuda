@@ -163,7 +163,7 @@ export const CATEGORIAS = {
   CORREO: "Correo",
   PLATAFORMAS_INSTITUCIONALES: "Plataformas institucionales",
 };
-export const ROLES = { USUARIO: "Usuario", TECNICO: "Técnico", SUPERVISOR: "Supervisor", ADMINISTRADOR: "Administrador" };
+export const ROLES = { USUARIO: "Usuario", TECNICO: "Técnico", SUPERVISOR: "Dinamizador TICs", ADMINISTRADOR: "Administrador" };
 
 export const opciones = (mapa, actual, vacio) => [
   vacio !== undefined ? h("option", { value: "" }, vacio) : null,

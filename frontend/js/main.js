@@ -61,7 +61,7 @@ const NAV = [
   ["mis-casos", "📄", "Mis casos", CON_CENTRO],
   ["asignados", "🛠️", "Casos asignados", ["TECNICO"]],
   ["notificaciones", "🔔", "Notificaciones", TODOS],
-  ["__sep", "", "Supervisión", STAFF],
+  ["__sep", "", "Gestión de casos", STAFF],
   ["casos", "📋", "Todos los casos", STAFF],
   ["dashboard", "📊", "Dashboard", STAFF],
   ["seguridad", "🛡️", "Seguridad", ["ADMINISTRADOR"]],

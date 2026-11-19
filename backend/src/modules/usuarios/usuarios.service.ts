@@ -286,7 +286,7 @@ export async function corregirDatos(actor: Alcance, id: number, d: { nombre?: st
   const u = await prisma.usuario.findUnique({ where: { id }, select: { centroId: true, rol: { select: { nombre: true } } } });
   if (!u || u.centroId === null || u.centroId !== actor.centroId) throw AppError.notFound("Usuario no encontrado");
   if (!["USUARIO", "TECNICO"].includes(u.rol.nombre))
-    throw AppError.forbidden("El supervisor solo corrige los datos de usuarios y técnicos; los demás los gestiona el administrador");
+    throw AppError.forbidden("El dinamizador TICs solo corrige los datos de usuarios y técnicos; los demás los gestiona el administrador");
   const previo = await obtener(actor, id);
   const upd = await prisma.usuario.update({
     where: { id },

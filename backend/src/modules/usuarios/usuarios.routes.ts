@@ -82,7 +82,7 @@ router.patch("/:id/datos", authorizeRoles("SUPERVISOR", "ADMINISTRADOR"), async 
     accion: "USUARIO_EDITADO",
     entidad: "usuario",
     entidadId: id,
-    descripcion: `Datos corregidos por ${req.user!.rol}`,
+    descripcion: `Datos corregidos por ${req.user!.rol === "SUPERVISOR" ? "el dinamizador TICs" : "el administrador"}`,
     datos: d,
   });
   res.json({ success: true, message: "Datos actualizados", data: u });

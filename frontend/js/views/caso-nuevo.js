@@ -110,7 +110,7 @@ export async function vistaCasoNuevo() {
     campo(
       "Número de contacto (opcional)",
       telefono,
-      "El técnico asignado lo usará para llamarte o escribirte. Solo lo ven tú, el técnico y los supervisores.",
+      "El técnico asignado lo usará para llamarte o escribirte. Solo lo ven tú, el técnico, el dinamizador TICs y el administrador de tu centro.",
     ),
     campo("Evidencias (opcional)", archivos, `Imágenes, PDF, documentos o videos. Máximo ${MAX_MB} MB por archivo y 5 archivos.`),
     h("div", { class: "row" }, boton, h("a", { class: "btn", href: "#/inicio" }, "Cancelar")),

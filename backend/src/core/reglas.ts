@@ -34,7 +34,7 @@ export function evaluarCambioEstado(c: ContextoTransicion): ResultadoTransicion 
   if (de === "RESUELTO" && a === "CERRADO") {
     return c.esCreador || c.rol === "SUPERVISOR" || c.rol === "ADMINISTRADOR"
       ? { ok: true, accion: "CERRAR" }
-      : { ok: false, motivo: "Solo quien creó el caso, un supervisor o un administrador pueden cerrarlo" };
+      : { ok: false, motivo: "Solo quien creó el caso, un dinamizador TICs o un administrador pueden cerrarlo" };
   }
   if (de === "RESUELTO" && a === "EN_PROCESO") {
     return c.esCreador ? { ok: true, accion: "RECHAZAR" } : { ok: false, motivo: "Solo quien creó el caso puede rechazar la solución" };
