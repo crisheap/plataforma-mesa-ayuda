@@ -17,7 +17,12 @@ import { nombreCompleto } from "../utils/nombre";
 import { enviarCorreo } from "./mailer";
 import { auditar } from "./audit";
 
-const ROLES: Record<string, string> = { USUARIO: "Usuario", TECNICO: "Técnico", SUPERVISOR: "Dinamizador TICs", ADMINISTRADOR: "Administrador" };
+const ROLES: Record<string, string> = {
+  USUARIO: "Usuario",
+  TECNICO: "Técnico",
+  SUPERVISOR: "Dinamizador TICs",
+  ADMINISTRADOR: "Administrador",
+};
 const fechaLarga = (d: Date) =>
   new Intl.DateTimeFormat("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" }).format(d);
 const escHtml = (t: string) =>

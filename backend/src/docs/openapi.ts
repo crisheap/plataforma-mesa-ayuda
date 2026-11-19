@@ -558,7 +558,13 @@ const OPERACIONES: Operacion[] = [
       ["dominiosEmpresariales"],
     ),
   },
-  { metodo: "get", ruta: "/api/sla", tag: "Administración", resumen: "Tiempos de SLA por prioridad", roles: "Dinamizador TICs, Administrador" },
+  {
+    metodo: "get",
+    ruta: "/api/sla",
+    tag: "Administración",
+    resumen: "Tiempos de SLA por prioridad",
+    roles: "Dinamizador TICs, Administrador",
+  },
   {
     metodo: "put",
     ruta: "/api/sla",

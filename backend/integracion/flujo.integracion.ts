@@ -252,7 +252,10 @@ test("la calificación y su observación solo las ven quien calificó y el admin
   assert.equal((await llamar("GET", "/api/reportes/kpis", tokens.supervisor)).json.data.satisfaccion, null);
   assert.ok((await llamar("GET", "/api/reportes/kpis", tokens.admin)).json.data.satisfaccion.calificaciones >= 1);
   const aud = await llamar("GET", "/api/auditoria?accion=CASO_CALIFICADO&pageSize=5", tokens.supervisor);
-  assert.ok(aud.json.data.items.every((a: { datos: unknown }) => !JSON.stringify(a.datos ?? {}).includes("puntuacion")), "la bitácora no la revela");
+  assert.ok(
+    aud.json.data.items.every((a: { datos: unknown }) => !JSON.stringify(a.datos ?? {}).includes("puntuacion")),
+    "la bitácora no la revela",
+  );
 
   const libro = async (t: string) => {
     const x = await fetch(`${base}/api/reportes/casos.xlsx`, { headers: { authorization: `Bearer ${t}` } });
@@ -268,7 +271,10 @@ test("la calificación y su observación solo las ven quien calificó y el admin
   assert.ok(filas.includes("Excelente"));
   const delDinamizador = await libro(tokens.supervisor);
   const cab2 = (delDinamizador.getWorksheet("Casos")!.getRow(1).values as string[]).map(String);
-  assert.ok(!cab2.includes("Calificación") && !cab2.includes("Observación de la calificación"), "el Excel del dinamizador TICs no las trae");
+  assert.ok(
+    !cab2.includes("Calificación") && !cab2.includes("Observación de la calificación"),
+    "el Excel del dinamizador TICs no las trae",
+  );
   assert.ok(!delDinamizador.getWorksheet("Resumen")!.getColumn(1).values.map(String).includes("Satisfacción promedio (1–5)"));
 });
 

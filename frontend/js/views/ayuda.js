@@ -198,7 +198,9 @@ const SECCIONES = [
     titulo: "Calificaciones de la atención",
     roles: [A],
     bloques: [
-      { p: "Las calificaciones y las observaciones que dejan las personas al cerrar sus casos solo las ve el **administrador**: en el detalle de cada caso, en la satisfacción del **Dashboard** y en las columnas **Calificación** y **Observación de la calificación** del Excel. El técnico y el dinamizador TICs no las ven, ni siquiera en su Excel." },
+      {
+        p: "Las calificaciones y las observaciones que dejan las personas al cerrar sus casos solo las ve el **administrador**: en el detalle de cada caso, en la satisfacción del **Dashboard** y en las columnas **Calificación** y **Observación de la calificación** del Excel. El técnico y el dinamizador TICs no las ven, ni siquiera en su Excel.",
+      },
     ],
   },
   {

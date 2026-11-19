@@ -452,7 +452,11 @@ function seccionCalificacion(c, esCreador, accion) {
     h("h2", {}, "Califica la atención"),
     h("div", { class: "stars", role: "group", "aria-label": "Calificación de 1 a 5 estrellas" }, estrellas),
     com,
-    h("p", { class: "small muted" }, "🔒 Tu calificación y tu observación solo las verá el administrador de tu centro. El técnico y el dinamizador TICs no las ven."),
+    h(
+      "p",
+      { class: "small muted" },
+      "🔒 Tu calificación y tu observación solo las verá el administrador de tu centro. El técnico y el dinamizador TICs no las ven.",
+    ),
     h(
       "button",
       {
