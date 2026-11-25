@@ -1,5 +1,5 @@
 # Plataforma Mesa de Ayuda – SENA · imagen del backend (contexto: raíz del repositorio)
-FROM node:22-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
@@ -7,7 +7,7 @@ COPY backend/ ./
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate && npm run build
 
-FROM node:22-slim AS runtime
+FROM node:25-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app/backend
 COPY backend/package*.json ./
